@@ -1,0 +1,1593 @@
+import SwiftUI
+
+struct HomeView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("我的美麗日記")
+                        .font(.system(size: 30, weight: .bold))
+                        .foregroundStyle(AppTheme.text)
+                    Text(Date.now.formatted(date: .complete, time: .omitted))
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.subtext)
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("今日完成度")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Text("\(Int(store.progressValue * 100))%")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        ProgressView(value: store.progressValue)
+                            .tint(AppTheme.primary)
+
+                        Text("今日待完成 \(store.progressText)")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.subtext)
+                    }
+                }
+
+                sectionTitle("日常清單")
+                VStack(spacing: 12) {
+                    ForEach(store.state.checklistItems) { item in
+                        Button {
+                            store.toggleChecklist(item)
+                        } label: {
+                            HStack(spacing: 14) {
+                                Image(systemName: item.isCompleted ? "checkmark.square.fill" : "square")
+                                    .font(.title3)
+                                    .foregroundStyle(item.isCompleted ? AppTheme.primary : AppTheme.subtext)
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(item.title)
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(AppTheme.text)
+                                    Text(item.category)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                }
+
+                                Spacer()
+                            }
+                            .padding(16)
+                            .background(AppTheme.card)
+                            .clipShape(RoundedRectangle(cornerRadius: 22))
+                        }
+                        .buttonStyle(.plain)
+                        .shadow(color: AppTheme.shadow, radius: 10, y: 5)
+                    }
+                }
+
+                sectionTitle("快速入口")
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
+                    QuickLinkCard(title: "護膚管理", subtitle: "步驟、保養品、膚況追蹤", systemImage: "sparkles")
+                    QuickLinkCard(title: "體態紀錄", subtitle: "體重體脂與飲食回顧", systemImage: "figure.walk")
+                    QuickLinkCard(title: "閱讀追蹤", subtitle: "書單與外部連結收藏", systemImage: "book")
+                    QuickLinkCard(title: "資源庫", subtitle: "匯入內容與 AI 推薦", systemImage: "folder")
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .navigationBarBackButtonHidden()
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func sectionTitle(_ title: String) -> some View {
+        Text(title)
+            .font(.headline)
+            .foregroundStyle(AppTheme.text)
+    }
+}
+
+struct BeautyRootView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header(title: "變美", subtitle: "建立你的護膚與美容管理流程")
+
+                NavigationLink(value: BeautyRoute.skincare) {
+                    HubCard(title: "護膚管理", subtitle: "護膚步驟、保養品、膚質追蹤", icon: "sparkles")
+                }
+
+                NavigationLink(value: BeautyRoute.whitening) {
+                    HubCard(title: "美白計畫", subtitle: "產品使用、色號追蹤、前後對比", icon: "sun.max")
+                }
+
+                NavigationLink(value: BeautyRoute.appointments) {
+                    HubCard(title: "美容預約", subtitle: "店家安排、日期提醒、服務備註", icon: "calendar")
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .navigationDestination(for: BeautyRoute.self) { route in
+            switch route {
+            case .skincare:
+                SkincareManagementView()
+            case .whitening:
+                WhiteningPlanView()
+            case .appointments:
+                BeautyAppointmentsView()
+            }
+        }
+        .navigationBarBackButtonHidden()
+        .toolbar(.hidden, for: .navigationBar)
+    }
+}
+
+struct SkincareManagementView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var section: SkincareSection = .steps
+    @State private var showAddProduct = false
+    @State private var showAddStep = false
+    @State private var showSkinRecord = false
+    @State private var showPunch = false
+
+    private let concerns = ["清潔", "乾燥", "泛紅", "毛孔", "粉刺", "暗沉", "敏感", "痘痘"]
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                titleRow(title: "護膚管理", action: sectionActionTitle) {
+                    switch section {
+                    case .steps:
+                        showAddStep = true
+                    case .products:
+                        showAddProduct = true
+                    case .tracking:
+                        showSkinRecord = true
+                    case .history:
+                        showPunch = true
+                    case .tutorials, .advice:
+                        break
+                    }
+                }
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        ForEach(SkincareSection.allCases) { item in
+                            chip(item.rawValue, selected: item == section) {
+                                section = item
+                            }
+                        }
+                    }
+                }
+
+                Group {
+                    switch section {
+                    case .steps:
+                        stepsContent
+                    case .products:
+                        productsContent
+                    case .tracking:
+                        trackingContent
+                    case .tutorials:
+                        tutorialsContent
+                    case .history:
+                        historyContent
+                    case .advice:
+                        adviceContent
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAddProduct) { AddProductSheet() }
+        .sheet(isPresented: $showAddStep) { AddStepSheet() }
+        .sheet(isPresented: $showSkinRecord) { AddSkinRecordSheet(concerns: concerns) }
+        .sheet(isPresented: $showPunch) { AddPunchSheet() }
+    }
+
+    private var sectionActionTitle: String? {
+        switch section {
+        case .steps, .products:
+            return "添加"
+        case .tracking, .history:
+            return "記錄"
+        case .tutorials, .advice:
+            return nil
+        }
+    }
+
+    private var morningSteps: [RoutineStep] {
+        store.state.routine.steps.filter { $0.period == .morning }
+    }
+
+    private var eveningSteps: [RoutineStep] {
+        store.state.routine.steps.filter { $0.period == .evening }
+    }
+
+    private var stepsContent: some View {
+        VStack(spacing: 18) {
+            routineCard(title: "早間護膚", icon: "sun.max", steps: morningSteps)
+            routineCard(title: "晚間護膚", icon: "moon", steps: eveningSteps)
+        }
+    }
+
+    private func routineCard(title: String, icon: String, steps: [RoutineStep]) -> some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 14) {
+                Label(title, systemImage: icon)
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                ForEach(steps) { step in
+                    HStack(spacing: 12) {
+                        Button {
+                            store.toggleRoutineStep(step)
+                        } label: {
+                            Image(systemName: step.isChecked ? "checkmark.square.fill" : "square")
+                                .foregroundStyle(step.isChecked ? AppTheme.primary : AppTheme.subtext)
+                        }
+                        .buttonStyle(.plain)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(step.name)
+                                .foregroundStyle(AppTheme.text)
+                            if let productName = step.productName, !productName.isEmpty {
+                                Text(productName)
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                        }
+
+                        Spacer()
+
+                        Menu(step.productName?.isEmpty == false ? "已選產品" : "選擇產品") {
+                            ForEach(store.state.products) { product in
+                                Button(product.name) {
+                                    store.assignProduct(product.name, to: step)
+                                }
+                            }
+                            Button("清除綁定") {
+                                store.assignProduct("", to: step)
+                            }
+                        }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.primary)
+                    }
+                }
+            }
+        }
+    }
+
+    private var productsContent: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("我的保養品")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                if store.state.products.isEmpty {
+                    EmptyStateView(title: "尚無保養品", subtitle: "新增後即可在護膚步驟中綁定。")
+                } else {
+                    ForEach(store.state.products) { product in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(product.name)
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(AppTheme.text)
+                            Text("\(product.brand) · \(product.category)")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.subtext)
+                            if !product.notes.isEmpty {
+                                Text(product.notes)
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(14)
+                        .background(AppTheme.primarySoft)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
+                }
+            }
+        }
+    }
+
+    private var trackingContent: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("膚質追蹤")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                if let latest = store.state.skinRecords.first {
+                    InfoRow(title: "最近紀錄", value: latest.skinType)
+                    InfoRow(title: "主要困擾", value: latest.concerns.joined(separator: "、"))
+                    if !latest.note.isEmpty {
+                        Text(latest.note)
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.subtext)
+                    }
+                } else {
+                    Text("目前尚無膚況紀錄，點右上角「記錄」開始建立。")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.subtext)
+                }
+
+                WrapChips(items: concerns)
+            }
+        }
+    }
+
+    private var tutorialsContent: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("教程連結")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                ForEach(store.state.tutorialLinks) { link in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(link.title)
+                            .foregroundStyle(AppTheme.text)
+                        Text(link.url)
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.subtext)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(14)
+                    .background(AppTheme.primarySoft)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
+        }
+    }
+
+    private var historyContent: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("打卡歷史")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                if store.state.punchRecords.isEmpty {
+                    EmptyStateView(title: "暫無打卡", subtitle: "完成護膚後可補充今天的心得。")
+                } else {
+                    ForEach(store.state.punchRecords) { record in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(record.date.formatted(date: .abbreviated, time: .omitted))
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.subtext)
+                            Text(record.summary)
+                                .foregroundStyle(AppTheme.text)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(14)
+                        .background(AppTheme.primarySoft)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
+                }
+            }
+        }
+    }
+
+    private var adviceContent: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("AI 建議")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                ForEach(store.skincareAdvice, id: \.self) { advice in
+                    Text(advice)
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.text)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(14)
+                        .background(AppTheme.primarySoft)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                }
+            }
+        }
+    }
+}
+
+struct WhiteningPlanView: View {
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "美白計畫", action: "記錄") {}
+
+                CardView {
+                    planEmptySection(title: "產品使用記錄", button: "+記錄", placeholder: "暫無記錄")
+                }
+
+                CardView {
+                    planEmptySection(title: "色號追蹤", button: "+記錄", placeholder: "暫無記錄")
+                }
+
+                CardView {
+                    planEmptySection(title: "前後對比照", button: "+添加", placeholder: "暫無對比照")
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+    }
+
+    private func planEmptySection(title: String, button: String, placeholder: String) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+                Spacer()
+                Text(button)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.primary)
+            }
+
+            EmptyStateView(title: placeholder, subtitle: "")
+        }
+    }
+}
+
+struct BeautyAppointmentsView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showAdd = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "美容預約", action: "新建") {
+                    showAdd = true
+                }
+
+                CardView {
+                    if store.state.appointments.isEmpty {
+                        EmptyStateView(title: "暫無預約", subtitle: "建立新的店家與服務安排。")
+                    } else {
+                        VStack(spacing: 12) {
+                            ForEach(store.state.appointments) { item in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(item.title)
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(AppTheme.text)
+                                    Text("\(item.storeName) · \(item.date.formatted(date: .abbreviated, time: .shortened))")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                    if !item.note.isEmpty {
+                                        Text(item.note)
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(14)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAdd) { AddAppointmentSheet() }
+    }
+}
+
+struct BodyRootView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header(title: "體態", subtitle: "管理你的健康計畫、追蹤歷史記錄")
+
+                ForEach(BodyRoute.allCases) { route in
+                    NavigationLink(value: route) {
+                        HubCard(title: route.rawValue, subtitle: bodySubtitle(for: route), icon: bodyIcon(for: route))
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .navigationDestination(for: BodyRoute.self) { route in
+            switch route {
+            case .exercise:
+                GenericSummaryView(title: route.rawValue, subtitle: "運動類型設定、頻率規劃、歷史打卡、消耗熱量統計")
+            case .shaping:
+                GenericSummaryView(title: route.rawValue, subtitle: "體型目標設定、全身或局部訓練規劃、執行率")
+            case .metrics:
+                BodyMetricsView()
+            case .meals:
+                MealRecordsView()
+            case .wellness:
+                GenericSummaryView(title: route.rawValue, subtitle: "症狀追蹤、AI 養生建議、經期記錄、體質調養")
+            case .album:
+                GenericSummaryView(title: route.rawValue, subtitle: "進度照片與時間軸、對比功能")
+            }
+        }
+        .navigationBarBackButtonHidden()
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func bodyIcon(for route: BodyRoute) -> String {
+        switch route {
+        case .exercise:
+            return "dumbbell"
+        case .shaping:
+            return "target"
+        case .metrics:
+            return "chart.line.uptrend.xyaxis"
+        case .meals:
+            return "fork.knife"
+        case .wellness:
+            return "heart.text.square"
+        case .album:
+            return "camera"
+        }
+    }
+
+    private func bodySubtitle(for route: BodyRoute) -> String {
+        switch route {
+        case .exercise:
+            return "運動類型設定、燃脂規劃、歷史打卡、消耗熱量統計"
+        case .shaping:
+            return "體型目標設定、全身或局部訓練規劃、執行率"
+        case .metrics:
+            return "數據記錄、曲線圖表、圍度變化"
+        case .meals:
+            return "熱量與營養素記錄、食譜收藏、AI 飲食建議"
+        case .wellness:
+            return "症狀追蹤、AI 養生建議、經期記錄、體質調養"
+        case .album:
+            return "進度照片與時間軸、對比功能"
+        }
+    }
+}
+
+struct BodyMetricsView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showAdd = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "體重體脂", action: "記錄") {
+                    showAdd = true
+                }
+
+                CardView {
+                    if let latest = store.state.bodyMetricRecords.first {
+                        VStack(alignment: .leading, spacing: 10) {
+                            InfoRow(title: "最新體重", value: String(format: "%.1f kg", latest.weight))
+                            InfoRow(title: "最新體脂", value: String(format: "%.1f %%", latest.bodyFat))
+                            Text(latest.note.isEmpty ? "尚無補充說明" : latest.note)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.subtext)
+                        }
+                    } else {
+                        EmptyStateView(title: "尚無數據", subtitle: "新增第一筆體重與體脂紀錄。")
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAdd) { AddBodyMetricSheet() }
+    }
+}
+
+struct MealRecordsView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showAdd = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "飲食記錄", action: "記錄") {
+                    showAdd = true
+                }
+
+                CardView {
+                    if store.state.mealRecords.isEmpty {
+                        EmptyStateView(title: "尚無飲食記錄", subtitle: "寫下今天的餐點與飲食心得。")
+                    } else {
+                        VStack(spacing: 12) {
+                            ForEach(store.state.mealRecords) { meal in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(meal.mealType) · \(meal.summary)")
+                                        .foregroundStyle(AppTheme.text)
+                                    Text(meal.note.isEmpty ? meal.date.formatted(date: .abbreviated, time: .shortened) : meal.note)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(14)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAdd) { AddMealSheet() }
+    }
+}
+
+struct GrowthRootView: View {
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header(title: "成長", subtitle: "閱讀、輸入與每週整理放在同一個節奏裡")
+
+                ForEach(GrowthRoute.allCases) { route in
+                    NavigationLink(value: route) {
+                        HubCard(title: route.rawValue, subtitle: growthSubtitle(for: route), icon: growthIcon(for: route))
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .navigationDestination(for: GrowthRoute.self) { route in
+            switch route {
+            case .reading:
+                ReadingTrackerView()
+            case .notes:
+                GenericSummaryView(title: route.rawValue, subtitle: "收斂心得、行動清單、生活靈感")
+            case .plan:
+                GenericSummaryView(title: route.rawValue, subtitle: "本週目標、完成率、下週調整方向")
+            }
+        }
+        .navigationBarBackButtonHidden()
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func growthIcon(for route: GrowthRoute) -> String {
+        switch route {
+        case .reading:
+            return "book.pages"
+        case .notes:
+            return "square.and.pencil"
+        case .plan:
+            return "calendar.badge.clock"
+        }
+    }
+
+    private func growthSubtitle(for route: GrowthRoute) -> String {
+        switch route {
+        case .reading:
+            return "書單、作者、外部連結與筆記整理"
+        case .notes:
+            return "收斂閱讀與生活靈感"
+        case .plan:
+            return "本週重點與完成率"
+        }
+    }
+}
+
+struct ReadingTrackerView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showAdd = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "閱讀追蹤", action: "添加") {
+                    showAdd = true
+                }
+
+                CardView {
+                    if store.state.bookRecords.isEmpty {
+                        EmptyStateView(title: "暫無書籍，開始添加吧", subtitle: "")
+                    } else {
+                        VStack(spacing: 12) {
+                            ForEach(store.state.bookRecords) { book in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(book.title)
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(AppTheme.text)
+                                    Text(book.author.isEmpty ? "未填寫作者" : book.author)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                    if !book.link.isEmpty {
+                                        Text(book.link)
+                                            .font(.caption2)
+                                            .foregroundStyle(AppTheme.subtext)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(14)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAdd) { AddBookSheet() }
+    }
+}
+
+struct ProfileView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                header(title: "我的", subtitle: store.state.profile.signature)
+
+                CardView {
+                    HStack(spacing: 16) {
+                        Circle()
+                            .fill(AppTheme.primary)
+                            .frame(width: 52, height: 52)
+                            .overlay(Image(systemName: "person").foregroundStyle(.white))
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(store.state.profile.nickname)
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Text("連續打卡 \(store.state.profile.streakDays) 天")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.subtext)
+                        }
+
+                        Spacer()
+
+                        NavigationLink("編輯", value: ProfileRoute.settings)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                    }
+                }
+
+                ForEach(ProfileRoute.allCases) { route in
+                    NavigationLink(value: route) {
+                        HubCard(title: route.rawValue, subtitle: profileSubtitle(for: route), icon: profileIcon(for: route))
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .navigationDestination(for: ProfileRoute.self) { route in
+            switch route {
+            case .settings:
+                PersonalSettingsView()
+            case .customization:
+                CustomizationView()
+            case .resources:
+                ResourceLibraryView()
+            case .achievements:
+                AchievementsView()
+            case .export:
+                DataExportView()
+            }
+        }
+        .navigationBarBackButtonHidden()
+        .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func profileIcon(for route: ProfileRoute) -> String {
+        switch route {
+        case .settings:
+            return "person.crop.circle.badge.checkmark"
+        case .customization:
+            return "slider.horizontal.3"
+        case .resources:
+            return "folder"
+        case .achievements:
+            return "medal"
+        case .export:
+            return "square.and.arrow.up"
+        }
+    }
+
+    private func profileSubtitle(for route: ProfileRoute) -> String {
+        switch route {
+        case .settings:
+            return "暱稱、膚況、體質、臉型、經期設定"
+        case .customization:
+            return "模組開關、主題配色、通知時間"
+        case .resources:
+            return "小紅書、YouTube、Instagram 匯入、AI 分析、智能分類"
+        case .achievements:
+            return "連續打卡、里程碑達成、特殊成就"
+        case .export:
+            return "PDF 報告 / JSON 匯出預覽"
+        }
+    }
+}
+
+struct ResourceLibraryView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showImport = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "資源庫") {}
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("資源導入")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                            ForEach(ImportSourceType.allCases) { source in
+                                Button {
+                                    showImport = true
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                        Image(systemName: source.systemImage)
+                                            .font(.title2)
+                                            .foregroundStyle(AppTheme.primary)
+                                        Text(source.rawValue)
+                                            .font(.body.weight(.semibold))
+                                            .foregroundStyle(AppTheme.text)
+                                        Text(source.subtitle)
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                    .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
+                                    .padding(14)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("AI 智能分析")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        if store.state.resourceItems.isEmpty {
+                            EmptyStateView(title: "先導入資源再進行分析", subtitle: "")
+                        } else {
+                            ForEach(store.resourceRecommendations, id: \.self) { suggestion in
+                                Text(suggestion)
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.text)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(14)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("智能分類")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        WrapSelectableChips(items: ResourceCategory.allCases, selected: store.state.resourceFilter) { category in
+                            store.setResourceFilter(category)
+                        }
+
+                        if store.filteredResources.isEmpty {
+                            EmptyStateView(title: "暫無資源", subtitle: "")
+                        } else {
+                            ForEach(store.filteredResources) { item in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(item.title)
+                                        .font(.body.weight(.semibold))
+                                        .foregroundStyle(AppTheme.text)
+                                    Text("\(item.source.rawValue) · \(item.category.rawValue)")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                    Text(item.summary.isEmpty ? item.url : item.summary)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                        .lineLimit(2)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(14)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("智能推薦")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        ForEach(store.resourceRecommendations, id: \.self) { suggestion in
+                            Text(suggestion)
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.subtext)
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showImport) { AddResourceSheet() }
+    }
+}
+
+struct PersonalSettingsView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var nickname = ""
+    @State private var signature = ""
+    @State private var bodyFocus = ""
+    @State private var skincareFocus = ""
+    @State private var notificationTime = ""
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "個人設定") {}
+
+                CardView {
+                    VStack(spacing: 12) {
+                        ThemedTextField(title: "暱稱", text: $nickname)
+                        ThemedTextField(title: "個人簡介", text: $signature)
+                        ThemedTextField(title: "體態焦點", text: $bodyFocus)
+                        ThemedTextField(title: "護膚焦點", text: $skincareFocus)
+                        ThemedTextField(title: "通知時間", text: $notificationTime)
+
+                        PrimaryButton(title: "儲存設定") {
+                            store.updateProfile(
+                                nickname: nickname,
+                                signature: signature,
+                                bodyFocus: bodyFocus,
+                                skincareFocus: skincareFocus,
+                                notificationTime: notificationTime
+                            )
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .onAppear {
+            nickname = store.state.profile.nickname
+            signature = store.state.profile.signature
+            bodyFocus = store.state.profile.bodyFocus
+            skincareFocus = store.state.profile.skincareFocus
+            notificationTime = store.state.profile.notificationTime
+        }
+    }
+}
+
+struct CustomizationView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "客製化") {}
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        InfoRow(title: "主題配色", value: store.state.profile.themeName)
+                        InfoRow(title: "通知時間", value: store.state.profile.notificationTime)
+                        InfoRow(title: "體態模組", value: store.state.profile.bodyFocus)
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+    }
+}
+
+struct AchievementsView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "成就徽章") {}
+
+                CardView {
+                    VStack(spacing: 12) {
+                        ForEach(store.state.achievements) { badge in
+                            HStack(spacing: 12) {
+                                Image(systemName: badge.unlocked ? "medal.fill" : "medal")
+                                    .foregroundStyle(badge.unlocked ? AppTheme.primary : AppTheme.subtext)
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(badge.title)
+                                        .foregroundStyle(AppTheme.text)
+                                    Text(badge.detail)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                }
+
+                                Spacer()
+                            }
+                            .padding(14)
+                            .background(AppTheme.primarySoft)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+    }
+}
+
+struct DataExportView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var exportPreview = ""
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "數據匯出") {}
+
+                CardView {
+                    VStack(spacing: 12) {
+                        ForEach(ExportFormat.allCases) { format in
+                            PrimaryButton(title: "建立 \(format.rawValue) 匯出預覽") {
+                                exportPreview = store.createExport(format: format)
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("匯出預覽")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+                        Text(exportPreview.isEmpty ? "尚未建立匯出預覽" : exportPreview)
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.subtext)
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+    }
+}
+
+struct GenericSummaryView: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: title) {}
+
+                CardView {
+                    Text(subtitle)
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.subtext)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+    }
+}
+
+private struct AddStepSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var period: RoutinePeriod = .morning
+    @State private var name = ""
+
+    var body: some View {
+        FormSheet(title: "新增步驟") {
+            Picker("時段", selection: $period) {
+                ForEach(RoutinePeriod.allCases) { item in
+                    Text(item.rawValue).tag(item)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            ThemedTextField(title: "新增步驟", text: $name)
+
+            PrimaryButton(title: "保存") {
+                store.addRoutineStep(period: period, name: name)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddProductSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var name = ""
+    @State private var brand = ""
+    @State private var category = ""
+    @State private var notes = ""
+
+    var body: some View {
+        FormSheet(title: "新增保養品") {
+            ThemedTextField(title: "產品名稱", text: $name)
+            ThemedTextField(title: "品牌", text: $brand)
+            ThemedTextField(title: "分類", text: $category)
+            ThemedTextField(title: "備註", text: $notes)
+
+            PrimaryButton(title: "保存") {
+                store.addProduct(name: name, brand: brand, category: category, notes: notes)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddSkinRecordSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    let concerns: [String]
+
+    @State private var type = "混合肌"
+    @State private var selected: Set<String> = []
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "膚況記錄") {
+            ThemedTextField(title: "膚質類型", text: $type)
+            WrapToggleChips(items: concerns, selection: $selected)
+            ThemedTextField(title: "補充說明", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addSkinRecord(type: type, concerns: Array(selected), note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddPunchSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var summary = ""
+
+    var body: some View {
+        FormSheet(title: "新增打卡") {
+            ThemedTextField(title: "今日心得", text: $summary)
+
+            PrimaryButton(title: "保存") {
+                store.addPunchRecord(summary: summary)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddAppointmentSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var title = ""
+    @State private var storeName = ""
+    @State private var date = Date()
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "新增預約") {
+            ThemedTextField(title: "服務名稱", text: $title)
+            ThemedTextField(title: "店家名稱", text: $storeName)
+            DatePicker("預約時間", selection: $date)
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addAppointment(title: title, storeName: storeName, date: date, note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddBodyMetricSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var weight = ""
+    @State private var bodyFat = ""
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "體重體脂記錄") {
+            ThemedTextField(title: "體重 (kg)", text: $weight)
+            ThemedTextField(title: "體脂 (%)", text: $bodyFat)
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addBodyMetric(weight: Double(weight) ?? 0, bodyFat: Double(bodyFat) ?? 0, note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddMealSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var type = "早餐"
+    @State private var summary = ""
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "飲食記錄") {
+            ThemedTextField(title: "餐別", text: $type)
+            ThemedTextField(title: "餐點內容", text: $summary)
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addMealRecord(type: type, summary: summary, note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddBookSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var title = ""
+    @State private var author = ""
+    @State private var link = ""
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "添加書籍") {
+            ThemedTextField(title: "書名", text: $title)
+            ThemedTextField(title: "作者", text: $author)
+            ThemedTextField(title: "外部連結", text: $link)
+            ThemedTextField(title: "筆記", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addBook(title: title, author: author, link: link, note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddResourceSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var title = ""
+    @State private var source: ImportSourceType = .xiaohongshu
+    @State private var category: ResourceCategory = .skincare
+    @State private var url = ""
+    @State private var summary = ""
+
+    var body: some View {
+        FormSheet(title: "新增資源") {
+            Picker("來源", selection: $source) {
+                ForEach(ImportSourceType.allCases) { item in
+                    Text(item.rawValue).tag(item)
+                }
+            }
+
+            Picker("分類", selection: $category) {
+                ForEach(ResourceCategory.allCases.filter { $0 != .all }) { item in
+                    Text(item.rawValue).tag(item)
+                }
+            }
+
+            ThemedTextField(title: "標題", text: $title)
+            ThemedTextField(title: "連結", text: $url)
+            ThemedTextField(title: "摘要", text: $summary)
+
+            PrimaryButton(title: "保存") {
+                store.addResource(title: title, source: source, category: category, url: url, summary: summary)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct FormSheet<Content: View>: View {
+    let title: String
+    let content: Content
+
+    init(title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 14) {
+                    content
+                }
+                .padding(20)
+            }
+            .background(AppTheme.background)
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+}
+
+private struct QuickLinkCard: View {
+    let title: String
+    let subtitle: String
+    let systemImage: String
+
+    var body: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.title2)
+                    .foregroundStyle(AppTheme.primary)
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subtext)
+            }
+            .frame(maxWidth: .infinity, minHeight: 118, alignment: .leading)
+        }
+    }
+}
+
+private struct HubCard: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+
+    var body: some View {
+        CardView {
+            HStack(spacing: 14) {
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(AppTheme.primarySoft)
+                    .frame(width: 48, height: 48)
+                    .overlay(Image(systemName: icon).foregroundStyle(AppTheme.primary))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.text)
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.subtext)
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .foregroundStyle(AppTheme.subtext)
+            }
+        }
+    }
+}
+
+private struct CardView<Content: View>: View {
+    let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        content
+            .padding(18)
+            .background(AppTheme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .shadow(color: AppTheme.shadow, radius: 16, y: 8)
+    }
+}
+
+private struct EmptyStateView: View {
+    let title: String
+    let subtitle: String
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Text(title)
+                .foregroundStyle(AppTheme.subtext)
+            if !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subtext)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 110)
+    }
+}
+
+private struct PrimaryButton: View {
+    let title: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+                .background(AppTheme.primary)
+                .clipShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+private struct ThemedTextField: View {
+    let title: String
+    @Binding var text: String
+
+    var body: some View {
+        TextField(title, text: $text)
+            .padding(14)
+            .background(AppTheme.primarySoft)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+private struct InfoRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Text(title)
+                .foregroundStyle(AppTheme.subtext)
+            Spacer()
+            Text(value)
+                .foregroundStyle(AppTheme.text)
+        }
+        .font(.subheadline)
+    }
+}
+
+private struct WrapChips: View {
+    let items: [String]
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 68), spacing: 10)], alignment: .leading, spacing: 10) {
+            ForEach(items, id: \.self) { item in
+                Text(item)
+                    .font(.caption)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(AppTheme.primarySoft)
+                    .clipShape(Capsule())
+            }
+        }
+    }
+}
+
+private struct WrapToggleChips: View {
+    let items: [String]
+    @Binding var selection: Set<String>
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 68), spacing: 10)], alignment: .leading, spacing: 10) {
+            ForEach(items, id: \.self) { item in
+                Button {
+                    if selection.contains(item) {
+                        selection.remove(item)
+                    } else {
+                        selection.insert(item)
+                    }
+                } label: {
+                    Text(item)
+                        .font(.caption)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(selection.contains(item) ? AppTheme.primary : AppTheme.primarySoft)
+                        .foregroundStyle(selection.contains(item) ? Color.white : AppTheme.text)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+private struct WrapSelectableChips: View {
+    let items: [ResourceCategory]
+    let selected: ResourceCategory
+    let action: (ResourceCategory) -> Void
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 68), spacing: 10)], alignment: .leading, spacing: 10) {
+            ForEach(items) { item in
+                Button {
+                    action(item)
+                } label: {
+                    Text(item.rawValue)
+                        .font(.caption)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(selected == item ? AppTheme.primary : AppTheme.primarySoft)
+                        .foregroundStyle(selected == item ? Color.white : AppTheme.text)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
+private func header(title: String, subtitle: String) -> some View {
+    VStack(alignment: .leading, spacing: 4) {
+        Text(title)
+            .font(.system(size: 30, weight: .bold))
+            .foregroundStyle(AppTheme.text)
+        Text(subtitle)
+            .font(.subheadline)
+            .foregroundStyle(AppTheme.subtext)
+    }
+}
+
+private func titleRow(title: String, action: String? = nil, onTap: @escaping () -> Void = {}) -> some View {
+    HStack {
+        Text(title)
+            .font(.system(size: 28, weight: .bold))
+            .foregroundStyle(AppTheme.text)
+        Spacer()
+        if let action {
+            Button(action) {
+                onTap()
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 10)
+            .background(AppTheme.primary)
+            .clipShape(Capsule())
+        }
+    }
+}
+
+private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        Text(title)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(selected ? AppTheme.primary : AppTheme.subtext)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(selected ? AppTheme.card : AppTheme.primarySoft)
+            .overlay(
+                RoundedRectangle(cornerRadius: 14)
+                    .stroke(selected ? AppTheme.primary.opacity(0.18) : Color.clear, lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+    .buttonStyle(.plain)
+}
+
+#Preview {
+    NavigationStack {
+        HomeView()
+            .environmentObject(BeautyDiaryStore.preview)
+    }
+}

@@ -1,0 +1,45 @@
+name: BeautifulDiary
+
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  minimumXcodeGenVersion: 2.38.0
+
+settings:
+  base:
+    PRODUCT_NAME: "美麗日記"
+    PRODUCT_BUNDLE_IDENTIFIER: com.example.beautifuldiary
+    SWIFT_VERSION: 5.10
+    TARGETED_DEVICE_FAMILY: "1,2"
+    SUPPORTS_MACCATALYST: NO
+    GENERATE_INFOPLIST_FILE: NO
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 1.0.0
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+
+targets:
+  BeautifulDiary:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: 美麗日記/美麗日記App.swift
+      - path: 美麗日記/Info.plist
+        buildPhase: none
+      - path: 美麗日記/Constants/AppConstants.swift
+      - path: 美麗日記/Models/DiaryModels.swift
+      - path: 美麗日記/Services/BeautyDiaryStore.swift
+      - path: 美麗日記/Views/ContentView.swift
+      - path: 美麗日記/Views/MainTabView.swift
+      - path: 美麗日記/Views/AppPrototypeViews.swift
+    settings:
+      base:
+        INFOPLIST_FILE: 美麗日記/Info.plist
+        CODE_SIGN_ENTITLEMENTS: ""
+    scheme:
+      gatherCoverageData: false
+      testTargets: []

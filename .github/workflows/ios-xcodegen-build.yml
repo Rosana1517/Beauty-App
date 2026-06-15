@@ -1,0 +1,62 @@
+name: iOS XcodeGen Build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "iOS_Project/**"
+      - ".github/workflows/ios-xcodegen-build.yml"
+  pull_request:
+    paths:
+      - "iOS_Project/**"
+      - ".github/workflows/ios-xcodegen-build.yml"
+
+jobs:
+  build-ios-simulator:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: iOS_Project
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec project.yml
+
+      - name: Show schemes
+        run: xcodebuild -list -project BeautifulDiary.xcodeproj
+
+      - name: Build for iOS Simulator
+        run: |
+          xcodebuild \
+            -project BeautifulDiary.xcodeproj \
+            -scheme BeautifulDiary \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package .app artifact
+        run: |
+          APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -path "*Build/Products/Debug-iphonesimulator/*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No simulator app found"
+            exit 1
+          fi
+          mkdir -p artifacts
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" artifacts/BeautifulDiary-simulator-app.zip
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: beautiful-diary-simulator-build
+          path: iOS_Project/artifacts/BeautifulDiary-simulator-app.zip

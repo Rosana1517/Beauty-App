@@ -1,0 +1,44 @@
+workflows:
+  ios-xcodegen-simulator:
+    name: iOS XcodeGen Simulator Build
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+      vars:
+        PROJECT_DIR: iOS_Project
+        XCODEGEN_SPEC: project.yml
+        XCODE_PROJECT: BeautifulDiary.xcodeproj
+        XCODE_SCHEME: BeautifulDiary
+    scripts:
+      - name: Install XcodeGen
+        script: brew install xcodegen
+      - name: Generate Xcode project
+        script: |
+          cd "$PROJECT_DIR"
+          xcodegen generate --spec "$XCODEGEN_SPEC"
+      - name: Build for iOS Simulator
+        script: |
+          cd "$PROJECT_DIR"
+          xcodebuild \
+            -project "$XCODE_PROJECT" \
+            -scheme "$XCODE_SCHEME" \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Package simulator app
+        script: |
+          APP_PATH=$(find "$HOME/Library/Developer/Xcode/DerivedData" -path "*Build/Products/Debug-iphonesimulator/*.app" | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "No simulator app found"
+            exit 1
+          fi
+          mkdir -p "$CM_BUILD_DIR/artifacts"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$CM_BUILD_DIR/artifacts/BeautifulDiary-simulator-app.zip"
+    artifacts:
+      - artifacts/BeautifulDiary-simulator-app.zip
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.app
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
