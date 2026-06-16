@@ -129,7 +129,7 @@ private struct YouTubeParser: PlatformParser {
             return apiDraft
         }
 
-        await SharedHTMLParser.parse(url: url, source: source) { metadata in
+        return await SharedHTMLParser.parse(url: url, source: source) { metadata in
             let externalID = SharedHTMLParser.youtubeID(from: url) ?? metadata.externalID
             return SharedHTMLParser.makeDraft(
                 source: source,
