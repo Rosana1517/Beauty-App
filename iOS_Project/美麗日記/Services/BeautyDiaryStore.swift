@@ -76,14 +76,20 @@ struct MockRecommendationService {
     }
 }
 
+@MainActor
 final class BeautyDiaryStore: ObservableObject {
     @Published private(set) var state: BeautyDiaryState
 
     private let repository: BeautyDiaryRepository
     private let recommendationService = MockRecommendationService()
+    private let importService: ResourceImportService
 
-    init(repository: BeautyDiaryRepository = JSONBeautyDiaryRepository()) {
+    init(
+        repository: BeautyDiaryRepository = JSONBeautyDiaryRepository(),
+        importService: ResourceImportService = CompositeResourceImportService()
+    ) {
         self.repository = repository
+        self.importService = importService
         self.state = repository.load() ?? .seed
         self.repository.save(self.state)
     }
@@ -248,14 +254,24 @@ final class BeautyDiaryStore: ObservableObject {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
+        let normalizedCategory = category == .all ? .other : category
         state.resourceItems.insert(
             ResourceItem(
-                id: UUID(),
                 title: trimmed,
                 source: source,
-                category: category,
-                url: url,
-                summary: summary
+                category: normalizedCategory,
+                platformContentType: source == .youtube ? .video : (source == .web ? .article : .imagePost),
+                canonicalURL: url,
+                originalURL: url,
+                externalID: "",
+                authorName: "",
+                thumbnailURL: "",
+                publishedAt: nil,
+                descriptionText: summary,
+                tags: [],
+                importStatus: .manualCompleted,
+                metadataConfidence: 0.2,
+                rawMetadataSnapshot: ""
             ),
             at: 0
         )
@@ -310,6 +326,82 @@ final class BeautyDiaryStore: ObservableObject {
         )
         save()
         return summary
+    }
+
+    func importResource(from url: String) async -> ResourceImportDraft {
+        let trimmed = url.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return markImportFailure(url: url, message: "請先貼上要匯入的內容連結。")
+        }
+
+        let parsed = await importService.parse(url: trimmed)
+        var draft = parsed
+        if draft.category == .all {
+            draft.category = ResourceCategory.suggestedCategory(
+                title: draft.title,
+                description: draft.descriptionText,
+                source: draft.source
+            )
+        }
+        state.pendingImportDraft = draft
+        save()
+        return draft
+    }
+
+    func updateImportDraft(_ draft: ResourceImportDraft) {
+        state.pendingImportDraft = draft
+        save()
+    }
+
+    @discardableResult
+    func markImportFailure(url: String, message: String) -> ResourceImportDraft {
+        var draft = ResourceImportDraft.empty(url: url)
+        draft.lastErrorMessage = message
+        draft.importStatus = .partial
+        draft.platformContentType = draft.source == .web ? .article : .unknown
+        state.pendingImportDraft = draft
+        save()
+        return draft
+    }
+
+    func saveImportedResource(_ draft: ResourceImportDraft) {
+        let trimmedTitle = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else { return }
+
+        var normalizedDraft = draft
+        normalizedDraft.title = trimmedTitle
+        normalizedDraft.category = draft.category == .all ? .other : draft.category
+        normalizedDraft.importedAt = Date()
+
+        if draft.importStatus == .partial {
+            normalizedDraft.importStatus = draft.metadataConfidence < 0.2 ? .failedFallbackSaved : .manualCompleted
+        } else if draft.requiresManualCompletion {
+            normalizedDraft.importStatus = .manualCompleted
+        } else {
+            normalizedDraft.importStatus = .parsed
+        }
+
+        state.resourceItems.insert(ResourceItem(from: normalizedDraft), at: 0)
+        state.resourceImportHistory.insert(
+            ResourceImportHistoryEntry(
+                id: UUID(),
+                source: normalizedDraft.source,
+                title: normalizedDraft.title,
+                originalURL: normalizedDraft.originalURL,
+                status: normalizedDraft.importStatus,
+                importedAt: normalizedDraft.importedAt ?? Date(),
+                note: normalizedDraft.lastErrorMessage ?? ""
+            ),
+            at: 0
+        )
+        state.pendingImportDraft = nil
+        unlockBadgeIfNeeded(title: "資源收藏家", when: state.resourceItems.count >= 10)
+        save()
+    }
+
+    func clearPendingImportDraft() {
+        state.pendingImportDraft = nil
+        save()
     }
 
     private func unlockBadgeIfNeeded(title: String, when condition: Bool) {

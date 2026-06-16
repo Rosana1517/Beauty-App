@@ -114,6 +114,26 @@ enum ImportSourceType: String, CaseIterable, Codable, Identifiable {
             return "globe"
         }
     }
+
+    static func detectedSource(from urlString: String) -> ImportSourceType {
+        guard let host = URLComponents(string: urlString.trimmingCharacters(in: .whitespacesAndNewlines))?.host?.lowercased() else {
+            return .web
+        }
+
+        if host.contains("xiaohongshu") || host.contains("xhslink") || host.contains("rednote") {
+            return .xiaohongshu
+        }
+
+        if host.contains("instagram") || host.contains("instagr.am") {
+            return .instagram
+        }
+
+        if host.contains("youtube") || host.contains("youtu.be") {
+            return .youtube
+        }
+
+        return .web
+    }
 }
 
 enum ExportFormat: String, CaseIterable, Codable, Identifiable {
@@ -138,6 +158,55 @@ enum ResourceCategory: String, CaseIterable, Codable, Identifiable {
     case outfit = "穿搭"
     case learning = "學習"
     case other = "其他"
+
+    var id: String { rawValue }
+
+    static func suggestedCategory(title: String, description: String, source: ImportSourceType) -> ResourceCategory {
+        let combined = "\(title) \(description)".lowercased()
+
+        let skincareKeywords = ["保養", "護膚", "面膜", "精華", "乳液", "防曬", "skin", "serum", "moisturizer"]
+        if skincareKeywords.contains(where: combined.contains) {
+            return .skincare
+        }
+
+        let fitnessKeywords = ["運動", "健身", "體脂", "重量", "瑜伽", "pilates", "workout", "fitness", "gym"]
+        if fitnessKeywords.contains(where: combined.contains) {
+            return .fitness
+        }
+
+        let foodKeywords = ["飲食", "食譜", "熱量", "蛋白質", "早餐", "晚餐", "meal", "recipe", "food"]
+        if foodKeywords.contains(where: combined.contains) {
+            return .food
+        }
+
+        let outfitKeywords = ["穿搭", "服裝", "妝容", "髮型", "outfit", "style", "lookbook"]
+        if outfitKeywords.contains(where: combined.contains) {
+            return .outfit
+        }
+
+        if source == .youtube || source == .web {
+            return .learning
+        }
+
+        return .other
+    }
+}
+
+enum ImportedContentType: String, CaseIterable, Codable, Identifiable {
+    case video = "影片"
+    case imagePost = "圖文"
+    case carousel = "多圖"
+    case article = "文章"
+    case unknown = "未知"
+
+    var id: String { rawValue }
+}
+
+enum ResourceImportStatus: String, CaseIterable, Codable, Identifiable {
+    case parsed = "已解析"
+    case partial = "部分解析"
+    case manualCompleted = "手動補齊"
+    case failedFallbackSaved = "失敗補存"
 
     var id: String { rawValue }
 }
@@ -211,13 +280,229 @@ struct Appointment: Identifiable, Codable {
     var note: String
 }
 
+struct ParsedMetadataPayload: Codable {
+    var title: String
+    var descriptionText: String
+    var authorName: String
+    var thumbnailURL: String
+    var canonicalURL: String
+    var externalID: String
+    var publishedAt: Date?
+    var platformContentType: ImportedContentType
+    var tags: [String]
+    var htmlTitle: String
+    var pageHost: String
+}
+
+struct ResourceImportDraft: Identifiable, Codable {
+    var id: UUID
+    var source: ImportSourceType
+    var category: ResourceCategory
+    var platformContentType: ImportedContentType
+    var title: String
+    var canonicalURL: String
+    var originalURL: String
+    var externalID: String
+    var authorName: String
+    var thumbnailURL: String
+    var publishedAt: Date?
+    var descriptionText: String
+    var tags: [String]
+    var importStatus: ResourceImportStatus
+    var metadataConfidence: Double
+    var importedAt: Date?
+    var rawMetadataSnapshot: String
+    var lastErrorMessage: String?
+
+    var resolvedURL: String {
+        canonicalURL.isEmpty ? originalURL : canonicalURL
+    }
+
+    var missingFields: [String] {
+        var fields: [String] = []
+        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            fields.append("標題")
+        }
+        if category == .all {
+            fields.append("分類")
+        }
+        if source == .web && originalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            fields.append("來源連結")
+        }
+        return fields
+    }
+
+    var requiresManualCompletion: Bool {
+        importStatus == .partial || !missingFields.isEmpty || metadataConfidence < 0.66
+    }
+
+    static func empty(url: String) -> ResourceImportDraft {
+        let source = ImportSourceType.detectedSource(from: url)
+        return ResourceImportDraft(
+            id: UUID(),
+            source: source,
+            category: .all,
+            platformContentType: .unknown,
+            title: "",
+            canonicalURL: "",
+            originalURL: url,
+            externalID: "",
+            authorName: "",
+            thumbnailURL: "",
+            publishedAt: nil,
+            descriptionText: "",
+            tags: [],
+            importStatus: .partial,
+            metadataConfidence: 0,
+            importedAt: nil,
+            rawMetadataSnapshot: "",
+            lastErrorMessage: nil
+        )
+    }
+}
+
+struct ResourceImportHistoryEntry: Identifiable, Codable {
+    var id: UUID
+    var source: ImportSourceType
+    var title: String
+    var originalURL: String
+    var status: ResourceImportStatus
+    var importedAt: Date
+    var note: String
+}
+
 struct ResourceItem: Identifiable, Codable {
     var id: UUID
     var title: String
     var source: ImportSourceType
     var category: ResourceCategory
-    var url: String
-    var summary: String
+    var platformContentType: ImportedContentType
+    var canonicalURL: String
+    var originalURL: String
+    var externalID: String
+    var authorName: String
+    var thumbnailURL: String
+    var publishedAt: Date?
+    var descriptionText: String
+    var tags: [String]
+    var importStatus: ResourceImportStatus
+    var metadataConfidence: Double
+    var importedAt: Date
+    var rawMetadataSnapshot: String
+
+    var displaySummary: String {
+        descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? resolvedURL : descriptionText
+    }
+
+    var resolvedURL: String {
+        canonicalURL.isEmpty ? originalURL : canonicalURL
+    }
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        source: ImportSourceType,
+        category: ResourceCategory,
+        platformContentType: ImportedContentType,
+        canonicalURL: String,
+        originalURL: String,
+        externalID: String,
+        authorName: String,
+        thumbnailURL: String,
+        publishedAt: Date?,
+        descriptionText: String,
+        tags: [String],
+        importStatus: ResourceImportStatus,
+        metadataConfidence: Double,
+        importedAt: Date = Date(),
+        rawMetadataSnapshot: String
+    ) {
+        self.id = id
+        self.title = title
+        self.source = source
+        self.category = category
+        self.platformContentType = platformContentType
+        self.canonicalURL = canonicalURL
+        self.originalURL = originalURL
+        self.externalID = externalID
+        self.authorName = authorName
+        self.thumbnailURL = thumbnailURL
+        self.publishedAt = publishedAt
+        self.descriptionText = descriptionText
+        self.tags = tags
+        self.importStatus = importStatus
+        self.metadataConfidence = metadataConfidence
+        self.importedAt = importedAt
+        self.rawMetadataSnapshot = rawMetadataSnapshot
+    }
+
+    init(from draft: ResourceImportDraft) {
+        self.init(
+            title: draft.title,
+            source: draft.source,
+            category: draft.category == .all ? .other : draft.category,
+            platformContentType: draft.platformContentType,
+            canonicalURL: draft.canonicalURL,
+            originalURL: draft.originalURL,
+            externalID: draft.externalID,
+            authorName: draft.authorName,
+            thumbnailURL: draft.thumbnailURL,
+            publishedAt: draft.publishedAt,
+            descriptionText: draft.descriptionText,
+            tags: draft.tags,
+            importStatus: draft.importStatus,
+            metadataConfidence: draft.metadataConfidence,
+            importedAt: draft.importedAt ?? Date(),
+            rawMetadataSnapshot: draft.rawMetadataSnapshot
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case source
+        case category
+        case platformContentType
+        case canonicalURL
+        case originalURL
+        case externalID
+        case authorName
+        case thumbnailURL
+        case publishedAt
+        case descriptionText
+        case tags
+        case importStatus
+        case metadataConfidence
+        case importedAt
+        case rawMetadataSnapshot
+        case url
+        case summary
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        title = try container.decode(String.self, forKey: .title)
+        source = try container.decodeIfPresent(ImportSourceType.self, forKey: .source) ?? .web
+        category = try container.decodeIfPresent(ResourceCategory.self, forKey: .category) ?? .other
+        platformContentType = try container.decodeIfPresent(ImportedContentType.self, forKey: .platformContentType) ?? .unknown
+
+        let legacyURL = try container.decodeIfPresent(String.self, forKey: .url) ?? ""
+        canonicalURL = try container.decodeIfPresent(String.self, forKey: .canonicalURL) ?? legacyURL
+        originalURL = try container.decodeIfPresent(String.self, forKey: .originalURL) ?? legacyURL
+        externalID = try container.decodeIfPresent(String.self, forKey: .externalID) ?? ""
+        authorName = try container.decodeIfPresent(String.self, forKey: .authorName) ?? ""
+        thumbnailURL = try container.decodeIfPresent(String.self, forKey: .thumbnailURL) ?? ""
+        publishedAt = try container.decodeIfPresent(Date.self, forKey: .publishedAt)
+
+        let legacySummary = try container.decodeIfPresent(String.self, forKey: .summary) ?? ""
+        descriptionText = try container.decodeIfPresent(String.self, forKey: .descriptionText) ?? legacySummary
+        tags = try container.decodeIfPresent([String].self, forKey: .tags) ?? []
+        importStatus = try container.decodeIfPresent(ResourceImportStatus.self, forKey: .importStatus) ?? .manualCompleted
+        metadataConfidence = try container.decodeIfPresent(Double.self, forKey: .metadataConfidence) ?? 0.4
+        importedAt = try container.decodeIfPresent(Date.self, forKey: .importedAt) ?? Date()
+        rawMetadataSnapshot = try container.decodeIfPresent(String.self, forKey: .rawMetadataSnapshot) ?? ""
+    }
 }
 
 struct BookRecord: Identifiable, Codable {
@@ -270,6 +555,87 @@ struct BeautyDiaryState: Codable {
     var achievements: [AchievementBadge]
     var exportHistory: [ExportRecord]
     var resourceFilter: ResourceCategory
+    var resourceImportHistory: [ResourceImportHistoryEntry]
+    var pendingImportDraft: ResourceImportDraft?
+
+    private enum CodingKeys: String, CodingKey {
+        case profile
+        case checklistItems
+        case routine
+        case products
+        case skinRecords
+        case bodyMetricRecords
+        case mealRecords
+        case appointments
+        case resourceItems
+        case bookRecords
+        case tutorialLinks
+        case punchRecords
+        case achievements
+        case exportHistory
+        case resourceFilter
+        case resourceImportHistory
+        case pendingImportDraft
+    }
+
+    init(
+        profile: UserProfileRecord,
+        checklistItems: [ChecklistItem],
+        routine: SkincareRoutine,
+        products: [Product],
+        skinRecords: [SkinRecord],
+        bodyMetricRecords: [BodyMetricRecord],
+        mealRecords: [MealRecord],
+        appointments: [Appointment],
+        resourceItems: [ResourceItem],
+        bookRecords: [BookRecord],
+        tutorialLinks: [TutorialLink],
+        punchRecords: [PunchRecord],
+        achievements: [AchievementBadge],
+        exportHistory: [ExportRecord],
+        resourceFilter: ResourceCategory,
+        resourceImportHistory: [ResourceImportHistoryEntry],
+        pendingImportDraft: ResourceImportDraft?
+    ) {
+        self.profile = profile
+        self.checklistItems = checklistItems
+        self.routine = routine
+        self.products = products
+        self.skinRecords = skinRecords
+        self.bodyMetricRecords = bodyMetricRecords
+        self.mealRecords = mealRecords
+        self.appointments = appointments
+        self.resourceItems = resourceItems
+        self.bookRecords = bookRecords
+        self.tutorialLinks = tutorialLinks
+        self.punchRecords = punchRecords
+        self.achievements = achievements
+        self.exportHistory = exportHistory
+        self.resourceFilter = resourceFilter
+        self.resourceImportHistory = resourceImportHistory
+        self.pendingImportDraft = pendingImportDraft
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        profile = try container.decode(UserProfileRecord.self, forKey: .profile)
+        checklistItems = try container.decode([ChecklistItem].self, forKey: .checklistItems)
+        routine = try container.decode(SkincareRoutine.self, forKey: .routine)
+        products = try container.decodeIfPresent([Product].self, forKey: .products) ?? []
+        skinRecords = try container.decodeIfPresent([SkinRecord].self, forKey: .skinRecords) ?? []
+        bodyMetricRecords = try container.decodeIfPresent([BodyMetricRecord].self, forKey: .bodyMetricRecords) ?? []
+        mealRecords = try container.decodeIfPresent([MealRecord].self, forKey: .mealRecords) ?? []
+        appointments = try container.decodeIfPresent([Appointment].self, forKey: .appointments) ?? []
+        resourceItems = try container.decodeIfPresent([ResourceItem].self, forKey: .resourceItems) ?? []
+        bookRecords = try container.decodeIfPresent([BookRecord].self, forKey: .bookRecords) ?? []
+        tutorialLinks = try container.decodeIfPresent([TutorialLink].self, forKey: .tutorialLinks) ?? []
+        punchRecords = try container.decodeIfPresent([PunchRecord].self, forKey: .punchRecords) ?? []
+        achievements = try container.decodeIfPresent([AchievementBadge].self, forKey: .achievements) ?? []
+        exportHistory = try container.decodeIfPresent([ExportRecord].self, forKey: .exportHistory) ?? []
+        resourceFilter = try container.decodeIfPresent(ResourceCategory.self, forKey: .resourceFilter) ?? .all
+        resourceImportHistory = try container.decodeIfPresent([ResourceImportHistoryEntry].self, forKey: .resourceImportHistory) ?? []
+        pendingImportDraft = try container.decodeIfPresent(ResourceImportDraft.self, forKey: .pendingImportDraft)
+    }
 }
 
 extension BeautyDiaryState {
@@ -323,6 +689,8 @@ extension BeautyDiaryState {
             AchievementBadge(id: UUID(), title: "護膚紀錄員", detail: "完成 5 次膚況紀錄", unlocked: false)
         ],
         exportHistory: [],
-        resourceFilter: .all
+        resourceFilter: .all,
+        resourceImportHistory: [],
+        pendingImportDraft: nil
     )
 }

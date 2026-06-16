@@ -820,13 +820,19 @@ struct ResourceLibraryView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                titleRow(title: "資源庫") {}
+                titleRow(title: "資源庫", action: "匯入精靈") {
+                    showImport = true
+                }
 
                 CardView {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("資源導入")
+                        Text("匯入管線")
                             .font(.headline)
                             .foregroundStyle(AppTheme.text)
+
+                        Text("貼上來源連結後，自動判斷平台、抓取 metadata、進入預覽，必要時再手動補齊。")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.subtext)
 
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                             ForEach(ImportSourceType.allCases) { source in
@@ -891,17 +897,38 @@ struct ResourceLibraryView: View {
                             EmptyStateView(title: "暫無資源", subtitle: "")
                         } else {
                             ForEach(store.filteredResources) { item in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(item.title)
-                                        .font(.body.weight(.semibold))
-                                        .foregroundStyle(AppTheme.text)
-                                    Text("\(item.source.rawValue) · \(item.category.rawValue)")
+                                NavigationLink {
+                                    ResourceDetailView(item: item)
+                                } label: {
+                                    ResourceListCard(item: item)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+
+                if !store.state.resourceImportHistory.isEmpty {
+                    CardView {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("最近匯入")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+
+                            ForEach(store.state.resourceImportHistory.prefix(3)) { entry in
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack {
+                                        Text(entry.title.isEmpty ? entry.originalURL : entry.title)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(AppTheme.text)
+                                            .lineLimit(1)
+                                        Spacer()
+                                        StatusBadge(status: entry.status)
+                                    }
+
+                                    Text("\(entry.source.rawValue) · \(entry.importedAt.formatted(date: .abbreviated, time: .shortened))")
                                         .font(.caption)
                                         .foregroundStyle(AppTheme.subtext)
-                                    Text(item.summary.isEmpty ? item.url : item.summary)
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.subtext)
-                                        .lineLimit(2)
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(14)
@@ -929,7 +956,11 @@ struct ResourceLibraryView: View {
             .padding(20)
         }
         .background(AppTheme.background)
-        .sheet(isPresented: $showImport) { AddResourceSheet() }
+        .sheet(isPresented: $showImport, onDismiss: {
+            store.clearPendingImportDraft()
+        }) {
+            ImportWizardSheet()
+        }
     }
 }
 
@@ -1273,38 +1304,304 @@ private struct AddBookSheet: View {
     }
 }
 
-private struct AddResourceSheet: View {
+private struct ImportWizardSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
-    @State private var title = ""
-    @State private var source: ImportSourceType = .xiaohongshu
-    @State private var category: ResourceCategory = .skincare
     @State private var url = ""
-    @State private var summary = ""
+    @State private var isLoading = false
+    @State private var draft = ResourceImportDraft.empty(url: "")
+    @State private var parseMessage = ""
+    @State private var currentStep: ImportWizardStep = .input
+
+    private enum ImportWizardStep {
+        case input
+        case preview
+        case manual
+    }
 
     var body: some View {
-        FormSheet(title: "新增資源") {
-            Picker("來源", selection: $source) {
-                ForEach(ImportSourceType.allCases) { item in
-                    Text(item.rawValue).tag(item)
+        FormSheet(title: "匯入精靈") {
+            if currentStep == .input {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("貼上來源連結後，系統會先嘗試抓取標題、作者、縮圖、時間與內容型別。")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.subtext)
+
+                    ThemedTextField(title: "來源連結", text: $url)
+
+                    if !parseMessage.isEmpty {
+                        InfoCallout(title: "解析提醒", detail: parseMessage)
+                    }
+
+                    PrimaryButton(title: isLoading ? "解析中..." : "開始解析") {
+                        guard !isLoading else { return }
+                        Task {
+                            await parseURL()
+                        }
+                    }
+
+                    CardView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("支援來源")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+
+                            ForEach(ImportSourceType.allCases) { item in
+                                HStack(spacing: 10) {
+                                    Image(systemName: item.systemImage)
+                                        .foregroundStyle(AppTheme.primary)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(item.rawValue)
+                                            .foregroundStyle(AppTheme.text)
+                                        Text(item.subtitle)
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                    Spacer()
+                                }
+                            }
+                        }
+                    }
                 }
-            }
-
-            Picker("分類", selection: $category) {
-                ForEach(ResourceCategory.allCases.filter { $0 != .all }) { item in
-                    Text(item.rawValue).tag(item)
+            } else if currentStep == .preview {
+                ImportPreviewView(draft: draft) {
+                    store.saveImportedResource(draft)
+                    dismiss()
+                } manualAction: {
+                    currentStep = .manual
                 }
-            }
-
-            ThemedTextField(title: "標題", text: $title)
-            ThemedTextField(title: "連結", text: $url)
-            ThemedTextField(title: "摘要", text: $summary)
-
-            PrimaryButton(title: "保存") {
-                store.addResource(title: title, source: source, category: category, url: url, summary: summary)
-                dismiss()
+            } else {
+                ManualCompleteView(draft: $draft) {
+                    store.updateImportDraft(draft)
+                    store.saveImportedResource(draft)
+                    dismiss()
+                }
             }
         }
+        .onAppear {
+            if let pending = store.state.pendingImportDraft {
+                draft = pending
+                url = pending.originalURL
+                currentStep = pending.requiresManualCompletion ? .manual : .preview
+            }
+        }
+    }
+
+    private func parseURL() async {
+        isLoading = true
+        let parsed = await store.importResource(from: url)
+        draft = parsed
+        parseMessage = parsed.lastErrorMessage ?? ""
+        currentStep = .preview
+        isLoading = false
+    }
+}
+
+private struct ImportPreviewView: View {
+    let draft: ResourceImportDraft
+    let saveAction: () -> Void
+    let manualAction: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            CardView {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("匯入預覽")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+                        Spacer()
+                        StatusBadge(status: draft.importStatus)
+                    }
+
+                    MetadataHero(draft: draft)
+
+                    if !draft.missingFields.isEmpty {
+                        InfoCallout(title: "待補欄位", detail: draft.missingFields.joined(separator: "、"))
+                    }
+
+                    if let lastErrorMessage = draft.lastErrorMessage, !lastErrorMessage.isEmpty {
+                        InfoCallout(title: "解析提醒", detail: lastErrorMessage)
+                    }
+                }
+            }
+
+            CardView {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("來源資訊")
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.text)
+
+                    MetadataRow(title: "平台", value: draft.source.rawValue)
+                    MetadataRow(title: "內容型別", value: draft.platformContentType.rawValue)
+                    MetadataRow(title: "分類建議", value: draft.category == .all ? "待確認" : draft.category.rawValue)
+                    MetadataRow(title: "作者", value: draft.authorName.isEmpty ? "待補齊" : draft.authorName)
+                    MetadataRow(title: "時間", value: draft.publishedAt?.formatted(date: .abbreviated, time: .omitted) ?? "未解析")
+                    MetadataRow(title: "信心分數", value: "\(Int(draft.metadataConfidence * 100))%")
+                }
+            }
+
+            PrimaryButton(title: "保存到資源庫") {
+                saveAction()
+            }
+
+            if draft.requiresManualCompletion {
+                PrimaryButton(title: "手動補齊後再保存") {
+                    manualAction()
+                }
+            }
+        }
+    }
+}
+
+private struct ManualCompleteView: View {
+    @Binding var draft: ResourceImportDraft
+    let saveAction: () -> Void
+    @State private var tagsText = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            CardView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("手動補齊")
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.text)
+
+                    Picker("來源平台", selection: $draft.source) {
+                        ForEach(ImportSourceType.allCases) { item in
+                            Text(item.rawValue).tag(item)
+                        }
+                    }
+
+                    Picker("分類", selection: $draft.category) {
+                        ForEach(ResourceCategory.allCases.filter { $0 != .all }) { item in
+                            Text(item.rawValue).tag(item)
+                        }
+                    }
+
+                    Picker("內容型別", selection: $draft.platformContentType) {
+                        ForEach(ImportedContentType.allCases) { item in
+                            Text(item.rawValue).tag(item)
+                        }
+                    }
+
+                    ThemedTextField(title: "標題", text: $draft.title)
+                    ThemedTextField(title: "作者", text: $draft.authorName)
+                    ThemedTextField(title: "縮圖 URL", text: $draft.thumbnailURL)
+                    ThemedTextField(title: "描述", text: $draft.descriptionText)
+                    ThemedTextField(title: "標籤（以逗號分隔）", text: $tagsText)
+                }
+            }
+
+            if !draft.resolvedURL.isEmpty {
+                CardView {
+                    MetadataRow(title: "來源連結", value: draft.resolvedURL)
+                }
+            }
+
+            PrimaryButton(title: "完成並保存") {
+                draft.tags = tagsText
+                    .split(separator: ",")
+                    .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+                draft.importStatus = draft.metadataConfidence < 0.2 ? .failedFallbackSaved : .manualCompleted
+                saveAction()
+            }
+        }
+        .onAppear {
+            tagsText = draft.tags.joined(separator: ", ")
+        }
+    }
+}
+
+private struct ResourceListCard: View {
+    let item: ResourceItem
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.title)
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(AppTheme.text)
+                        .lineLimit(2)
+                    Text("\(item.source.rawValue) · \(item.platformContentType.rawValue) · \(item.category.rawValue)")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.subtext)
+                }
+                Spacer()
+                StatusBadge(status: item.importStatus)
+            }
+
+            Text(item.displaySummary)
+                .font(.caption)
+                .foregroundStyle(AppTheme.subtext)
+                .lineLimit(2)
+
+            if !item.authorName.isEmpty || !item.tags.isEmpty {
+                HStack {
+                    if !item.authorName.isEmpty {
+                        Text("作者：\(item.authorName)")
+                            .font(.caption2)
+                            .foregroundStyle(AppTheme.subtext)
+                    }
+                    Spacer()
+                    if !item.tags.isEmpty {
+                        Text(item.tags.prefix(2).joined(separator: " · "))
+                            .font(.caption2)
+                            .foregroundStyle(AppTheme.subtext)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(14)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+private struct ResourceDetailView: View {
+    let item: ResourceItem
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "資源詳情") {}
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        MetadataHero(item: item)
+                        if !item.descriptionText.isEmpty {
+                            Text(item.descriptionText)
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.text)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("詳細欄位")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+                        MetadataRow(title: "平台", value: item.source.rawValue)
+                        MetadataRow(title: "內容型別", value: item.platformContentType.rawValue)
+                        MetadataRow(title: "解析狀態", value: item.importStatus.rawValue)
+                        MetadataRow(title: "分類", value: item.category.rawValue)
+                        MetadataRow(title: "作者", value: item.authorName.isEmpty ? "未提供" : item.authorName)
+                        MetadataRow(title: "發佈時間", value: item.publishedAt?.formatted(date: .abbreviated, time: .omitted) ?? "未解析")
+                        MetadataRow(title: "原始連結", value: item.originalURL)
+                        MetadataRow(title: "標準連結", value: item.canonicalURL.isEmpty ? "未提供" : item.canonicalURL)
+                        MetadataRow(title: "外部 ID", value: item.externalID.isEmpty ? "未提供" : item.externalID)
+                        MetadataRow(title: "匯入時間", value: item.importedAt.formatted(date: .abbreviated, time: .shortened))
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
     }
 }
 
@@ -1399,6 +1696,141 @@ private struct CardView<Content: View>: View {
             .background(AppTheme.card)
             .clipShape(RoundedRectangle(cornerRadius: 24))
             .shadow(color: AppTheme.shadow, radius: 16, y: 8)
+    }
+}
+
+private struct StatusBadge: View {
+    let status: ResourceImportStatus
+
+    var body: some View {
+        Text(status.rawValue)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(statusColor)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(statusColor.opacity(0.12))
+            .clipShape(Capsule())
+    }
+
+    private var statusColor: Color {
+        switch status {
+        case .parsed:
+            return AppTheme.primary
+        case .partial:
+            return .orange
+        case .manualCompleted:
+            return .blue
+        case .failedFallbackSaved:
+            return .pink
+        }
+    }
+}
+
+private struct MetadataRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(AppTheme.subtext)
+                .frame(width: 72, alignment: .leading)
+
+            Text(value)
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+private struct InfoCallout: View {
+    let title: String
+    let detail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(AppTheme.primary)
+            Text(detail)
+                .font(.caption)
+                .foregroundStyle(AppTheme.text)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+private struct MetadataHero: View {
+    let title: String
+    let subtitle: String
+    let sourceLabel: String
+    let thumbnailURL: String
+
+    init(draft: ResourceImportDraft) {
+        self.title = draft.title.isEmpty ? "尚未解析出標題" : draft.title
+        self.subtitle = draft.descriptionText.isEmpty ? draft.resolvedURL : draft.descriptionText
+        self.sourceLabel = "\(draft.source.rawValue) · \(draft.platformContentType.rawValue)"
+        self.thumbnailURL = draft.thumbnailURL
+    }
+
+    init(item: ResourceItem) {
+        self.title = item.title
+        self.subtitle = item.displaySummary
+        self.sourceLabel = "\(item.source.rawValue) · \(item.platformContentType.rawValue)"
+        self.thumbnailURL = item.thumbnailURL
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 14) {
+            ThumbnailPreview(thumbnailURL: thumbnailURL)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(sourceLabel)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.primary)
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subtext)
+                    .lineLimit(4)
+            }
+        }
+    }
+}
+
+private struct ThumbnailPreview: View {
+    let thumbnailURL: String
+
+    var body: some View {
+        Group {
+            if let url = URL(string: thumbnailURL), !thumbnailURL.isEmpty {
+                AsyncImage(url: url) { image in
+                    image
+                        .resizable()
+                        .scaledToFill()
+                } placeholder: {
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(AppTheme.primarySoft)
+                        .overlay(ProgressView().tint(AppTheme.primary))
+                }
+            } else {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(AppTheme.primarySoft)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .foregroundStyle(AppTheme.primary)
+                    )
+            }
+        }
+        .frame(width: 92, height: 92)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
