@@ -5,6 +5,12 @@ protocol ResourceImportService {
 }
 
 struct CompositeResourceImportService: ResourceImportService {
+    private let configuration: ImportServiceConfiguration
+
+    init(configuration: ImportServiceConfiguration = .fromRuntime()) {
+        self.configuration = configuration
+    }
+
     func parse(url: String) async -> ResourceImportDraft {
         let normalizedURL = url.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let requestURL = URL(string: normalizedURL), !normalizedURL.isEmpty else {
@@ -22,12 +28,26 @@ struct CompositeResourceImportService: ResourceImportService {
         case .instagram:
             parser = InstagramParser()
         case .youtube:
-            parser = YouTubeParser()
+            parser = YouTubeParser(apiKey: configuration.youtubeAPIKey)
         case .web:
             parser = WebPageParser()
         }
 
         return await parser.parse(url: requestURL, source: source)
+    }
+}
+
+struct ImportServiceConfiguration {
+    let youtubeAPIKey: String
+    let supabaseURL: String
+    let supabaseAnonKey: String
+
+    static func fromRuntime() -> ImportServiceConfiguration {
+        ImportServiceConfiguration(
+            youtubeAPIKey: AppRuntimeConfiguration.youtubeAPIKey,
+            supabaseURL: AppRuntimeConfiguration.supabaseURL,
+            supabaseAnonKey: AppRuntimeConfiguration.supabaseAnonKey
+        )
     }
 }
 
@@ -39,7 +59,12 @@ private struct XiaohongshuParser: PlatformParser {
     func parse(url: URL, source: ImportSourceType) async -> ResourceImportDraft {
         await SharedHTMLParser.parse(url: url, source: source) { metadata in
             let path = url.path.lowercased()
-            let contentType: ImportedContentType = path.contains("/explore/") ? .imagePost : metadata.platformContentType
+            let contentType: ImportedContentType
+            if path.contains("/video/") || metadata.platformContentType == .video {
+                contentType = .video
+            } else {
+                contentType = path.contains("/explore/") ? .imagePost : metadata.platformContentType
+            }
             let externalID = SharedHTMLParser.matchFirst(in: url.absoluteString, pattern: "(?:explore|discovery/item|item)/([A-Za-z0-9_-]+)")
             let title = metadata.title.isEmpty ? "小紅書收藏" : metadata.title
 
@@ -95,7 +120,15 @@ private struct InstagramParser: PlatformParser {
 }
 
 private struct YouTubeParser: PlatformParser {
+    let apiKey: String
+
     func parse(url: URL, source: ImportSourceType) async -> ResourceImportDraft {
+        if let videoID = SharedHTMLParser.youtubeID(from: url),
+           !apiKey.isEmpty,
+           let apiDraft = await YouTubeDataAPIParser(apiKey: apiKey).parse(videoID: videoID, originalURL: url.absoluteString) {
+            return apiDraft
+        }
+
         await SharedHTMLParser.parse(url: url, source: source) { metadata in
             let externalID = SharedHTMLParser.youtubeID(from: url) ?? metadata.externalID
             return SharedHTMLParser.makeDraft(
@@ -112,6 +145,70 @@ private struct YouTubeParser: PlatformParser {
                 tags: metadata.tags,
                 rawPayload: metadata
             )
+        }
+    }
+}
+
+private struct YouTubeDataAPIParser {
+    let apiKey: String
+
+    func parse(videoID: String, originalURL: String) async -> ResourceImportDraft? {
+        guard !apiKey.isEmpty else { return nil }
+
+        var components = URLComponents(string: "https://www.googleapis.com/youtube/v3/videos")
+        components?.queryItems = [
+            URLQueryItem(name: "part", value: "snippet,contentDetails,statistics"),
+            URLQueryItem(name: "id", value: videoID),
+            URLQueryItem(name: "key", value: apiKey)
+        ]
+
+        guard let url = components?.url else { return nil }
+
+        do {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 15
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                return nil
+            }
+
+            let decoded = try JSONDecoder.youtube.decode(YouTubeVideosResponse.self, from: data)
+            guard let item = decoded.items.first else { return nil }
+
+            let payload = ParsedMetadataPayload(
+                title: item.snippet.title,
+                descriptionText: item.snippet.description,
+                authorName: item.snippet.channelTitle,
+                thumbnailURL: item.snippet.bestThumbnailURL,
+                canonicalURL: "https://www.youtube.com/watch?v=\(item.id)",
+                externalID: item.id,
+                publishedAt: item.snippet.publishedAt,
+                platformContentType: .video,
+                tags: item.snippet.tags ?? [],
+                htmlTitle: item.snippet.title,
+                pageHost: "youtube.com"
+            )
+
+            var draft = SharedHTMLParser.makeDraft(
+                source: .youtube,
+                url: originalURL,
+                title: item.snippet.title,
+                description: item.snippet.description,
+                author: item.snippet.channelTitle,
+                thumbnailURL: item.snippet.bestThumbnailURL,
+                canonicalURL: "https://www.youtube.com/watch?v=\(item.id)",
+                externalID: item.id,
+                publishedAt: item.snippet.publishedAt,
+                contentType: .video,
+                tags: item.snippet.tags ?? [],
+                rawPayload: payload
+            )
+            draft.importStatus = .parsed
+            draft.metadataConfidence = max(draft.metadataConfidence, 0.95)
+            draft.lastErrorMessage = "已使用 YouTube Data API 取得正式 metadata。"
+            return draft
+        } catch {
+            return nil
         }
     }
 }
@@ -244,7 +341,9 @@ private enum SharedHTMLParser {
             jsonLD["creator"],
             authorMeta,
             matchFirst(in: html, pattern: "\"owner_username\"\\s*:\\s*\"([^\"]+)\""),
-            matchFirst(in: html, pattern: "\"nickname\"\\s*:\\s*\"([^\"]+)\"")
+            matchFirst(in: html, pattern: "\"nickname\"\\s*:\\s*\"([^\"]+)\""),
+            matchFirst(in: html, pattern: "\"author\"\\s*:\\s*\\{[^\\}]*\"name\"\\s*:\\s*\"([^\"]+)\""),
+            matchFirst(in: html, pattern: "\"user\"\\s*:\\s*\\{[^\\}]*\"nickname\"\\s*:\\s*\"([^\"]+)\"")
         ])
 
         let thumbnail = firstNonEmpty([
@@ -262,7 +361,8 @@ private enum SharedHTMLParser {
         let publishedAt = isoDate(from: firstNonEmpty([
             jsonLD["datePublished"],
             jsonLD["uploadDate"],
-            metaContent(in: html, property: "article:published_time")
+            metaContent(in: html, property: "article:published_time"),
+            matchFirst(in: html, pattern: "\"time\"\\s*:\\s*\"([^\"]+)\"")
         ]))
 
         let tags = extractTags(from: html, jsonLDKeywords: jsonLD["keywords"])
@@ -390,7 +490,8 @@ private enum SharedHTMLParser {
     static func extractTags(from html: String, jsonLDKeywords: String?) -> [String] {
         let keywordText = firstNonEmpty([
             jsonLDKeywords,
-            metaContent(in: html, property: "keywords")
+            metaContent(in: html, property: "keywords"),
+            matchFirst(in: html, pattern: "\"keywords\"\\s*:\\s*\"([^\"]+)\"")
         ])
 
         let tags = keywordText
@@ -488,6 +589,53 @@ private enum SharedHTMLParser {
             .replacingOccurrences(of: "&lt;", with: "<")
             .replacingOccurrences(of: "&gt;", with: ">")
     }
+}
+
+private struct YouTubeVideosResponse: Decodable {
+    let items: [YouTubeVideoItem]
+}
+
+private struct YouTubeVideoItem: Decodable {
+    let id: String
+    let snippet: YouTubeVideoSnippet
+}
+
+private struct YouTubeVideoSnippet: Decodable {
+    let publishedAt: Date?
+    let channelTitle: String
+    let title: String
+    let description: String
+    let tags: [String]?
+    let thumbnails: YouTubeThumbnailMap
+
+    var bestThumbnailURL: String {
+        thumbnails.maxres?.url
+            ?? thumbnails.standard?.url
+            ?? thumbnails.high?.url
+            ?? thumbnails.medium?.url
+            ?? thumbnails.defaultValue?.url
+            ?? ""
+    }
+}
+
+private struct YouTubeThumbnailMap: Decodable {
+    let defaultValue: YouTubeThumbnail?
+    let medium: YouTubeThumbnail?
+    let high: YouTubeThumbnail?
+    let standard: YouTubeThumbnail?
+    let maxres: YouTubeThumbnail?
+
+    enum CodingKeys: String, CodingKey {
+        case defaultValue = "default"
+        case medium
+        case high
+        case standard
+        case maxres
+    }
+}
+
+private struct YouTubeThumbnail: Decodable {
+    let url: String
 }
 
 private struct JSONLDNode: Decodable {
@@ -611,5 +759,13 @@ private struct NameValue: Decodable {
 private extension String {
     var nilIfEmpty: String? {
         isEmpty ? nil : self
+    }
+}
+
+private extension JSONDecoder {
+    static var youtube: JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return decoder
     }
 }

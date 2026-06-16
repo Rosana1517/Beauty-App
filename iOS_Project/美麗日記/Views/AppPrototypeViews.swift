@@ -863,6 +863,33 @@ struct ResourceLibraryView: View {
 
                 CardView {
                     VStack(alignment: .leading, spacing: 14) {
+                        Text("真實資料狀態")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        HStack(spacing: 10) {
+                            RuntimeStatusChip(
+                                title: "YouTube API",
+                                active: AppRuntimeConfiguration.hasYouTubeAPI,
+                                activeDetail: "正式 metadata",
+                                inactiveDetail: "HTML fallback"
+                            )
+                            RuntimeStatusChip(
+                                title: "Supabase",
+                                active: AppRuntimeConfiguration.hasSupabaseConfig,
+                                activeDetail: "已配置",
+                                inactiveDetail: "僅本地 JSON"
+                            )
+                        }
+
+                        Text("目前小紅書仍以公開頁面解析為主，YouTube 在有 `YOUTUBE_API_KEY` 時會優先走官方 Data API。")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.subtext)
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
                         Text("AI 智能分析")
                             .font(.headline)
                             .foregroundStyle(AppTheme.text)
@@ -1723,6 +1750,34 @@ private struct StatusBadge: View {
         case .failedFallbackSaved:
             return .pink
         }
+    }
+}
+
+private struct RuntimeStatusChip: View {
+    let title: String
+    let active: Bool
+    let activeDetail: String
+    let inactiveDetail: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(active ? AppTheme.success : AppTheme.subtext)
+                    .frame(width: 8, height: 8)
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(AppTheme.text)
+            }
+
+            Text(active ? activeDetail : inactiveDetail)
+                .font(.caption2)
+                .foregroundStyle(AppTheme.subtext)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
 
