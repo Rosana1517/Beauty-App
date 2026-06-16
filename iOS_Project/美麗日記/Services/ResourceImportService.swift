@@ -598,6 +598,7 @@ private struct NameValue: Decodable {
     let name: String?
     let value: String?
     let url: String?
+    let id: String?
 
     enum CodingKeys: String, CodingKey {
         case name

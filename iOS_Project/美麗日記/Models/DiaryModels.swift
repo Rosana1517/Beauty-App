@@ -503,6 +503,27 @@ struct ResourceItem: Identifiable, Codable {
         importedAt = try container.decodeIfPresent(Date.self, forKey: .importedAt) ?? Date()
         rawMetadataSnapshot = try container.decodeIfPresent(String.self, forKey: .rawMetadataSnapshot) ?? ""
     }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(title, forKey: .title)
+        try container.encode(source, forKey: .source)
+        try container.encode(category, forKey: .category)
+        try container.encode(platformContentType, forKey: .platformContentType)
+        try container.encode(canonicalURL, forKey: .canonicalURL)
+        try container.encode(originalURL, forKey: .originalURL)
+        try container.encode(externalID, forKey: .externalID)
+        try container.encode(authorName, forKey: .authorName)
+        try container.encode(thumbnailURL, forKey: .thumbnailURL)
+        try container.encodeIfPresent(publishedAt, forKey: .publishedAt)
+        try container.encode(descriptionText, forKey: .descriptionText)
+        try container.encode(tags, forKey: .tags)
+        try container.encode(importStatus, forKey: .importStatus)
+        try container.encode(metadataConfidence, forKey: .metadataConfidence)
+        try container.encode(importedAt, forKey: .importedAt)
+        try container.encode(rawMetadataSnapshot, forKey: .rawMetadataSnapshot)
+    }
 }
 
 struct BookRecord: Identifiable, Codable {
