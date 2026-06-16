@@ -590,7 +590,7 @@ private enum StringOrArrayOrObject: Decodable {
             self = .array(values)
             return
         }
-        self = .object((try? container.decode(NameValue.self)) ?? NameValue(name: nil, value: nil, url: nil))
+        self = .object((try? container.decode(NameValue.self)) ?? NameValue(name: nil, value: nil, url: nil, id: nil))
     }
 }
 
