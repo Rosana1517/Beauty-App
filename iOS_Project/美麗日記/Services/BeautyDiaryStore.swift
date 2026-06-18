@@ -106,8 +106,15 @@ final class BeautyDiaryStore: ObservableObject {
         self.officialImportService = officialImportService
         self.authService = authService
         self.state = repository.load() ?? .seed
-        self.authSession = authService.currentSession()
-        self.authStatus = AppRuntimeConfiguration.hasSupabaseConfig ? (self.authSession == nil ? .signedOut : .authenticated) : .unavailable
+        let restoredSession = authService.currentSession()
+        let restoredStatus: SupabaseAuthStatus
+        if AppRuntimeConfiguration.hasSupabaseConfig {
+            restoredStatus = restoredSession == nil ? .signedOut : .authenticated
+        } else {
+            restoredStatus = .unavailable
+        }
+        self.authSession = restoredSession
+        self.authStatus = restoredStatus
         self.authMessage = nil
         cleanupExpiredTemporaryMedia()
         self.repository.save(self.state)
