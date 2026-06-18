@@ -79,6 +79,9 @@ struct MockRecommendationService {
 @MainActor
 final class BeautyDiaryStore: ObservableObject {
     @Published private(set) var state: BeautyDiaryState
+    @Published private(set) var authStatus: SupabaseAuthStatus
+    @Published private(set) var authSession: SupabaseAuthSession?
+    @Published private(set) var authMessage: String?
 
     private let repository: BeautyDiaryRepository
     private let recommendationService = MockRecommendationService()
@@ -86,22 +89,33 @@ final class BeautyDiaryStore: ObservableObject {
     private let analysisService: ResourceAnalysisService
     private let cloudSyncService: CloudResourceSyncService
     private let officialImportService: OfficialMetadataImportService
+    private let authService: SupabaseAuthServiceProtocol
 
     init(
         repository: BeautyDiaryRepository = JSONBeautyDiaryRepository(),
         importService: ResourceImportService = CompositeResourceImportService(),
         analysisService: ResourceAnalysisService = LocalRuleBasedResourceAnalysisService(),
         cloudSyncService: CloudResourceSyncService = SupabaseCloudResourceSyncService() ?? NoopCloudResourceSyncService(),
-        officialImportService: OfficialMetadataImportService = OfficialMetadataImportGateway()
+        officialImportService: OfficialMetadataImportService = OfficialMetadataImportGateway(),
+        authService: SupabaseAuthServiceProtocol = SupabaseEmailAuthService() ?? NoopSupabaseAuthService()
     ) {
         self.repository = repository
         self.importService = importService
         self.analysisService = analysisService
         self.cloudSyncService = cloudSyncService
         self.officialImportService = officialImportService
+        self.authService = authService
         self.state = repository.load() ?? .seed
+        self.authSession = authService.currentSession()
+        self.authStatus = AppRuntimeConfiguration.hasSupabaseConfig ? (self.authSession == nil ? .signedOut : .authenticated) : .unavailable
+        self.authMessage = nil
         cleanupExpiredTemporaryMedia()
         self.repository.save(self.state)
+        if AppRuntimeConfiguration.hasSupabaseConfig {
+            Task {
+                await restoreAuthSession()
+            }
+        }
     }
 
     static let preview = BeautyDiaryStore(repository: PreviewRepository())
@@ -136,6 +150,10 @@ final class BeautyDiaryStore: ObservableObject {
 
     var platformCapabilities: [SourcePlatformCapability] {
         ImportSourceType.allCases.map { officialImportService.capability(for: $0) }
+    }
+
+    var isCloudSyncReady: Bool {
+        AppRuntimeConfiguration.hasSupabaseConfig && authSession != nil
     }
 
     func toggleChecklist(_ item: ChecklistItem) {
@@ -498,6 +516,95 @@ final class BeautyDiaryStore: ObservableObject {
         } catch {
             return
         }
+    }
+
+    func restoreAuthSession() async {
+        guard AppRuntimeConfiguration.hasSupabaseConfig else {
+            authStatus = .unavailable
+            authSession = nil
+            authMessage = "Supabase is not configured."
+            return
+        }
+
+        authStatus = .restoring
+        authMessage = nil
+        authSession = await authService.restoreSession()
+
+        if authSession == nil {
+            authStatus = .signedOut
+            return
+        }
+
+        authStatus = .authenticated
+        await refreshCloudResources()
+        await syncPendingResources()
+    }
+
+    func signInToSupabase(email: String, password: String) async {
+        guard AppRuntimeConfiguration.hasSupabaseConfig else {
+            authStatus = .unavailable
+            authMessage = "Supabase is not configured."
+            return
+        }
+
+        authStatus = .authenticating
+        authMessage = nil
+
+        do {
+            let session = try await authService.signIn(email: email, password: password)
+            authSession = session
+            authStatus = .authenticated
+            authMessage = "Signed in. Cloud sync is ready."
+            await refreshCloudResources()
+            await syncPendingResources()
+        } catch {
+            authSession = nil
+            authStatus = .signedOut
+            authMessage = error.localizedDescription
+        }
+    }
+
+    func requestSupabaseMagicLink(email: String) async {
+        guard AppRuntimeConfiguration.hasSupabaseConfig else {
+            authStatus = .unavailable
+            authMessage = "Supabase is not configured."
+            return
+        }
+
+        authStatus = .authenticating
+        authMessage = nil
+
+        do {
+            try await authService.requestMagicLink(email: email)
+            authStatus = authSession == nil ? .signedOut : .authenticated
+            authMessage = "Magic link sent. Check your email to finish sign-in."
+        } catch {
+            authStatus = authSession == nil ? .signedOut : .authenticated
+            authMessage = error.localizedDescription
+        }
+    }
+
+    func signOutFromSupabase() async {
+        do {
+            try await authService.signOut()
+        } catch {
+            authMessage = error.localizedDescription
+        }
+
+        authSession = nil
+        authStatus = AppRuntimeConfiguration.hasSupabaseConfig ? .signedOut : .unavailable
+    }
+
+    func syncCloudNow() async {
+        guard authSession != nil else {
+            authMessage = "Sign in to Supabase before syncing."
+            return
+        }
+
+        authMessage = nil
+        await syncPendingResources()
+        await refreshCloudResources()
+        authMessage = "Cloud sync finished."
     }
 
     func applyBackendRecommendationsIfNeeded(for item: ResourceItem) async {

@@ -998,6 +998,8 @@ struct PersonalSettingsView: View {
     @State private var bodyFocus = ""
     @State private var skincareFocus = ""
     @State private var notificationTime = ""
+    @State private var authEmail = ""
+    @State private var authPassword = ""
 
     var body: some View {
         ScrollView {
@@ -1027,12 +1029,19 @@ struct PersonalSettingsView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .safeAreaInset(edge: .bottom) {
+            SupabaseSyncSettingsCard(authEmail: $authEmail, authPassword: $authPassword)
+                .padding(.horizontal, 20)
+                .padding(.bottom, 12)
+                .background(AppTheme.background.opacity(0.001))
+        }
         .onAppear {
             nickname = store.state.profile.nickname
             signature = store.state.profile.signature
             bodyFocus = store.state.profile.bodyFocus
             skincareFocus = store.state.profile.skincareFocus
             notificationTime = store.state.profile.notificationTime
+            authEmail = store.authSession?.email ?? ""
         }
     }
 }
@@ -1056,6 +1065,95 @@ struct CustomizationView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+    }
+}
+
+private struct SupabaseSyncSettingsCard: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @Binding var authEmail: String
+    @Binding var authPassword: String
+
+    var body: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Supabase Cloud Sync")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                InfoRow(title: "Status", value: authStatusText)
+                InfoRow(title: "User", value: resolvedEmail)
+                InfoRow(title: "Sync User ID", value: resolvedSyncUserID)
+
+                if let authMessage = store.authMessage, !authMessage.isEmpty {
+                    Text(authMessage)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.subtext)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(12)
+                        .background(AppTheme.primarySoft)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                ThemedTextField(title: "Supabase email", text: $authEmail)
+                ThemedSecureField(title: "Supabase password", text: $authPassword)
+
+                PrimaryButton(title: "Sign in and sync") {
+                    Task {
+                        await store.signInToSupabase(email: authEmail, password: authPassword)
+                    }
+                }
+
+                PrimaryButton(title: "Send magic link") {
+                    Task {
+                        await store.requestSupabaseMagicLink(email: authEmail)
+                    }
+                }
+
+                PrimaryButton(title: "Sync pending resources now") {
+                    Task {
+                        await store.syncCloudNow()
+                    }
+                }
+
+                if store.authSession != nil {
+                    PrimaryButton(title: "Sign out") {
+                        Task {
+                            await store.signOutFromSupabase()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private var authStatusText: String {
+        switch store.authStatus {
+        case .unavailable:
+            return "Unavailable"
+        case .signedOut:
+            return "Signed out"
+        case .restoring:
+            return "Restoring session"
+        case .authenticating:
+            return "Authenticating"
+        case .authenticated:
+            return "Authenticated"
+        }
+    }
+
+    private var resolvedEmail: String {
+        let email = store.authSession?.email ?? ""
+        return email.isEmpty ? "Not signed in" : email
+    }
+
+    private var resolvedSyncUserID: String {
+        let sessionUserID = store.authSession?.userID ?? ""
+        if !sessionUserID.isEmpty {
+            return sessionUserID
+        }
+
+        let configured = AppRuntimeConfiguration.resourceSyncUserID
+        return configured.isEmpty ? "Unavailable" : configured
     }
 }
 
@@ -2155,6 +2253,18 @@ private struct ThemedTextField: View {
 
     var body: some View {
         TextField(title, text: $text)
+            .padding(14)
+            .background(AppTheme.primarySoft)
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+    }
+}
+
+private struct ThemedSecureField: View {
+    let title: String
+    @Binding var text: String
+
+    var body: some View {
+        SecureField(title, text: $text)
             .padding(14)
             .background(AppTheme.primarySoft)
             .clipShape(RoundedRectangle(cornerRadius: 16))

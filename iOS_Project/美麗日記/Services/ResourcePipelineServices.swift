@@ -3,6 +3,7 @@ import Foundation
 struct PipelineRuntimeConfiguration {
     let supabaseURL: String
     let supabaseAnonKey: String
+    let supabaseAuthRedirectURL: String
     let syncUserID: String
     let resourceImportFunction: String
     let resourceReparseFunction: String
@@ -17,6 +18,7 @@ struct PipelineRuntimeConfiguration {
         PipelineRuntimeConfiguration(
             supabaseURL: AppRuntimeConfiguration.supabaseURL,
             supabaseAnonKey: AppRuntimeConfiguration.supabaseAnonKey,
+            supabaseAuthRedirectURL: AppRuntimeConfiguration.supabaseAuthRedirectURL,
             syncUserID: AppRuntimeConfiguration.resourceSyncUserID,
             resourceImportFunction: AppRuntimeConfiguration.resourceImportFunction,
             resourceReparseFunction: AppRuntimeConfiguration.resourceReparseFunction,
@@ -329,7 +331,7 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
     }
 
     func pushResource(_ item: ResourceItem) async throws -> CloudSyncResult {
-        let payload = SupabaseResourcePayload(item: item, userID: configuration.syncUserID)
+        let payload = SupabaseResourcePayload(item: item, userID: try resolvedUserID())
         let response: [SupabaseResourceRow] = try await client.upsert(
             table: "resource_items",
             payload: [payload],
@@ -345,9 +347,10 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
     }
 
     func fetchResources() async throws -> [ResourceItem] {
+        let userID = try resolvedUserID()
         let rows: [SupabaseResourceRow] = try await client.select(
             table: "resource_items",
-            queryItems: configuration.syncUserID.isEmpty ? [] : [URLQueryItem(name: "user_id", value: "eq.\(configuration.syncUserID)")],
+            queryItems: [URLQueryItem(name: "user_id", value: "eq.\(userID)")],
             responseType: [SupabaseResourceRow].self
         )
         return rows.map(\.resourceItem)
@@ -408,12 +411,31 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
     }
 
     private func createImportEvent(for item: ResourceItem) async throws {
-        let payload = SupabaseImportEventPayload(item: item, userID: configuration.syncUserID)
+        let payload = SupabaseImportEventPayload(item: item, userID: try resolvedUserID())
         _ = try await client.insert(
             table: "resource_import_events",
             payload: [payload],
             responseType: [SupabaseImportEventRow].self
         )
+    }
+
+    private func resolvedUserID() throws -> String {
+        let userID = AppRuntimeConfiguration.resourceSyncUserID
+        if !userID.isEmpty {
+            return userID
+        }
+        throw SupabaseCloudSyncError.missingUserID
+    }
+}
+
+private enum SupabaseCloudSyncError: LocalizedError {
+    case missingUserID
+
+    var errorDescription: String? {
+        switch self {
+        case .missingUserID:
+            return "No Supabase user session is available for sync."
+        }
     }
 }
 
@@ -501,7 +523,7 @@ private struct SupabaseRESTClient {
         request.httpMethod = method
         request.timeoutInterval = 20
         request.setValue(anonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(authorizationToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         extraHeaders.forEach { request.setValue($1, forHTTPHeaderField: $0) }
@@ -539,7 +561,7 @@ private struct SupabaseRESTClient {
         request.httpMethod = method
         request.timeoutInterval = 20
         request.setValue(anonKey, forHTTPHeaderField: "apikey")
-        request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(authorizationToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         extraHeaders.forEach { request.setValue($1, forHTTPHeaderField: $0) }
@@ -561,6 +583,10 @@ private struct SupabaseRESTClient {
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(responseType, from: data)
+    }
+
+    private var authorizationToken: String {
+        SupabaseSessionStore.currentSession()?.accessToken ?? anonKey
     }
 }
 

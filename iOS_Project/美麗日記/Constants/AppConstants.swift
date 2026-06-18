@@ -17,6 +17,7 @@ enum AppRuntimeConfiguration {
     static let youtubeAPIKeyEnv = "YOUTUBE_API_KEY"
     static let supabaseURLEnv = "SUPABASE_URL"
     static let supabaseAnonKeyEnv = "SUPABASE_ANON_KEY"
+    static let supabaseAuthRedirectURLEnv = "SUPABASE_AUTH_REDIRECT_URL"
     static let resourceSyncUserIDEnv = "RESOURCE_SYNC_USER_ID"
     static let resourceImportFunctionEnv = "SUPABASE_RESOURCE_IMPORT_FUNCTION"
     static let resourceReparseFunctionEnv = "SUPABASE_RESOURCE_REPARSE_FUNCTION"
@@ -39,8 +40,16 @@ enum AppRuntimeConfiguration {
         ProcessInfo.processInfo.environment[supabaseAnonKeyEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
+    static var supabaseAuthRedirectURL: String {
+        ProcessInfo.processInfo.environment[supabaseAuthRedirectURLEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
     static var resourceSyncUserID: String {
-        ProcessInfo.processInfo.environment[resourceSyncUserIDEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let override = ProcessInfo.processInfo.environment[resourceSyncUserIDEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !override.isEmpty {
+            return override
+        }
+        return SupabaseSessionStore.currentSession()?.userID ?? ""
     }
 
     static var resourceImportFunction: String {
@@ -81,6 +90,10 @@ enum AppRuntimeConfiguration {
 
     static var hasSupabaseConfig: Bool {
         !supabaseURL.isEmpty && !supabaseAnonKey.isEmpty
+    }
+
+    static var hasSupabaseAuthRedirectURL: Bool {
+        !supabaseAuthRedirectURL.isEmpty
     }
 
     static var hasInstagramOAuthConfig: Bool {

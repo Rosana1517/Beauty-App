@@ -35,6 +35,7 @@ targets:
       - path: 美麗日記/Services/BeautyDiaryStore.swift
       - path: 美麗日記/Services/ResourceImportService.swift
       - path: 美麗日記/Services/ResourcePipelineServices.swift
+      - path: 美麗日記/Services/SupabaseAuthService.swift
       - path: 美麗日記/Views/ContentView.swift
       - path: 美麗日記/Views/MainTabView.swift
       - path: 美麗日記/Views/AppPrototypeViews.swift
