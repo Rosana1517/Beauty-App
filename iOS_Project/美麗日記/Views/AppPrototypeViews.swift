@@ -2008,24 +2008,24 @@ private struct MediaAssetSelectionList: View {
 
     var body: some View {
         VStack(spacing: 10) {
-            ForEach($assets) { $asset in
+            ForEach(Array(assets.indices), id: \.self) { index in
                 Button {
-                    asset.isSelectedForImport.wrappedValue.toggle()
+                    assets[index].isSelectedForImport.toggle()
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: asset.isSelectedForImport.wrappedValue ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(asset.isSelectedForImport.wrappedValue ? AppTheme.primary : AppTheme.subtext)
+                        Image(systemName: assets[index].isSelectedForImport ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(assets[index].isSelectedForImport ? AppTheme.primary : AppTheme.subtext)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(asset.wrappedValue.type.rawValue)
+                            Text(assets[index].type.rawValue)
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(AppTheme.text)
-                            Text(asset.wrappedValue.displayURL)
+                            Text(assets[index].displayURL)
                                 .font(.caption2)
                                 .foregroundStyle(AppTheme.subtext)
                                 .lineLimit(1)
                         }
                         Spacer()
-                        Text("#\(max(asset.wrappedValue.index, 0) + 1)")
+                        Text("#\(max(assets[index].index, 0) + 1)")
                             .font(.caption2)
                             .foregroundStyle(AppTheme.subtext)
                     }
