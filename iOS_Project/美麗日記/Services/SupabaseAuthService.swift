@@ -181,7 +181,6 @@ struct SupabaseEmailAuthService: SupabaseAuthServiceProtocol {
                 path: "/auth/v1/logout",
                 method: "POST",
                 queryItems: [],
-                body: Optional<String>.none,
                 authorized: true,
                 accessTokenOverride: session.accessToken,
                 responseType: EmptySupabaseResponse.self
@@ -206,11 +205,54 @@ struct SupabaseEmailAuthService: SupabaseAuthServiceProtocol {
         return response.session
     }
 
+    private func request<Response: Decodable>(
+        path: String,
+        method: String,
+        queryItems: [URLQueryItem],
+        authorized: Bool,
+        accessTokenOverride: String? = nil,
+        responseType: Response.Type
+    ) async throws -> Response {
+        try await performRequest(
+            path: path,
+            method: method,
+            queryItems: queryItems,
+            bodyData: nil,
+            authorized: authorized,
+            accessTokenOverride: accessTokenOverride,
+            responseType: responseType
+        )
+    }
+
     private func request<Payload: Encodable, Response: Decodable>(
         path: String,
         method: String,
         queryItems: [URLQueryItem],
-        body: Payload?,
+        body: Payload,
+        authorized: Bool,
+        accessTokenOverride: String? = nil,
+        responseType: Response.Type
+    ) async throws -> Response {
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        let bodyData = try encoder.encode(body)
+
+        return try await performRequest(
+            path: path,
+            method: method,
+            queryItems: queryItems,
+            bodyData: bodyData,
+            authorized: authorized,
+            accessTokenOverride: accessTokenOverride,
+            responseType: responseType
+        )
+    }
+
+    private func performRequest<Response: Decodable>(
+        path: String,
+        method: String,
+        queryItems: [URLQueryItem],
+        bodyData: Data?,
         authorized: Bool,
         accessTokenOverride: String? = nil,
         responseType: Response.Type
@@ -238,10 +280,8 @@ struct SupabaseEmailAuthService: SupabaseAuthServiceProtocol {
             request.setValue("Bearer \(anonKey)", forHTTPHeaderField: "Authorization")
         }
 
-        if let body {
-            let encoder = JSONEncoder()
-            encoder.keyEncodingStrategy = .convertToSnakeCase
-            request.httpBody = try encoder.encode(body)
+        if let bodyData {
+            request.httpBody = bodyData
         }
 
         let (data, response) = try await URLSession.shared.data(for: request)
