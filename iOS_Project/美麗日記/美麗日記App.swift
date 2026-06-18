@@ -8,6 +8,11 @@ struct BeautifulDiaryApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(store)
+                .onOpenURL { url in
+                    Task {
+                        await store.handleSupabaseAuthCallback(url)
+                    }
+                }
         }
     }
 }

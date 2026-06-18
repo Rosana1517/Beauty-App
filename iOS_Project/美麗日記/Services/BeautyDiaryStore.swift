@@ -355,6 +355,11 @@ final class BeautyDiaryStore: ObservableObject {
         state.profile.skincareFocus = skincareFocus
         state.profile.notificationTime = notificationTime
         save()
+
+        guard authSession != nil else { return }
+        Task {
+            await syncCurrentUserProfileIfNeeded()
+        }
     }
 
     func createExport(format: ExportFormat) -> String {
@@ -551,6 +556,7 @@ final class BeautyDiaryStore: ObservableObject {
         }
 
         authStatus = .authenticated
+        await syncCurrentUserProfileIfNeeded()
         await refreshCloudResources()
         await syncPendingResources()
     }
@@ -570,6 +576,29 @@ final class BeautyDiaryStore: ObservableObject {
             authSession = session
             authStatus = .authenticated
             authMessage = "Signed in. Cloud sync is ready."
+            await syncCurrentUserProfileIfNeeded()
+            await refreshCloudResources()
+            await syncPendingResources()
+        } catch {
+            authSession = nil
+            authStatus = .signedOut
+            authMessage = error.localizedDescription
+        }
+    }
+
+    func handleSupabaseAuthCallback(_ url: URL) async {
+        guard AppRuntimeConfiguration.hasSupabaseConfig else { return }
+        guard isSupabaseCallbackURL(url) else { return }
+
+        authStatus = .authenticating
+        authMessage = nil
+
+        do {
+            let session = try await authService.completeMagicLinkSignIn(from: url)
+            authSession = session
+            authStatus = .authenticated
+            authMessage = "Magic link sign-in completed."
+            await syncCurrentUserProfileIfNeeded()
             await refreshCloudResources()
             await syncPendingResources()
         } catch {
@@ -658,6 +687,29 @@ final class BeautyDiaryStore: ObservableObject {
             }
             return updated
         }
+    }
+
+    private func syncCurrentUserProfileIfNeeded() async {
+        guard let session = authSession else { return }
+
+        do {
+            try await cloudSyncService.upsertCurrentUserProfile(session: session, profile: state.profile)
+        } catch {
+            authMessage = error.localizedDescription
+        }
+    }
+
+    private func isSupabaseCallbackURL(_ url: URL) -> Bool {
+        guard let redirectURL = URL(string: AppRuntimeConfiguration.supabaseAuthRedirectURL),
+              let callbackComponents = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let expectedComponents = URLComponents(url: redirectURL, resolvingAgainstBaseURL: false) else {
+            return false
+        }
+
+        let sameScheme = callbackComponents.scheme?.caseInsensitiveCompare(expectedComponents.scheme ?? "") == .orderedSame
+        let sameHost = (callbackComponents.host ?? "").caseInsensitiveCompare(expectedComponents.host ?? "") == .orderedSame
+        let samePath = callbackComponents.path == expectedComponents.path
+        return sameScheme && sameHost && samePath
     }
 
     private func syncResource(_ resourceID: UUID) async {

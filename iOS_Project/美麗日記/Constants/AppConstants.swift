@@ -41,7 +41,8 @@ enum AppRuntimeConfiguration {
     }
 
     static var supabaseAuthRedirectURL: String {
-        ProcessInfo.processInfo.environment[supabaseAuthRedirectURLEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let configured = ProcessInfo.processInfo.environment[supabaseAuthRedirectURLEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return configured.isEmpty ? "beautydiary://auth/callback" : configured
     }
 
     static var resourceSyncUserID: String {

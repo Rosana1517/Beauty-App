@@ -50,6 +50,7 @@ protocol SupabaseAuthServiceProtocol {
     func currentSession() -> SupabaseAuthSession?
     func signIn(email: String, password: String) async throws -> SupabaseAuthSession
     func requestMagicLink(email: String) async throws
+    func completeMagicLinkSignIn(from url: URL) async throws -> SupabaseAuthSession
     func signOut() async throws
 }
 
@@ -83,6 +84,7 @@ struct NoopSupabaseAuthService: SupabaseAuthServiceProtocol {
     func currentSession() -> SupabaseAuthSession? { nil }
     func signIn(email: String, password: String) async throws -> SupabaseAuthSession { throw SupabaseAuthError.unavailable }
     func requestMagicLink(email: String) async throws { throw SupabaseAuthError.unavailable }
+    func completeMagicLinkSignIn(from url: URL) async throws -> SupabaseAuthSession { throw SupabaseAuthError.unavailable }
     func signOut() async throws {}
 }
 
@@ -170,6 +172,48 @@ struct SupabaseEmailAuthService: SupabaseAuthServiceProtocol {
         )
     }
 
+    func completeMagicLinkSignIn(from url: URL) async throws -> SupabaseAuthSession {
+        let parameters = callbackParameters(from: url)
+
+        if let errorDescription = parameters["error_description"], !errorDescription.isEmpty {
+            throw SupabaseAuthError.serverMessage(errorDescription)
+        }
+
+        if let errorCode = parameters["error_code"], !errorCode.isEmpty {
+            throw SupabaseAuthError.serverMessage(errorCode)
+        }
+
+        if let accessToken = parameters["access_token"],
+           let refreshToken = parameters["refresh_token"] {
+            let session = try await makeSessionFromCallback(
+                accessToken: accessToken,
+                refreshToken: refreshToken,
+                tokenType: parameters["token_type"] ?? "bearer",
+                expiresAt: parameters["expires_at"],
+                expiresIn: parameters["expires_in"]
+            )
+            SupabaseSessionStore.save(session)
+            return session
+        }
+
+        if let tokenHash = parameters["token_hash"], !tokenHash.isEmpty {
+            let type = parameters["type"] ?? "email"
+            let response: SupabaseTokenResponse = try await request(
+                path: "/auth/v1/verify",
+                method: "POST",
+                queryItems: [],
+                body: VerifyTokenHashRequest(type: type, tokenHash: tokenHash),
+                authorized: false,
+                responseType: SupabaseTokenResponse.self
+            )
+            let session = response.session
+            SupabaseSessionStore.save(session)
+            return session
+        }
+
+        throw SupabaseAuthError.invalidResponse
+    }
+
     func signOut() async throws {
         guard let session = SupabaseSessionStore.currentSession() else {
             SupabaseSessionStore.clear()
@@ -203,6 +247,71 @@ struct SupabaseEmailAuthService: SupabaseAuthServiceProtocol {
             responseType: SupabaseTokenResponse.self
         )
         return response.session
+    }
+
+    private func makeSessionFromCallback(
+        accessToken: String,
+        refreshToken: String,
+        tokenType: String,
+        expiresAt: String?,
+        expiresIn: String?
+    ) async throws -> SupabaseAuthSession {
+        let resolvedExpiry = resolveExpiry(expiresAt: expiresAt, expiresIn: expiresIn)
+        let user = try await fetchCurrentUser(accessToken: accessToken)
+        return SupabaseAuthSession(
+            accessToken: accessToken,
+            refreshToken: refreshToken,
+            tokenType: tokenType,
+            expiresAt: resolvedExpiry,
+            userID: user.id,
+            email: user.email ?? ""
+        )
+    }
+
+    private func resolveExpiry(expiresAt: String?, expiresIn: String?) -> Date? {
+        if let expiresAt,
+           let timestamp = Double(expiresAt) {
+            return Date(timeIntervalSince1970: timestamp)
+        }
+
+        if let expiresIn,
+           let interval = Double(expiresIn) {
+            return Date().addingTimeInterval(interval)
+        }
+
+        return nil
+    }
+
+    private func fetchCurrentUser(accessToken: String) async throws -> SupabaseAuthUser {
+        try await request(
+            path: "/auth/v1/user",
+            method: "GET",
+            queryItems: [],
+            authorized: true,
+            accessTokenOverride: accessToken,
+            responseType: SupabaseAuthUser.self
+        )
+    }
+
+    private func callbackParameters(from url: URL) -> [String: String] {
+        var values: [String: String] = [:]
+
+        if let components = URLComponents(url: url, resolvingAgainstBaseURL: false) {
+            components.queryItems?.forEach { item in
+                guard let value = item.value else { return }
+                values[item.name] = value
+            }
+
+            if let fragment = components.fragment,
+               let fragmentItems = URLComponents(string: "https://callback.local?\(fragment)")?.queryItems {
+                fragmentItems.forEach { item in
+                    guard let value = item.value else { return }
+                    values[item.name] = value
+                }
+            }
+        }
+
+        return values
     }
 
     private func request<Response: Decodable>(
@@ -330,6 +439,11 @@ private struct MagicLinkRequest: Encodable {
     let email: String
     let createUser: Bool
     let emailRedirectTo: String?
+}
+
+private struct VerifyTokenHashRequest: Encodable {
+    let type: String
+    let tokenHash: String
 }
 
 private struct SupabaseTokenResponse: Decodable {

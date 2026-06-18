@@ -49,6 +49,7 @@ protocol ResourceAnalysisService {
 }
 
 protocol CloudResourceSyncService {
+    func upsertCurrentUserProfile(session: SupabaseAuthSession, profile: UserProfileRecord) async throws
     func pushResource(_ item: ResourceItem) async throws -> CloudSyncResult
     func fetchResources() async throws -> [ResourceItem]
     func enqueueReparse(for item: ResourceItem, reason: String) async throws -> ResourceSyncQueueItem
@@ -275,6 +276,8 @@ struct LocalRuleBasedResourceAnalysisService: ResourceAnalysisService {
 }
 
 struct NoopCloudResourceSyncService: CloudResourceSyncService {
+    func upsertCurrentUserProfile(session: SupabaseAuthSession, profile: UserProfileRecord) async throws {}
+
     func pushResource(_ item: ResourceItem) async throws -> CloudSyncResult {
         CloudSyncResult(remoteRecordID: item.remoteRecordID, syncedAt: Date())
     }
@@ -328,6 +331,15 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
         }
         self.configuration = configuration
         self.client = SupabaseRESTClient(baseURL: configuration.supabaseURL, anonKey: configuration.supabaseAnonKey)
+    }
+
+    func upsertCurrentUserProfile(session: SupabaseAuthSession, profile: UserProfileRecord) async throws {
+        let payload = SupabaseAppUserPayload(session: session, profile: profile)
+        _ = try await client.upsert(
+            table: "app_users",
+            payload: [payload],
+            responseType: [SupabaseAppUserRow].self
+        )
     }
 
     func pushResource(_ item: ResourceItem) async throws -> CloudSyncResult {
@@ -687,6 +699,18 @@ private struct SupabaseResourcePayload: Encodable {
     }
 }
 
+private struct SupabaseAppUserPayload: Encodable {
+    let id: String
+    let email: String?
+    let nickname: String?
+
+    init(session: SupabaseAuthSession, profile: UserProfileRecord) {
+        id = session.userID
+        email = session.email.nilIfEmpty
+        nickname = profile.nickname.nilIfEmpty
+    }
+}
+
 private struct SupabaseImportEventPayload: Encodable {
     let resourceID: String?
     let userID: String?
@@ -766,6 +790,10 @@ private struct SupabaseResourceRow: Decodable {
 }
 
 private struct SupabaseImportEventRow: Decodable {
+    let id: String
+}
+
+private struct SupabaseAppUserRow: Decodable {
     let id: String
 }
 
