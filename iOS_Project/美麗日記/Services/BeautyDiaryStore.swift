@@ -120,11 +120,11 @@ final class BeautyDiaryStore: ObservableObject {
 
     static let preview = BeautyDiaryStore(repository: PreviewRepository())
 
-    private static func makeCloudSyncService() -> any CloudResourceSyncService {
+    nonisolated private static func makeCloudSyncService() -> any CloudResourceSyncService {
         SupabaseCloudResourceSyncService() ?? NoopCloudResourceSyncService()
     }
 
-    private static func makeAuthService() -> any SupabaseAuthServiceProtocol {
+    nonisolated private static func makeAuthService() -> any SupabaseAuthServiceProtocol {
         SupabaseEmailAuthService() ?? NoopSupabaseAuthService()
     }
 
