@@ -1468,6 +1468,44 @@ private struct ImportPreviewView: View {
                 }
             }
 
+            if !draft.mediaAssets.isEmpty {
+                CardView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text("媒體資產")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            MediaRetentionBadge(policy: draft.mediaRetentionPolicy)
+                        }
+                        Text("已識別 \(draft.mediaAssets.count) 筆媒體，預設只保存 metadata。")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.subtext)
+                        MediaAssetListView(assets: draft.mediaAssets)
+                    }
+                }
+            }
+
+            if let payload = draft.sourcePayloadSummary, !payload.commentsPreview.isEmpty {
+                CardView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("評論預覽")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        ForEach(payload.commentsPreview, id: \.self) { comment in
+                            Text(comment)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.subtext)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                    }
+                }
+            }
+
             PrimaryButton(title: "保存到資源庫") {
                 saveAction()
             }
@@ -1512,11 +1550,28 @@ private struct ManualCompleteView: View {
                         }
                     }
 
+                    Picker("媒體保存策略", selection: $draft.mediaRetentionPolicy) {
+                        ForEach(MediaRetentionPolicy.allCases) { item in
+                            Text(item.rawValue).tag(item)
+                        }
+                    }
+
                     ThemedTextField(title: "標題", text: $draft.title)
                     ThemedTextField(title: "作者", text: $draft.authorName)
                     ThemedTextField(title: "縮圖 URL", text: $draft.thumbnailURL)
                     ThemedTextField(title: "描述", text: $draft.descriptionText)
                     ThemedTextField(title: "標籤（以逗號分隔）", text: $tagsText)
+                }
+            }
+
+            if !draft.mediaAssets.isEmpty {
+                CardView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("媒體選擇")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+                        MediaAssetSelectionList(assets: $draft.mediaAssets)
+                    }
                 }
             }
 
@@ -1564,6 +1619,21 @@ private struct ResourceListCard: View {
                 .font(.caption)
                 .foregroundStyle(AppTheme.subtext)
                 .lineLimit(2)
+
+            HStack {
+                MediaRetentionBadge(policy: item.mediaRetentionPolicy)
+                if !item.selectedMediaAssets.isEmpty {
+                    Text("媒體 \(item.selectedMediaAssets.count) 筆")
+                        .font(.caption2)
+                        .foregroundStyle(AppTheme.subtext)
+                }
+                Spacer()
+                if !item.temporaryMediaLeases.isEmpty {
+                    Text("暫存 \(item.temporaryMediaLeases.count)")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
+            }
 
             if !item.authorName.isEmpty || !item.tags.isEmpty {
                 HStack {
@@ -1622,7 +1692,50 @@ private struct ResourceDetailView: View {
                         MetadataRow(title: "原始連結", value: item.originalURL)
                         MetadataRow(title: "標準連結", value: item.canonicalURL.isEmpty ? "未提供" : item.canonicalURL)
                         MetadataRow(title: "外部 ID", value: item.externalID.isEmpty ? "未提供" : item.externalID)
+                        MetadataRow(title: "媒體策略", value: item.mediaRetentionPolicy.rawValue)
+                        MetadataRow(title: "媒體數量", value: "\(item.selectedMediaAssets.count)")
                         MetadataRow(title: "匯入時間", value: item.importedAt.formatted(date: .abbreviated, time: .shortened))
+                    }
+                }
+
+                if !item.selectedMediaAssets.isEmpty {
+                    CardView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("媒體清單")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            MediaAssetListView(assets: item.selectedMediaAssets)
+                        }
+                    }
+                }
+
+                if !item.temporaryMediaLeases.isEmpty {
+                    CardView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("暫存清理狀態")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            ForEach(item.temporaryMediaLeases) { lease in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(lease.storagePath)
+                                            .font(.caption2)
+                                            .foregroundStyle(AppTheme.text)
+                                            .lineLimit(1)
+                                        Text("到期：\(lease.expiresAt.formatted(date: .abbreviated, time: .shortened))")
+                                            .font(.caption2)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                    Spacer()
+                                    Text(lease.cleanupStatus.rawValue)
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(AppTheme.primary)
+                                }
+                                .padding(10)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                            }
+                        }
                     }
                 }
             }
@@ -1820,17 +1933,125 @@ private struct InfoCallout: View {
     }
 }
 
+private struct MediaRetentionBadge: View {
+    let policy: MediaRetentionPolicy
+
+    var body: some View {
+        Text(policy.rawValue)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(policyColor)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(policyColor.opacity(0.12))
+            .clipShape(Capsule())
+    }
+
+    private var policyColor: Color {
+        switch policy {
+        case .metadataOnly:
+            return AppTheme.primary
+        case .temporaryCache:
+            return .orange
+        case .explicitKeep:
+            return .blue
+        }
+    }
+}
+
+private struct MediaAssetListView: View {
+    let assets: [XHSMediaAsset]
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ForEach(assets) { asset in
+                HStack(spacing: 12) {
+                    ThumbnailPreview(thumbnailURL: asset.displayURL, size: 58)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(assetTypeLabel(asset.type))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.text)
+                        Text(asset.displayURL)
+                            .font(.caption2)
+                            .foregroundStyle(AppTheme.subtext)
+                            .lineLimit(1)
+                        if let expiresAt = asset.expiresAt {
+                            Text("到期：\(expiresAt.formatted(date: .abbreviated, time: .shortened))")
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                    Spacer()
+                    MediaRetentionBadge(policy: asset.retentionPolicy)
+                }
+            }
+        }
+    }
+
+    private func assetTypeLabel(_ type: XHSMediaAssetType) -> String {
+        switch type {
+        case .image:
+            return "圖片"
+        case .video:
+            return "影片"
+        case .cover:
+            return "封面"
+        case .livePhoto:
+            return "LivePhoto"
+        case .unknown:
+            return "未知"
+        }
+    }
+}
+
+private struct MediaAssetSelectionList: View {
+    @Binding var assets: [XHSMediaAsset]
+
+    var body: some View {
+        VStack(spacing: 10) {
+            ForEach($assets) { $asset in
+                Button {
+                    asset.isSelectedForImport.wrappedValue.toggle()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: asset.isSelectedForImport.wrappedValue ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(asset.isSelectedForImport.wrappedValue ? AppTheme.primary : AppTheme.subtext)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(asset.wrappedValue.type.rawValue)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(AppTheme.text)
+                            Text(asset.wrappedValue.displayURL)
+                                .font(.caption2)
+                                .foregroundStyle(AppTheme.subtext)
+                                .lineLimit(1)
+                        }
+                        Spacer()
+                        Text("#\(max(asset.wrappedValue.index, 0) + 1)")
+                            .font(.caption2)
+                            .foregroundStyle(AppTheme.subtext)
+                    }
+                    .padding(12)
+                    .background(AppTheme.primarySoft)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+}
+
 private struct MetadataHero: View {
     let title: String
     let subtitle: String
     let sourceLabel: String
     let thumbnailURL: String
+    let mediaAssets: [XHSMediaAsset]
 
     init(draft: ResourceImportDraft) {
         self.title = draft.title.isEmpty ? "尚未解析出標題" : draft.title
         self.subtitle = draft.descriptionText.isEmpty ? draft.resolvedURL : draft.descriptionText
         self.sourceLabel = "\(draft.source.rawValue) · \(draft.platformContentType.rawValue)"
         self.thumbnailURL = draft.thumbnailURL
+        self.mediaAssets = draft.selectedMediaAssets.isEmpty ? draft.mediaAssets : draft.selectedMediaAssets
     }
 
     init(item: ResourceItem) {
@@ -1838,11 +2059,12 @@ private struct MetadataHero: View {
         self.subtitle = item.displaySummary
         self.sourceLabel = "\(item.source.rawValue) · \(item.platformContentType.rawValue)"
         self.thumbnailURL = item.thumbnailURL
+        self.mediaAssets = item.selectedMediaAssets
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 14) {
-            ThumbnailPreview(thumbnailURL: thumbnailURL)
+            ThumbnailPreview(thumbnailURL: mediaAssets.first?.displayURL ?? thumbnailURL)
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(sourceLabel)
@@ -1862,6 +2084,7 @@ private struct MetadataHero: View {
 
 private struct ThumbnailPreview: View {
     let thumbnailURL: String
+    var size: CGFloat = 92
 
     var body: some View {
         Group {
@@ -1884,7 +2107,7 @@ private struct ThumbnailPreview: View {
                     )
             }
         }
-        .frame(width: 92, height: 92)
+        .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }

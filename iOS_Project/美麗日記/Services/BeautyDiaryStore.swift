@@ -83,14 +83,24 @@ final class BeautyDiaryStore: ObservableObject {
     private let repository: BeautyDiaryRepository
     private let recommendationService = MockRecommendationService()
     private let importService: ResourceImportService
+    private let analysisService: ResourceAnalysisService
+    private let cloudSyncService: CloudResourceSyncService
+    private let officialImportService: OfficialMetadataImportService
 
     init(
         repository: BeautyDiaryRepository = JSONBeautyDiaryRepository(),
-        importService: ResourceImportService = CompositeResourceImportService()
+        importService: ResourceImportService = CompositeResourceImportService(),
+        analysisService: ResourceAnalysisService = LocalRuleBasedResourceAnalysisService(),
+        cloudSyncService: CloudResourceSyncService = SupabaseCloudResourceSyncService() ?? NoopCloudResourceSyncService(),
+        officialImportService: OfficialMetadataImportService = OfficialMetadataImportGateway()
     ) {
         self.repository = repository
         self.importService = importService
+        self.analysisService = analysisService
+        self.cloudSyncService = cloudSyncService
+        self.officialImportService = officialImportService
         self.state = repository.load() ?? .seed
+        cleanupExpiredTemporaryMedia()
         self.repository.save(self.state)
     }
 
@@ -122,6 +132,10 @@ final class BeautyDiaryStore: ObservableObject {
             return state.resourceItems
         }
         return state.resourceItems.filter { $0.category == state.resourceFilter }
+    }
+
+    var platformCapabilities: [SourcePlatformCapability] {
+        ImportSourceType.allCases.map { officialImportService.capability(for: $0) }
     }
 
     func toggleChecklist(_ item: ChecklistItem) {
@@ -335,7 +349,9 @@ final class BeautyDiaryStore: ObservableObject {
         }
 
         let parsed = await importService.parse(url: trimmed)
+        let analyzed = await analysisService.analyze(draft: parsed)
         var draft = parsed
+        draft = analyzed
         if draft.category == .all {
             draft.category = ResourceCategory.suggestedCategory(
                 title: draft.title,
@@ -359,6 +375,7 @@ final class BeautyDiaryStore: ObservableObject {
         draft.lastErrorMessage = message
         draft.importStatus = .partial
         draft.platformContentType = draft.source == .web ? .article : .unknown
+        draft.analysisStatus = .fallback
         state.pendingImportDraft = draft
         save()
         return draft
@@ -372,6 +389,33 @@ final class BeautyDiaryStore: ObservableObject {
         normalizedDraft.title = trimmedTitle
         normalizedDraft.category = draft.category == .all ? .other : draft.category
         normalizedDraft.importedAt = Date()
+        normalizedDraft.temporaryMediaLeases = normalizedDraft.temporaryMediaLeases.filter { $0.cleanedAt == nil }
+
+        if normalizedDraft.mediaRetentionPolicy == .metadataOnly {
+            normalizedDraft.temporaryMediaLeases = []
+            normalizedDraft.mediaAssets = normalizedDraft.selectedMediaAssets.map {
+                var asset = $0
+                asset.localStoragePath = nil
+                asset.expiresAt = nil
+                asset.retentionPolicy = .metadataOnly
+                return asset
+            }
+        } else if normalizedDraft.mediaRetentionPolicy == .temporaryCache {
+            let expiry = Date().addingTimeInterval(60 * 60)
+            normalizedDraft.mediaAssets = normalizedDraft.selectedMediaAssets.map {
+                var asset = $0
+                asset.retentionPolicy = .temporaryCache
+                asset.expiresAt = expiry
+                return asset
+            }
+        } else {
+            normalizedDraft.mediaAssets = normalizedDraft.selectedMediaAssets
+        }
+
+        if var payload = normalizedDraft.sourcePayloadSummary {
+            payload.mediaAssets = normalizedDraft.mediaAssets
+            normalizedDraft.sourcePayloadSummary = payload
+        }
 
         if draft.importStatus == .partial {
             normalizedDraft.importStatus = draft.metadataConfidence < 0.2 ? .failedFallbackSaved : .manualCompleted
@@ -381,7 +425,8 @@ final class BeautyDiaryStore: ObservableObject {
             normalizedDraft.importStatus = .parsed
         }
 
-        state.resourceItems.insert(ResourceItem(from: normalizedDraft), at: 0)
+        let resourceItem = ResourceItem(from: normalizedDraft)
+        state.resourceItems.insert(resourceItem, at: 0)
         state.resourceImportHistory.insert(
             ResourceImportHistoryEntry(
                 id: UUID(),
@@ -394,9 +439,29 @@ final class BeautyDiaryStore: ObservableObject {
             ),
             at: 0
         )
+        state.resourceSyncQueue.insert(
+            ResourceSyncQueueItem(
+                id: UUID(),
+                resourceID: resourceItem.id,
+                jobType: .importJob,
+                syncTarget: "supabase",
+                syncStatus: .pending,
+                retryCount: 0,
+                requestPayload: resourceItem.originalURL,
+                lastErrorMessage: nil,
+                createdAt: Date(),
+                updatedAt: Date()
+            ),
+            at: 0
+        )
         state.pendingImportDraft = nil
         unlockBadgeIfNeeded(title: "資源收藏家", when: state.resourceItems.count >= 10)
         save()
+
+        Task {
+            await syncResource(resourceItem.id)
+            await scheduleMediaCleanupIfNeeded(for: resourceItem.id)
+        }
     }
 
     func clearPendingImportDraft() {
@@ -404,9 +469,152 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func syncPendingResources() async {
+        let pendingIDs = state.resourceSyncQueue
+            .filter { $0.syncStatus == .pending || $0.syncStatus == .failed }
+            .map(\.resourceID)
+
+        for resourceID in pendingIDs {
+            await syncResource(resourceID)
+        }
+    }
+
+    func requestBackendReparse(for item: ResourceItem, reason: String) async {
+        do {
+            let queueItem = try await cloudSyncService.enqueueReparse(for: item, reason: reason)
+            state.resourceSyncQueue.insert(queueItem, at: 0)
+            save()
+        } catch {
+            appendSyncFailure(resourceID: item.id, message: "建立重解析佇列失敗：\(error.localizedDescription)")
+        }
+    }
+
+    func refreshCloudResources() async {
+        do {
+            let remoteItems = try await cloudSyncService.fetchResources()
+            guard !remoteItems.isEmpty else { return }
+            state.resourceItems = merge(local: state.resourceItems, remote: remoteItems)
+            save()
+        } catch {
+            return
+        }
+    }
+
+    func applyBackendRecommendationsIfNeeded(for item: ResourceItem) async {
+        do {
+            let cards = try await cloudSyncService.requestRecommendations(for: item)
+            guard let index = state.resourceItems.firstIndex(where: { $0.id == item.id }), !cards.isEmpty else { return }
+            state.resourceItems[index].recommendationCards = cards
+            state.resourceItems[index].analysisStatus = .analyzed
+            save()
+        } catch {
+            return
+        }
+    }
+
     private func unlockBadgeIfNeeded(title: String, when condition: Bool) {
         guard condition, let index = state.achievements.firstIndex(where: { $0.title == title }) else { return }
         state.achievements[index].unlocked = true
+    }
+
+    private func cleanupExpiredTemporaryMedia(now: Date = Date()) {
+        state.resourceItems = state.resourceItems.map { item in
+            var updated = item
+            let activeLeases = item.temporaryMediaLeases.filter { lease in
+                lease.cleanedAt == nil && lease.expiresAt > now
+            }
+            updated.temporaryMediaLeases = activeLeases
+            if item.mediaRetentionPolicy == .temporaryCache {
+                updated.mediaAssets = item.mediaAssets.map { asset in
+                    var mutable = asset
+                    if let expiresAt = asset.expiresAt, expiresAt <= now {
+                        mutable.localStoragePath = nil
+                        mutable.retentionPolicy = .metadataOnly
+                    }
+                    return mutable
+                }
+            }
+            return updated
+        }
+    }
+
+    private func syncResource(_ resourceID: UUID) async {
+        guard let resourceIndex = state.resourceItems.firstIndex(where: { $0.id == resourceID }) else { return }
+
+        updateSyncState(for: resourceID, jobType: .importJob, status: .syncing, errorMessage: nil)
+        do {
+            let result = try await cloudSyncService.pushResource(state.resourceItems[resourceIndex])
+            state.resourceItems[resourceIndex].syncStatus = .succeeded
+            state.resourceItems[resourceIndex].remoteRecordID = result.remoteRecordID
+            state.resourceItems[resourceIndex].lastSyncedAt = result.syncedAt
+            updateSyncState(for: resourceID, jobType: .importJob, status: .succeeded, errorMessage: nil)
+            save()
+            await applyBackendRecommendationsIfNeeded(for: state.resourceItems[resourceIndex])
+        } catch {
+            state.resourceItems[resourceIndex].syncStatus = .failed
+            updateSyncState(for: resourceID, jobType: .importJob, status: .failed, errorMessage: error.localizedDescription)
+            save()
+        }
+    }
+
+    private func scheduleMediaCleanupIfNeeded(for resourceID: UUID) async {
+        guard let resource = state.resourceItems.first(where: { $0.id == resourceID }) else { return }
+        guard resource.mediaRetentionPolicy != .explicitKeep else { return }
+        guard !resource.mediaAssets.isEmpty || !resource.temporaryMediaLeases.isEmpty else { return }
+
+        do {
+            let queueItem = try await cloudSyncService.enqueueMediaCleanup(for: resource)
+            state.resourceSyncQueue.insert(queueItem, at: 0)
+            save()
+        } catch {
+            appendSyncFailure(resourceID: resourceID, message: "建立媒體清理佇列失敗：\(error.localizedDescription)")
+        }
+    }
+
+    private func updateSyncState(for resourceID: UUID, jobType: ResourceSyncJobType, status: ResourceSyncStatus, errorMessage: String?) {
+        if let queueIndex = state.resourceSyncQueue.firstIndex(where: { $0.resourceID == resourceID && $0.jobType == jobType }) {
+            state.resourceSyncQueue[queueIndex].syncStatus = status
+            state.resourceSyncQueue[queueIndex].updatedAt = Date()
+            state.resourceSyncQueue[queueIndex].lastErrorMessage = errorMessage
+            if status == .failed {
+                state.resourceSyncQueue[queueIndex].retryCount += 1
+            }
+        } else {
+            state.resourceSyncQueue.insert(
+                ResourceSyncQueueItem(
+                    id: UUID(),
+                    resourceID: resourceID,
+                    jobType: jobType,
+                    syncTarget: "supabase",
+                    syncStatus: status,
+                    retryCount: status == .failed ? 1 : 0,
+                    requestPayload: "",
+                    lastErrorMessage: errorMessage,
+                    createdAt: Date(),
+                    updatedAt: Date()
+                ),
+                at: 0
+            )
+        }
+    }
+
+    private func appendSyncFailure(resourceID: UUID, message: String) {
+        updateSyncState(for: resourceID, jobType: .importJob, status: .failed, errorMessage: message)
+        save()
+    }
+
+    private func merge(local: [ResourceItem], remote: [ResourceItem]) -> [ResourceItem] {
+        var merged = local
+        for remoteItem in remote {
+            if let index = merged.firstIndex(where: { $0.remoteRecordID == remoteItem.remoteRecordID && !$0.remoteRecordID.isEmpty }) {
+                merged[index] = remoteItem
+            } else if let index = merged.firstIndex(where: { $0.originalURL == remoteItem.originalURL && $0.source == remoteItem.source }) {
+                merged[index] = remoteItem
+            } else {
+                merged.append(remoteItem)
+            }
+        }
+        return merged.sorted { $0.importedAt > $1.importedAt }
     }
 
     private func save() {

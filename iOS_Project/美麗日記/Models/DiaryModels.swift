@@ -211,6 +211,70 @@ enum ResourceImportStatus: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
 }
 
+enum ResourceAnalysisStatus: String, CaseIterable, Codable, Identifiable {
+    case pending = "待分析"
+    case analyzing = "分析中"
+    case analyzed = "已分析"
+    case fallback = "規則回退"
+
+    var id: String { rawValue }
+}
+
+enum ResourceSyncStatus: String, CaseIterable, Codable, Identifiable {
+    case pending = "待同步"
+    case syncing = "同步中"
+    case succeeded = "同步成功"
+    case failed = "同步失敗"
+
+    var id: String { rawValue }
+}
+
+enum PlatformAuthorizationState: String, CaseIterable, Codable, Identifiable {
+    case notConfigured = "未配置"
+    case oauthReady = "可進入授權"
+    case backendRequired = "需後端代理"
+    case unavailable = "暫不可用"
+
+    var id: String { rawValue }
+}
+
+enum MediaRetentionPolicy: String, CaseIterable, Codable, Identifiable {
+    case metadataOnly = "只存 Metadata"
+    case temporaryCache = "暫存媒體"
+    case explicitKeep = "明確保留"
+
+    var id: String { rawValue }
+}
+
+enum XHSNoteContentType: String, CaseIterable, Codable, Identifiable {
+    case video = "video"
+    case imagePost = "imagePost"
+    case carousel = "carousel"
+    case livePhoto = "livePhoto"
+    case unknown = "unknown"
+
+    var id: String { rawValue }
+}
+
+enum XHSMediaAssetType: String, CaseIterable, Codable, Identifiable {
+    case image = "image"
+    case video = "video"
+    case cover = "cover"
+    case livePhoto = "livePhoto"
+    case unknown = "unknown"
+
+    var id: String { rawValue }
+}
+
+enum ResourceSyncJobType: String, CaseIterable, Codable, Identifiable {
+    case importJob = "import"
+    case reparse = "reparse"
+    case recommendation = "recommendation"
+    case mediaCleanup = "media_cleanup"
+
+    var id: String { rawValue }
+}
+
 struct UserProfileRecord: Codable {
     var nickname: String
     var streakDays: Int
@@ -294,6 +358,93 @@ struct ParsedMetadataPayload: Codable {
     var pageHost: String
 }
 
+struct AIAnalysisResult: Codable {
+    var summary: String
+    var insights: [String]
+    var recommendedActions: [String]
+    var confidence: Double
+    var provider: String
+    var generatedAt: Date
+}
+
+struct ResourceRecommendationCard: Identifiable, Codable {
+    var id: UUID
+    var title: String
+    var detail: String
+    var category: ResourceCategory
+    var reason: String
+}
+
+struct SourcePlatformCapability: Identifiable, Codable {
+    var id: ImportSourceType { source }
+    var source: ImportSourceType
+    var supportsOfficialOAuth: Bool
+    var supportsBackendReparse: Bool
+    var authorizationState: PlatformAuthorizationState
+    var note: String
+}
+
+struct XHSNoteIdentifier: Codable {
+    var noteID: String
+    var authorID: String
+    var canonicalURL: String
+    var shareURL: String
+    var xsecToken: String
+}
+
+struct XHSAuthorProfile: Codable {
+    var authorID: String
+    var name: String
+    var avatarURL: String
+    var noteCountSummary: String
+}
+
+struct XHSMediaAsset: Identifiable, Codable {
+    var id: UUID
+    var assetID: String
+    var type: XHSMediaAssetType
+    var remoteURL: String
+    var previewURL: String
+    var width: Int?
+    var height: Int?
+    var duration: Double?
+    var index: Int
+    var retentionPolicy: MediaRetentionPolicy
+    var localStoragePath: String?
+    var checksum: String?
+    var isSelectedForImport: Bool
+    var expiresAt: Date?
+
+    var displayURL: String {
+        previewURL.isEmpty ? remoteURL : previewURL
+    }
+}
+
+struct XHSParsedPayload: Codable {
+    var identifier: XHSNoteIdentifier
+    var title: String
+    var description: String
+    var author: XHSAuthorProfile
+    var likeCount: Int?
+    var tags: [String]
+    var publishedAt: Date?
+    var contentType: XHSNoteContentType
+    var mediaAssets: [XHSMediaAsset]
+    var commentsPreview: [String]
+    var rawSnapshot: String
+}
+
+struct TemporaryMediaLease: Identifiable, Codable {
+    var id: UUID
+    var assetID: String
+    var resourceID: UUID?
+    var storagePath: String
+    var retentionPolicy: MediaRetentionPolicy
+    var expiresAt: Date
+    var cleanedAt: Date?
+    var cleanupStatus: ResourceSyncStatus
+}
+
 struct ResourceImportDraft: Identifiable, Codable {
     var id: UUID
     var source: ImportSourceType
@@ -312,10 +463,24 @@ struct ResourceImportDraft: Identifiable, Codable {
     var metadataConfidence: Double
     var importedAt: Date?
     var rawMetadataSnapshot: String
+    var mediaRetentionPolicy: MediaRetentionPolicy
+    var mediaAssets: [XHSMediaAsset]
+    var temporaryMediaLeases: [TemporaryMediaLease]
+    var sourcePayloadSummary: XHSParsedPayload?
+    var analysisStatus: ResourceAnalysisStatus
+    var aiAnalysis: AIAnalysisResult?
+    var recommendationCards: [ResourceRecommendationCard]
+    var syncStatus: ResourceSyncStatus
+    var remoteRecordID: String
+    var lastSyncedAt: Date?
     var lastErrorMessage: String?
 
     var resolvedURL: String {
         canonicalURL.isEmpty ? originalURL : canonicalURL
+    }
+
+    var selectedMediaAssets: [XHSMediaAsset] {
+        mediaAssets.filter(\.isSelectedForImport)
     }
 
     var missingFields: [String] {
@@ -328,6 +493,9 @@ struct ResourceImportDraft: Identifiable, Codable {
         }
         if source == .web && originalURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             fields.append("來源連結")
+        }
+        if !mediaAssets.isEmpty && selectedMediaAssets.isEmpty {
+            fields.append("至少選擇一筆媒體")
         }
         return fields
     }
@@ -356,6 +524,16 @@ struct ResourceImportDraft: Identifiable, Codable {
             metadataConfidence: 0,
             importedAt: nil,
             rawMetadataSnapshot: "",
+            mediaRetentionPolicy: .metadataOnly,
+            mediaAssets: [],
+            temporaryMediaLeases: [],
+            sourcePayloadSummary: nil,
+            analysisStatus: .pending,
+            aiAnalysis: nil,
+            recommendationCards: [],
+            syncStatus: .pending,
+            remoteRecordID: "",
+            lastSyncedAt: nil,
             lastErrorMessage: nil
         )
     }
@@ -389,6 +567,16 @@ struct ResourceItem: Identifiable, Codable {
     var metadataConfidence: Double
     var importedAt: Date
     var rawMetadataSnapshot: String
+    var mediaRetentionPolicy: MediaRetentionPolicy
+    var mediaAssets: [XHSMediaAsset]
+    var temporaryMediaLeases: [TemporaryMediaLease]
+    var sourcePayloadSummary: XHSParsedPayload?
+    var analysisStatus: ResourceAnalysisStatus
+    var aiAnalysis: AIAnalysisResult?
+    var recommendationCards: [ResourceRecommendationCard]
+    var syncStatus: ResourceSyncStatus
+    var remoteRecordID: String
+    var lastSyncedAt: Date?
 
     var displaySummary: String {
         descriptionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? resolvedURL : descriptionText
@@ -396,6 +584,10 @@ struct ResourceItem: Identifiable, Codable {
 
     var resolvedURL: String {
         canonicalURL.isEmpty ? originalURL : canonicalURL
+    }
+
+    var selectedMediaAssets: [XHSMediaAsset] {
+        mediaAssets.filter(\.isSelectedForImport)
     }
 
     init(
@@ -415,7 +607,17 @@ struct ResourceItem: Identifiable, Codable {
         importStatus: ResourceImportStatus,
         metadataConfidence: Double,
         importedAt: Date = Date(),
-        rawMetadataSnapshot: String
+        rawMetadataSnapshot: String,
+        mediaRetentionPolicy: MediaRetentionPolicy = .metadataOnly,
+        mediaAssets: [XHSMediaAsset] = [],
+        temporaryMediaLeases: [TemporaryMediaLease] = [],
+        sourcePayloadSummary: XHSParsedPayload? = nil,
+        analysisStatus: ResourceAnalysisStatus = .pending,
+        aiAnalysis: AIAnalysisResult? = nil,
+        recommendationCards: [ResourceRecommendationCard] = [],
+        syncStatus: ResourceSyncStatus = .pending,
+        remoteRecordID: String = "",
+        lastSyncedAt: Date? = nil
     ) {
         self.id = id
         self.title = title
@@ -434,6 +636,16 @@ struct ResourceItem: Identifiable, Codable {
         self.metadataConfidence = metadataConfidence
         self.importedAt = importedAt
         self.rawMetadataSnapshot = rawMetadataSnapshot
+        self.mediaRetentionPolicy = mediaRetentionPolicy
+        self.mediaAssets = mediaAssets
+        self.temporaryMediaLeases = temporaryMediaLeases
+        self.sourcePayloadSummary = sourcePayloadSummary
+        self.analysisStatus = analysisStatus
+        self.aiAnalysis = aiAnalysis
+        self.recommendationCards = recommendationCards
+        self.syncStatus = syncStatus
+        self.remoteRecordID = remoteRecordID
+        self.lastSyncedAt = lastSyncedAt
     }
 
     init(from draft: ResourceImportDraft) {
@@ -453,7 +665,17 @@ struct ResourceItem: Identifiable, Codable {
             importStatus: draft.importStatus,
             metadataConfidence: draft.metadataConfidence,
             importedAt: draft.importedAt ?? Date(),
-            rawMetadataSnapshot: draft.rawMetadataSnapshot
+            rawMetadataSnapshot: draft.rawMetadataSnapshot,
+            mediaRetentionPolicy: draft.mediaRetentionPolicy,
+            mediaAssets: draft.selectedMediaAssets,
+            temporaryMediaLeases: draft.temporaryMediaLeases,
+            sourcePayloadSummary: draft.sourcePayloadSummary,
+            analysisStatus: draft.analysisStatus,
+            aiAnalysis: draft.aiAnalysis,
+            recommendationCards: draft.recommendationCards,
+            syncStatus: draft.syncStatus,
+            remoteRecordID: draft.remoteRecordID,
+            lastSyncedAt: draft.lastSyncedAt
         )
     }
 
@@ -475,6 +697,16 @@ struct ResourceItem: Identifiable, Codable {
         case metadataConfidence
         case importedAt
         case rawMetadataSnapshot
+        case mediaRetentionPolicy
+        case mediaAssets
+        case temporaryMediaLeases
+        case sourcePayloadSummary
+        case analysisStatus
+        case aiAnalysis
+        case recommendationCards
+        case syncStatus
+        case remoteRecordID
+        case lastSyncedAt
         case url
         case summary
     }
@@ -502,6 +734,16 @@ struct ResourceItem: Identifiable, Codable {
         metadataConfidence = try container.decodeIfPresent(Double.self, forKey: .metadataConfidence) ?? 0.4
         importedAt = try container.decodeIfPresent(Date.self, forKey: .importedAt) ?? Date()
         rawMetadataSnapshot = try container.decodeIfPresent(String.self, forKey: .rawMetadataSnapshot) ?? ""
+        mediaRetentionPolicy = try container.decodeIfPresent(MediaRetentionPolicy.self, forKey: .mediaRetentionPolicy) ?? .metadataOnly
+        mediaAssets = try container.decodeIfPresent([XHSMediaAsset].self, forKey: .mediaAssets) ?? []
+        temporaryMediaLeases = try container.decodeIfPresent([TemporaryMediaLease].self, forKey: .temporaryMediaLeases) ?? []
+        sourcePayloadSummary = try container.decodeIfPresent(XHSParsedPayload.self, forKey: .sourcePayloadSummary)
+        analysisStatus = try container.decodeIfPresent(ResourceAnalysisStatus.self, forKey: .analysisStatus) ?? .pending
+        aiAnalysis = try container.decodeIfPresent(AIAnalysisResult.self, forKey: .aiAnalysis)
+        recommendationCards = try container.decodeIfPresent([ResourceRecommendationCard].self, forKey: .recommendationCards) ?? []
+        syncStatus = try container.decodeIfPresent(ResourceSyncStatus.self, forKey: .syncStatus) ?? .pending
+        remoteRecordID = try container.decodeIfPresent(String.self, forKey: .remoteRecordID) ?? ""
+        lastSyncedAt = try container.decodeIfPresent(Date.self, forKey: .lastSyncedAt)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -523,7 +765,30 @@ struct ResourceItem: Identifiable, Codable {
         try container.encode(metadataConfidence, forKey: .metadataConfidence)
         try container.encode(importedAt, forKey: .importedAt)
         try container.encode(rawMetadataSnapshot, forKey: .rawMetadataSnapshot)
+        try container.encode(mediaRetentionPolicy, forKey: .mediaRetentionPolicy)
+        try container.encode(mediaAssets, forKey: .mediaAssets)
+        try container.encode(temporaryMediaLeases, forKey: .temporaryMediaLeases)
+        try container.encodeIfPresent(sourcePayloadSummary, forKey: .sourcePayloadSummary)
+        try container.encode(analysisStatus, forKey: .analysisStatus)
+        try container.encodeIfPresent(aiAnalysis, forKey: .aiAnalysis)
+        try container.encode(recommendationCards, forKey: .recommendationCards)
+        try container.encode(syncStatus, forKey: .syncStatus)
+        try container.encode(remoteRecordID, forKey: .remoteRecordID)
+        try container.encodeIfPresent(lastSyncedAt, forKey: .lastSyncedAt)
     }
+}
+
+struct ResourceSyncQueueItem: Identifiable, Codable {
+    var id: UUID
+    var resourceID: UUID
+    var jobType: ResourceSyncJobType
+    var syncTarget: String
+    var syncStatus: ResourceSyncStatus
+    var retryCount: Int
+    var requestPayload: String
+    var lastErrorMessage: String?
+    var createdAt: Date
+    var updatedAt: Date
 }
 
 struct BookRecord: Identifiable, Codable {
@@ -578,6 +843,7 @@ struct BeautyDiaryState: Codable {
     var resourceFilter: ResourceCategory
     var resourceImportHistory: [ResourceImportHistoryEntry]
     var pendingImportDraft: ResourceImportDraft?
+    var resourceSyncQueue: [ResourceSyncQueueItem]
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -597,6 +863,7 @@ struct BeautyDiaryState: Codable {
         case resourceFilter
         case resourceImportHistory
         case pendingImportDraft
+        case resourceSyncQueue
     }
 
     init(
@@ -616,7 +883,8 @@ struct BeautyDiaryState: Codable {
         exportHistory: [ExportRecord],
         resourceFilter: ResourceCategory,
         resourceImportHistory: [ResourceImportHistoryEntry],
-        pendingImportDraft: ResourceImportDraft?
+        pendingImportDraft: ResourceImportDraft?,
+        resourceSyncQueue: [ResourceSyncQueueItem]
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -635,6 +903,7 @@ struct BeautyDiaryState: Codable {
         self.resourceFilter = resourceFilter
         self.resourceImportHistory = resourceImportHistory
         self.pendingImportDraft = pendingImportDraft
+        self.resourceSyncQueue = resourceSyncQueue
     }
 
     init(from decoder: Decoder) throws {
@@ -656,6 +925,7 @@ struct BeautyDiaryState: Codable {
         resourceFilter = try container.decodeIfPresent(ResourceCategory.self, forKey: .resourceFilter) ?? .all
         resourceImportHistory = try container.decodeIfPresent([ResourceImportHistoryEntry].self, forKey: .resourceImportHistory) ?? []
         pendingImportDraft = try container.decodeIfPresent(ResourceImportDraft.self, forKey: .pendingImportDraft)
+        resourceSyncQueue = try container.decodeIfPresent([ResourceSyncQueueItem].self, forKey: .resourceSyncQueue) ?? []
     }
 }
 
@@ -712,6 +982,7 @@ extension BeautyDiaryState {
         exportHistory: [],
         resourceFilter: .all,
         resourceImportHistory: [],
-        pendingImportDraft: nil
+        pendingImportDraft: nil,
+        resourceSyncQueue: []
     )
 }
