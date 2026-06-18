@@ -87,17 +87,17 @@ final class BeautyDiaryStore: ObservableObject {
     private let recommendationService = MockRecommendationService()
     private let importService: ResourceImportService
     private let analysisService: ResourceAnalysisService
-    private let cloudSyncService: CloudResourceSyncService
-    private let officialImportService: OfficialMetadataImportService
-    private let authService: SupabaseAuthServiceProtocol
+    private let cloudSyncService: any CloudResourceSyncService
+    private let officialImportService: any OfficialMetadataImportService
+    private let authService: any SupabaseAuthServiceProtocol
 
     init(
         repository: BeautyDiaryRepository = JSONBeautyDiaryRepository(),
         importService: ResourceImportService = CompositeResourceImportService(),
         analysisService: ResourceAnalysisService = LocalRuleBasedResourceAnalysisService(),
-        cloudSyncService: CloudResourceSyncService = SupabaseCloudResourceSyncService() ?? NoopCloudResourceSyncService(),
-        officialImportService: OfficialMetadataImportService = OfficialMetadataImportGateway(),
-        authService: SupabaseAuthServiceProtocol = SupabaseEmailAuthService() ?? NoopSupabaseAuthService()
+        cloudSyncService: any CloudResourceSyncService = BeautyDiaryStore.makeCloudSyncService(),
+        officialImportService: any OfficialMetadataImportService = OfficialMetadataImportGateway(),
+        authService: any SupabaseAuthServiceProtocol = BeautyDiaryStore.makeAuthService()
     ) {
         self.repository = repository
         self.importService = importService
@@ -119,6 +119,14 @@ final class BeautyDiaryStore: ObservableObject {
     }
 
     static let preview = BeautyDiaryStore(repository: PreviewRepository())
+
+    private static func makeCloudSyncService() -> any CloudResourceSyncService {
+        SupabaseCloudResourceSyncService() ?? NoopCloudResourceSyncService()
+    }
+
+    private static func makeAuthService() -> any SupabaseAuthServiceProtocol {
+        SupabaseEmailAuthService() ?? NoopSupabaseAuthService()
+    }
 
     var progressText: String {
         "\(completedChecklistCount)/\(state.checklistItems.count)"
