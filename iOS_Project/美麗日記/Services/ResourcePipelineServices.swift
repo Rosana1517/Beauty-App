@@ -50,6 +50,7 @@ protocol ResourceAnalysisService {
 
 protocol CloudResourceSyncService {
     func upsertCurrentUserProfile(session: SupabaseAuthSession, profile: UserProfileRecord) async throws
+    func fetchCurrentUserProfile(session: SupabaseAuthSession) async throws -> UserProfileRecord?
     func pushResource(_ item: ResourceItem) async throws -> CloudSyncResult
     func fetchResources() async throws -> [ResourceItem]
     func enqueueReparse(for item: ResourceItem, reason: String) async throws -> ResourceSyncQueueItem
@@ -277,6 +278,7 @@ struct LocalRuleBasedResourceAnalysisService: ResourceAnalysisService {
 
 struct NoopCloudResourceSyncService: CloudResourceSyncService {
     func upsertCurrentUserProfile(session: SupabaseAuthSession, profile: UserProfileRecord) async throws {}
+    func fetchCurrentUserProfile(session: SupabaseAuthSession) async throws -> UserProfileRecord? { nil }
 
     func pushResource(_ item: ResourceItem) async throws -> CloudSyncResult {
         CloudSyncResult(remoteRecordID: item.remoteRecordID, syncedAt: Date())
@@ -342,6 +344,15 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
         )
     }
 
+    func fetchCurrentUserProfile(session: SupabaseAuthSession) async throws -> UserProfileRecord? {
+        let rows: [SupabaseAppUserRow] = try await client.select(
+            table: "app_users",
+            queryItems: [URLQueryItem(name: "id", value: "eq.\(session.userID)")],
+            responseType: [SupabaseAppUserRow].self
+        )
+        return rows.first?.profile
+    }
+
     func pushResource(_ item: ResourceItem) async throws -> CloudSyncResult {
         let payload = SupabaseResourcePayload(item: item, userID: try resolvedUserID())
         let response: [SupabaseResourceRow] = try await client.upsert(
@@ -351,7 +362,7 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
         )
 
         let remote = response.first
-        try await createImportEvent(for: item)
+        try await createImportEvent(for: item, remoteRecordID: remote?.id)
         return CloudSyncResult(
             remoteRecordID: remote?.id ?? item.remoteRecordID,
             syncedAt: remote?.updatedAt ?? Date()
@@ -422,8 +433,8 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
         return response.cards
     }
 
-    private func createImportEvent(for item: ResourceItem) async throws {
-        let payload = SupabaseImportEventPayload(item: item, userID: try resolvedUserID())
+    private func createImportEvent(for item: ResourceItem, remoteRecordID: String?) async throws {
+        let payload = SupabaseImportEventPayload(item: item, remoteRecordID: remoteRecordID, userID: try resolvedUserID())
         _ = try await client.insert(
             table: "resource_import_events",
             payload: [payload],
@@ -703,11 +714,23 @@ private struct SupabaseAppUserPayload: Encodable {
     let id: String
     let email: String?
     let nickname: String?
+    let streakDays: Int
+    let signature: String?
+    let bodyFocus: String?
+    let skincareFocus: String?
+    let themeName: String?
+    let notificationTime: String?
 
     init(session: SupabaseAuthSession, profile: UserProfileRecord) {
         id = session.userID
         email = session.email.nilIfEmpty
         nickname = profile.nickname.nilIfEmpty
+        streakDays = profile.streakDays
+        signature = profile.signature.nilIfEmpty
+        bodyFocus = profile.bodyFocus.nilIfEmpty
+        skincareFocus = profile.skincareFocus.nilIfEmpty
+        themeName = profile.themeName.nilIfEmpty
+        notificationTime = profile.notificationTime.nilIfEmpty
     }
 }
 
@@ -723,8 +746,8 @@ private struct SupabaseImportEventPayload: Encodable {
     let parserMode: String
     let responseSnapshot: JSONValue
 
-    init(item: ResourceItem, userID: String) {
-        resourceID = item.remoteRecordID.nilIfEmpty
+    init(item: ResourceItem, remoteRecordID: String?, userID: String) {
+        resourceID = (remoteRecordID ?? item.remoteRecordID).nilIfEmpty
         self.userID = userID.nilIfEmpty
         sourceType = item.source.apiValue
         requestURL = item.originalURL
@@ -795,6 +818,26 @@ private struct SupabaseImportEventRow: Decodable {
 
 private struct SupabaseAppUserRow: Decodable {
     let id: String
+    let email: String?
+    let nickname: String?
+    let streakDays: Int?
+    let signature: String?
+    let bodyFocus: String?
+    let skincareFocus: String?
+    let themeName: String?
+    let notificationTime: String?
+
+    var profile: UserProfileRecord {
+        UserProfileRecord(
+            nickname: nickname ?? "",
+            streakDays: streakDays ?? 0,
+            signature: signature ?? "",
+            bodyFocus: bodyFocus ?? "",
+            skincareFocus: skincareFocus ?? "",
+            themeName: themeName ?? "",
+            notificationTime: notificationTime ?? ""
+        )
+    }
 }
 
 private enum JSONValue: Codable {

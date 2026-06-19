@@ -11,6 +11,7 @@
 - `Supabase`
   - 已提供正式 schema：`supabase_resource_schema.sql`
   - iOS 端已補上 REST CRUD / function invoke / sync queue client 骨架，可推送 `resource_items`、寫入 `resource_import_events`、呼叫重解析與推薦 function。
+  - schema 已補入 `app_users` 完整 profile 欄位、authenticated grants、RLS policy 與 owner-based sync 規則。
 - `Instagram`
   - 已補上 OAuth 授權入口 URL 產生邏輯。
   - 實際 Graph API token 交換與 media 解析必須由後端代理，不在 iOS client 內保存 app secret。
@@ -46,6 +47,7 @@
 5. 驗證同步與後端分析：
    - 匯入成功後應建立本地 `resourceSyncQueue`
    - 若 `SUPABASE_*FUNCTION` 已配置，client 會自動嘗試同步並請求後端推薦
+   - 登入成功後 `app_users` 會先 upsert；若本地仍是 seed profile，會優先採用遠端 profile 回填
 
 ## 目前邊界
 

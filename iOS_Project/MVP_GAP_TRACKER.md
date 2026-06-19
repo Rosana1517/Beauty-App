@@ -23,10 +23,9 @@ This document turns the current prototype gaps into an execution list. Priority 
   - `iOS_Project/美麗日記/Constants/AppConstants.swift`
   - `iOS_Project/美麗日記/Views/AppPrototypeViews.swift`
 - Remaining work after this round:
-  - OAuth callback completion flow
   - refresh token retry policy
-  - row-level security verification
-  - conflict resolution and remote profile sync
+  - conflict resolution beyond seed-profile remote adoption
+  - server-side RLS deployment verification in the real Supabase project
 
 ### 2. Backend import / recommendation functions
 - Status: scaffolded on client, not production-ready
@@ -121,7 +120,5 @@ Implemented now:
 - settings UI entry for auth and manual sync
 
 Still not finished in this round:
-- auth callback handling after magic link open
-- remote user profile table sync
-- RLS policy verification
 - automatic retry / refresh on expired token during sync
+- cross-device profile conflict resolution beyond seed-profile adoption

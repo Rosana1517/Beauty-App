@@ -556,7 +556,7 @@ final class BeautyDiaryStore: ObservableObject {
         }
 
         authStatus = .authenticated
-        await syncCurrentUserProfileIfNeeded()
+        await reconcileCurrentUserProfileWithCloud()
         await refreshCloudResources()
         await syncPendingResources()
     }
@@ -576,7 +576,7 @@ final class BeautyDiaryStore: ObservableObject {
             authSession = session
             authStatus = .authenticated
             authMessage = "Signed in. Cloud sync is ready."
-            await syncCurrentUserProfileIfNeeded()
+            await reconcileCurrentUserProfileWithCloud()
             await refreshCloudResources()
             await syncPendingResources()
         } catch {
@@ -598,7 +598,7 @@ final class BeautyDiaryStore: ObservableObject {
             authSession = session
             authStatus = .authenticated
             authMessage = "Magic link sign-in completed."
-            await syncCurrentUserProfileIfNeeded()
+            await reconcileCurrentUserProfileWithCloud()
             await refreshCloudResources()
             await syncPendingResources()
         } catch {
@@ -646,6 +646,7 @@ final class BeautyDiaryStore: ObservableObject {
         }
 
         authMessage = nil
+        await reconcileCurrentUserProfileWithCloud()
         await syncPendingResources()
         await refreshCloudResources()
         authMessage = "Cloud sync finished."
@@ -697,6 +698,27 @@ final class BeautyDiaryStore: ObservableObject {
         } catch {
             authMessage = error.localizedDescription
         }
+    }
+
+    private func reconcileCurrentUserProfileWithCloud() async {
+        guard let session = authSession else { return }
+
+        do {
+            if let remoteProfile = try await cloudSyncService.fetchCurrentUserProfile(session: session),
+               shouldAdoptRemoteProfile(remoteProfile) {
+                state.profile = remoteProfile
+                save()
+            }
+
+            try await cloudSyncService.upsertCurrentUserProfile(session: session, profile: state.profile)
+        } catch {
+            authMessage = error.localizedDescription
+        }
+    }
+
+    private func shouldAdoptRemoteProfile(_ remoteProfile: UserProfileRecord) -> Bool {
+        guard remoteProfile != state.profile else { return false }
+        return state.profile == BeautyDiaryState.seed.profile
     }
 
     private func isSupabaseCallbackURL(_ url: URL) -> Bool {

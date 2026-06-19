@@ -275,7 +275,7 @@ enum ResourceSyncJobType: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
 }
 
-struct UserProfileRecord: Codable {
+struct UserProfileRecord: Codable, Equatable {
     var nickname: String
     var streakDays: Int
     var signature: String
