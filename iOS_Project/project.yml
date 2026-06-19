@@ -33,6 +33,7 @@ targets:
       - path: 美麗日記/Constants/AppConstants.swift
       - path: 美麗日記/Models/DiaryModels.swift
       - path: 美麗日記/Services/BeautyDiaryStore.swift
+      - path: 美麗日記/Services/NotificationScheduler.swift
       - path: 美麗日記/Services/ResourceImportService.swift
       - path: 美麗日記/Services/ResourcePipelineServices.swift
       - path: 美麗日記/Services/SupabaseAuthService.swift

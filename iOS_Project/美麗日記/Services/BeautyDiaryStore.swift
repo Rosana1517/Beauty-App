@@ -90,6 +90,7 @@ final class BeautyDiaryStore: ObservableObject {
     private let cloudSyncService: any CloudResourceSyncService
     private let officialImportService: any OfficialMetadataImportService
     private let authService: any SupabaseAuthServiceProtocol
+    private let notificationScheduler: any NotificationScheduling
 
     init(
         repository: BeautyDiaryRepository = JSONBeautyDiaryRepository(),
@@ -97,7 +98,8 @@ final class BeautyDiaryStore: ObservableObject {
         analysisService: ResourceAnalysisService = LocalRuleBasedResourceAnalysisService(),
         cloudSyncService: any CloudResourceSyncService = BeautyDiaryStore.makeCloudSyncService(),
         officialImportService: any OfficialMetadataImportService = OfficialMetadataImportGateway(),
-        authService: any SupabaseAuthServiceProtocol = BeautyDiaryStore.makeAuthService()
+        authService: any SupabaseAuthServiceProtocol = BeautyDiaryStore.makeAuthService(),
+        notificationScheduler: any NotificationScheduling = UserNotificationScheduler()
     ) {
         self.repository = repository
         self.importService = importService
@@ -105,6 +107,7 @@ final class BeautyDiaryStore: ObservableObject {
         self.cloudSyncService = cloudSyncService
         self.officialImportService = officialImportService
         self.authService = authService
+        self.notificationScheduler = notificationScheduler
         self.state = repository.load() ?? .seed
         let restoredSession = authService.currentSession()
         let restoredStatus: SupabaseAuthStatus
@@ -122,6 +125,9 @@ final class BeautyDiaryStore: ObservableObject {
             Task {
                 await restoreAuthSession()
             }
+        }
+        Task {
+            await scheduleDailyReminderIfPossible(requestPermission: false)
         }
     }
 
@@ -221,6 +227,18 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func deleteProduct(_ product: Product) {
+        state.products.removeAll { $0.id == product.id }
+        state.routine.steps = state.routine.steps.map { step in
+            var updated = step
+            if updated.productName == product.name {
+                updated.productName = nil
+            }
+            return updated
+        }
+        save()
+    }
+
     func addSkinRecord(type: String, concerns: [String], note: String) {
         guard !type.isEmpty else { return }
 
@@ -234,6 +252,11 @@ final class BeautyDiaryStore: ObservableObject {
             ),
             at: 0
         )
+        save()
+    }
+
+    func deleteSkinRecord(_ record: SkinRecord) {
+        state.skinRecords.removeAll { $0.id == record.id }
         save()
     }
 
@@ -266,6 +289,11 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func deleteAppointment(_ appointment: Appointment) {
+        state.appointments.removeAll { $0.id == appointment.id }
+        save()
+    }
+
     func addBodyMetric(weight: Double, bodyFat: Double, note: String) {
         state.bodyMetricRecords.insert(
             BodyMetricRecord(
@@ -277,6 +305,11 @@ final class BeautyDiaryStore: ObservableObject {
             ),
             at: 0
         )
+        save()
+    }
+
+    func deleteBodyMetric(_ record: BodyMetricRecord) {
+        state.bodyMetricRecords.removeAll { $0.id == record.id }
         save()
     }
 
@@ -294,6 +327,11 @@ final class BeautyDiaryStore: ObservableObject {
             ),
             at: 0
         )
+        save()
+    }
+
+    func deleteMealRecord(_ record: MealRecord) {
+        state.mealRecords.removeAll { $0.id == record.id }
         save()
     }
 
@@ -331,6 +369,13 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func deleteResource(_ item: ResourceItem) {
+        state.resourceItems.removeAll { $0.id == item.id }
+        state.resourceImportHistory.removeAll { $0.originalURL == item.originalURL || $0.title == item.title }
+        state.resourceSyncQueue.removeAll { $0.resourceID == item.id }
+        save()
+    }
+
     func addBook(title: String, author: String, link: String, note: String) {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -348,6 +393,11 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func deleteBook(_ book: BookRecord) {
+        state.bookRecords.removeAll { $0.id == book.id }
+        save()
+    }
+
     func updateProfile(nickname: String, signature: String, bodyFocus: String, skincareFocus: String, notificationTime: String) {
         state.profile.nickname = nickname
         state.profile.signature = signature
@@ -356,10 +406,18 @@ final class BeautyDiaryStore: ObservableObject {
         state.profile.notificationTime = notificationTime
         save()
 
+        Task {
+            await scheduleDailyReminderIfPossible(requestPermission: false)
+        }
+
         guard authSession != nil else { return }
         Task {
             await syncCurrentUserProfileIfNeeded()
         }
+    }
+
+    func enableDailyReminder() async {
+        await scheduleDailyReminderIfPossible(requestPermission: true)
     }
 
     func createExport(format: ExportFormat) -> String {
@@ -528,12 +586,19 @@ final class BeautyDiaryStore: ObservableObject {
     }
 
     func refreshCloudResources() async {
+        await refreshCloudResources(allowRetry: true)
+    }
+
+    private func refreshCloudResources(allowRetry: Bool) async {
         do {
             let remoteItems = try await cloudSyncService.fetchResources()
             guard !remoteItems.isEmpty else { return }
             state.resourceItems = merge(local: state.resourceItems, remote: remoteItems)
             save()
         } catch {
+            if allowRetry, await recoverSessionIfNeeded(after: error) {
+                await refreshCloudResources(allowRetry: false)
+            }
             return
         }
     }
@@ -690,17 +755,50 @@ final class BeautyDiaryStore: ObservableObject {
         }
     }
 
-    private func syncCurrentUserProfileIfNeeded() async {
-        guard let session = authSession else { return }
+    private func scheduleDailyReminderIfPossible(requestPermission: Bool) async {
+        let reminderTime = state.profile.notificationTime.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !reminderTime.isEmpty else { return }
 
         do {
-            try await cloudSyncService.upsertCurrentUserProfile(session: session, profile: state.profile)
+            let isAuthorized = requestPermission
+                ? try await notificationScheduler.requestAuthorizationIfNeeded()
+                : true
+            guard isAuthorized else {
+                authMessage = "Notifications are disabled. Enable them in Settings to receive reminders."
+                return
+            }
+            try await notificationScheduler.scheduleDailyReminder(
+                timeString: reminderTime,
+                nickname: state.profile.nickname
+            )
         } catch {
             authMessage = error.localizedDescription
         }
     }
 
+    private func syncCurrentUserProfileIfNeeded() async {
+        await syncCurrentUserProfileIfNeeded(allowRetry: true)
+    }
+
+    private func syncCurrentUserProfileIfNeeded(allowRetry: Bool) async {
+        guard let session = authSession else { return }
+
+        do {
+            try await cloudSyncService.upsertCurrentUserProfile(session: session, profile: state.profile)
+        } catch {
+            if allowRetry, await recoverSessionIfNeeded(after: error) {
+                await syncCurrentUserProfileIfNeeded(allowRetry: false)
+                return
+            }
+            authMessage = error.localizedDescription
+        }
+    }
+
     private func reconcileCurrentUserProfileWithCloud() async {
+        await reconcileCurrentUserProfileWithCloud(allowRetry: true)
+    }
+
+    private func reconcileCurrentUserProfileWithCloud(allowRetry: Bool) async {
         guard let session = authSession else { return }
 
         do {
@@ -712,8 +810,28 @@ final class BeautyDiaryStore: ObservableObject {
 
             try await cloudSyncService.upsertCurrentUserProfile(session: session, profile: state.profile)
         } catch {
+            if allowRetry, await recoverSessionIfNeeded(after: error) {
+                await reconcileCurrentUserProfileWithCloud(allowRetry: false)
+                return
+            }
             authMessage = error.localizedDescription
         }
+    }
+
+    private func recoverSessionIfNeeded(after error: Error) async -> Bool {
+        guard case SupabaseRESTError.unauthorized = error else { return false }
+        let restoredSession = await authService.restoreSession()
+        guard let restoredSession else {
+            authSession = nil
+            authStatus = .signedOut
+            authMessage = "Supabase session expired. Please sign in again."
+            return false
+        }
+
+        authSession = restoredSession
+        authStatus = .authenticated
+        authMessage = "Supabase session refreshed. Retrying sync."
+        return true
     }
 
     private func shouldAdoptRemoteProfile(_ remoteProfile: UserProfileRecord) -> Bool {
@@ -735,6 +853,10 @@ final class BeautyDiaryStore: ObservableObject {
     }
 
     private func syncResource(_ resourceID: UUID) async {
+        await syncResource(resourceID, allowRetry: true)
+    }
+
+    private func syncResource(_ resourceID: UUID, allowRetry: Bool) async {
         guard let resourceIndex = state.resourceItems.firstIndex(where: { $0.id == resourceID }) else { return }
 
         updateSyncState(for: resourceID, jobType: .importJob, status: .syncing, errorMessage: nil)
@@ -747,6 +869,10 @@ final class BeautyDiaryStore: ObservableObject {
             save()
             await applyBackendRecommendationsIfNeeded(for: state.resourceItems[resourceIndex])
         } catch {
+            if allowRetry, await recoverSessionIfNeeded(after: error) {
+                await syncResource(resourceID, allowRetry: false)
+                return
+            }
             state.resourceItems[resourceIndex].syncStatus = .failed
             updateSyncState(for: resourceID, jobType: .importJob, status: .failed, errorMessage: error.localizedDescription)
             save()

@@ -462,6 +462,23 @@ private enum SupabaseCloudSyncError: LocalizedError {
     }
 }
 
+enum SupabaseRESTError: LocalizedError {
+    case unauthorized
+    case serverMessage(String)
+    case invalidResponse
+
+    var errorDescription: String? {
+        switch self {
+        case .unauthorized:
+            return "Supabase session expired. Please refresh your session and retry."
+        case .serverMessage(let message):
+            return message
+        case .invalidResponse:
+            return "Supabase returned an invalid response."
+        }
+    }
+}
+
 private struct SupabaseRESTClient {
     let baseURL: String
     let anonKey: String
@@ -552,9 +569,11 @@ private struct SupabaseRESTClient {
         extraHeaders.forEach { request.setValue($1, forHTTPHeaderField: $0) }
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw URLError(.badServerResponse)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseRESTError.invalidResponse
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw mappedError(from: data, statusCode: httpResponse.statusCode)
         }
 
         let decoder = JSONDecoder()
@@ -597,9 +616,11 @@ private struct SupabaseRESTClient {
         }
 
         let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            throw URLError(.badServerResponse)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseRESTError.invalidResponse
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw mappedError(from: data, statusCode: httpResponse.statusCode)
         }
 
         let decoder = JSONDecoder()
@@ -611,6 +632,28 @@ private struct SupabaseRESTClient {
     private var authorizationToken: String {
         SupabaseSessionStore.currentSession()?.accessToken ?? anonKey
     }
+
+    private func mappedError(from data: Data, statusCode: Int) -> Error {
+        if statusCode == 401 {
+            return SupabaseRESTError.unauthorized
+        }
+
+        if let error = try? JSONDecoder().decode(SupabaseRESTErrorResponse.self, from: data) {
+            if let message = error.message, !message.isEmpty {
+                return SupabaseRESTError.serverMessage(message)
+            }
+            if let hint = error.hint, !hint.isEmpty {
+                return SupabaseRESTError.serverMessage(hint)
+            }
+        }
+
+        return URLError(.badServerResponse)
+    }
+}
+
+private struct SupabaseRESTErrorResponse: Decodable {
+    let message: String?
+    let hint: String?
 }
 
 private struct AuthorizedImportRequest: Encodable {

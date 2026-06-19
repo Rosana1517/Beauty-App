@@ -290,6 +290,13 @@ struct SkincareManagementView: View {
                         .padding(14)
                         .background(AppTheme.primarySoft)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                store.deleteProduct(product)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }
@@ -303,13 +310,30 @@ struct SkincareManagementView: View {
                     .font(.headline)
                     .foregroundStyle(AppTheme.text)
 
-                if let latest = store.state.skinRecords.first {
-                    InfoRow(title: "最近紀錄", value: latest.skinType)
-                    InfoRow(title: "主要困擾", value: latest.concerns.joined(separator: "、"))
-                    if !latest.note.isEmpty {
-                        Text(latest.note)
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.subtext)
+                if !store.state.skinRecords.isEmpty {
+                    ForEach(store.state.skinRecords.prefix(3)) { record in
+                        VStack(alignment: .leading, spacing: 6) {
+                            InfoRow(title: "最近紀錄", value: record.skinType)
+                            InfoRow(title: "主要困擾", value: record.concerns.joined(separator: "、"))
+                            if !record.note.isEmpty {
+                                Text(record.note)
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                            Text(record.date.formatted(date: .abbreviated, time: .shortened))
+                                .font(.caption2)
+                                .foregroundStyle(AppTheme.subtext)
+                        }
+                        .padding(14)
+                        .background(AppTheme.primarySoft)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                store.deleteSkinRecord(record)
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 } else {
                     Text("目前尚無膚況紀錄，點右上角「記錄」開始建立。")
@@ -470,6 +494,13 @@ struct BeautyAppointmentsView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.deleteAppointment(item)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                     }
@@ -564,13 +595,30 @@ struct BodyMetricsView: View {
                 }
 
                 CardView {
-                    if let latest = store.state.bodyMetricRecords.first {
-                        VStack(alignment: .leading, spacing: 10) {
-                            InfoRow(title: "最新體重", value: String(format: "%.1f kg", latest.weight))
-                            InfoRow(title: "最新體脂", value: String(format: "%.1f %%", latest.bodyFat))
-                            Text(latest.note.isEmpty ? "尚無補充說明" : latest.note)
-                                .font(.caption)
-                                .foregroundStyle(AppTheme.subtext)
+                    if !store.state.bodyMetricRecords.isEmpty {
+                        VStack(spacing: 12) {
+                            ForEach(store.state.bodyMetricRecords) { record in
+                                VStack(alignment: .leading, spacing: 10) {
+                                    InfoRow(title: "最新體重", value: String(format: "%.1f kg", record.weight))
+                                    InfoRow(title: "最新體脂", value: String(format: "%.1f %%", record.bodyFat))
+                                    Text(record.note.isEmpty ? "尚無補充說明" : record.note)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                    Text(record.date.formatted(date: .abbreviated, time: .shortened))
+                                        .font(.caption2)
+                                        .foregroundStyle(AppTheme.subtext)
+                                }
+                                .padding(14)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.deleteBodyMetric(record)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
                         }
                     } else {
                         EmptyStateView(title: "尚無數據", subtitle: "新增第一筆體重與體脂紀錄。")
@@ -612,6 +660,13 @@ struct MealRecordsView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.deleteMealRecord(meal)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                     }
@@ -711,6 +766,13 @@ struct ReadingTrackerView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.deleteBook(book)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                     }
@@ -930,6 +992,13 @@ struct ResourceLibraryView: View {
                                     ResourceListCard(item: item)
                                 }
                                 .buttonStyle(.plain)
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.deleteResource(item)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                     }
@@ -1023,6 +1092,28 @@ struct PersonalSettingsView: View {
                                 notificationTime: notificationTime
                             )
                         }
+
+                        Button {
+                            store.updateProfile(
+                                nickname: nickname,
+                                signature: signature,
+                                bodyFocus: bodyFocus,
+                                skincareFocus: skincareFocus,
+                                notificationTime: notificationTime
+                            )
+                            Task {
+                                await store.enableDailyReminder()
+                            }
+                        } label: {
+                            Text("啟用每日提醒")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.primary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
