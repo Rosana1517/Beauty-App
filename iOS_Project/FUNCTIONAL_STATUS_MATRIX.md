@@ -81,11 +81,11 @@
 | Save imported resource locally | `usable` | Draft converts into local `ResourceItem`. |
 | Queue creation for sync | `usable` | Resource import creates sync queue entries. |
 | General webpage metadata parsing | `usable` | Public HTML/Open Graph/JSON-LD path exists. |
-| YouTube metadata import | `partial` | Better than fallback when API is configured, but still limited. |
-| Xiaohongshu parsing | `partial` | Fallback and backend-oriented structure exist, not full official pipeline. |
-| Instagram parsing | `partial` | OAuth entry and scaffolding exist, not full production ingest. |
+| YouTube metadata import | `usable` | Backend-first import path is deployed and verified, though metadata quality still varies by source page. |
+| Xiaohongshu parsing | `partial` | Backend-first import path is deployed, but current implementation still relies mainly on public metadata parsing rather than full official-source ingestion. |
+| Instagram parsing | `partial` | Backend-first import path is deployed, but production Graph API ingestion is still incomplete. |
 | Partial-media selection | `partial` | Data model supports it; real backend media lifecycle is not complete. |
-| Backend reparse | `partial` | Client can request it, but production function is not finished. |
+| Backend reparse | `usable` | Reparse function is deployed and verified to enqueue backend jobs. |
 
 ## Cloud / Backend / Data
 
@@ -94,12 +94,13 @@
 | `app_users` CRUD path | `usable` | Authenticated insert/update path works from client. |
 | `resource_items` sync | `usable` | Client push/fetch path exists and targets real Supabase tables. |
 | `resource_import_events` write | `usable` | Event rows are created during sync. |
-| `resource_analysis_results` storage model | `partial` | Schema exists, but real backend analysis writer is not complete. |
-| `resource_recommendations` storage model | `partial` | Schema exists, but real recommendation generation is not complete. |
+| `resource_analysis_results` storage model | `usable` | Recommendation function was verified to write analysis rows to the real Supabase project. |
+| `resource_recommendations` storage model | `usable` | Recommendation function was verified to write recommendation rows to the real Supabase project. |
 | `resource_sync_queue` table | `usable` | Table and local queue coordination exist. |
-| Edge Functions deployment | `not ready` | Contracts exist, production functions are not fully implemented/deployed. |
+| Edge Functions deployment | `usable` | All four functions are deployed to the real Supabase project and were smoke-tested with authenticated requests. |
 | Expired token retry | `partial` | Unauthorized sync paths now attempt session restore and retry once. |
 | Cross-device merge conflict resolution | `not ready` | Only simple seed-profile adoption is implemented. |
+| `app_users` dependency for resource sync | `usable` | Verified that `resource_items` integration requires a matching `app_users` row; profile sync remains a necessary prerequisite. |
 
 ## AI / Recommendation
 
@@ -107,7 +108,7 @@
 | --- | --- | --- |
 | Local recommendation cards | `usable` | Demo-ready local recommendations work. |
 | Rule-based AI analysis | `usable` | Local rule engine generates analysis summaries/actions. |
-| Real server-side AI analysis | `not ready` | No production AI backend connected yet. |
+| Real server-side AI analysis | `partial` | Edge recommendation function now writes server-side analysis rows, but it still uses a rule engine rather than a true external AI provider. |
 | Personalized recommendation engine | `partial` | User focus fields exist, but personalization depth is limited. |
 
 ## Media Retention / Cleanup
@@ -116,7 +117,7 @@
 | --- | --- | --- |
 | Metadata-only retention model | `usable` | Data model and persistence path exist. |
 | Temporary cache lease model | `partial` | Contract exists locally and in schema. |
-| Automatic backend media cleanup | `not ready` | Needs real worker / function implementation. |
+| Automatic backend media cleanup | `partial` | Cleanup function is deployed and verified to update queue / cleanup state, but full object-storage file deletion is still not implemented. |
 | Explicit keep policy | `partial` | Mode exists in model, but full storage lifecycle is not complete. |
 
 ## What Is Truly Ready Today
@@ -130,21 +131,20 @@
 ## What Is Not Yet Truly Ready
 
 - Production-grade Xiaohongshu / Instagram ingestion
-- Real backend recommendation and reparse jobs
+- Production-grade Xiaohongshu / Instagram ingestion depth
 - Notification scheduling verification and UX hardening
 - Real export output
 - Full sync retry/conflict handling
-- Worker-driven media cleanup lifecycle
+- Full worker-driven media cleanup lifecycle
 
 ## Recommended Next Priority
 
-1. Deploy and implement the four Supabase Edge Functions.
-2. Wire real runtime config for the new Supabase project into the iOS app.
-3. Run one end-to-end smoke test:
+1. Wire real runtime config for the new Supabase project into the iOS app.
+2. Run one in-app end-to-end smoke test:
    - sign in
    - create/update profile
    - import one resource
-   - verify `app_users`, `resource_items`, and `resource_import_events`
-4. Add refresh-token retry and clearer sync error recovery.
-5. Finish one real import path first.
+   - verify `app_users`, `resource_items`, `resource_import_events`, `resource_analysis_results`, and `resource_recommendations`
+3. Add refresh-token retry and clearer sync error recovery.
+4. Finish one real import path first.
    - Recommended: Xiaohongshu backend parse path

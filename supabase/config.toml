@@ -1,0 +1,11 @@
+[functions.resource-import]
+verify_jwt = true
+
+[functions.resource-reparse]
+verify_jwt = true
+
+[functions.resource-recommendation]
+verify_jwt = true
+
+[functions.resource-media-cleanup]
+verify_jwt = true

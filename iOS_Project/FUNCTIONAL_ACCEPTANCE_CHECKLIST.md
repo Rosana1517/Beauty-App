@@ -501,35 +501,47 @@ Record each item with:
 ## 15. Backend Functions
 
 ### 15.1 `resource-import`
-- Expected status: `Fail`
+- Expected status: `Pass`
 - Validation steps:
-  1. Trigger an import that depends on deployed Edge Function behavior.
+  1. Sign in with a real Supabase user.
+  2. Confirm the same user already has a matching `app_users` row through profile sync.
+  3. Trigger an import that depends on deployed Edge Function behavior.
+  4. Confirm the function returns a `ResourceImportDraft`.
 - Expected result:
-  - Contract exists, but production deployment/implementation is not complete.
+  - Function is deployed and returns a valid draft payload.
+  - Notes:
+    - `app_users` is a real prerequisite for downstream `resource_items` integration.
+    - Import quality still depends on the source platform and currently falls back to public metadata parsing for some platforms.
 
 ### 15.2 `resource-reparse`
-- Expected status: `Fail`
+- Expected status: `Pass`
 - Validation steps:
   1. Trigger backend reparse from the app.
-  2. Confirm actual backend job execution.
+  2. Confirm a queue row is created in `resource_sync_queue`.
 - Expected result:
-  - Client request path exists, backend function is not fully production-ready.
+  - Function is deployed and enqueues a backend reparse job.
 
 ### 15.3 `resource-recommendation`
-- Expected status: `Fail`
+- Expected status: `Pass`
 - Validation steps:
   1. Trigger server-side recommendation refresh.
-  2. Confirm real function output is stored.
+  2. Confirm real function output is stored in `resource_analysis_results`.
+  3. Confirm real function output is stored in `resource_recommendations`.
 - Expected result:
-  - Not fully implemented yet.
+  - Function is deployed and writes analysis/recommendation rows.
+  - Notes:
+    - Current server-side implementation is still rule-based, not a full external AI provider.
 
 ### 15.4 `resource-media-cleanup`
-- Expected status: `Fail`
+- Expected status: `Partial`
 - Validation steps:
   1. Trigger cleanup flow for temporary media.
-  2. Confirm backend cleanup actually removes expired media.
+  2. Confirm queue or cleanup state is updated by the backend function.
+  3. Confirm media rows are updated for non-`explicitKeep` assets when applicable.
 - Expected result:
-  - Not fully implemented yet.
+  - Function is deployed and backend cleanup state updates succeed.
+  - Notes:
+    - Full object storage file deletion is still not complete.
 
 ## Recommended Acceptance Order
 

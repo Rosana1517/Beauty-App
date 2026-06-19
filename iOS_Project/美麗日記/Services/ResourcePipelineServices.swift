@@ -92,10 +92,8 @@ struct OfficialMetadataImportGateway: OfficialMetadataImportService {
         needComments: Bool = false
     ) async -> PlatformImportResult? {
         guard let client else { return nil }
-        guard source == .instagram || source == .xiaohongshu else { return nil }
-
         let capability = capability(for: source)
-        guard capability.supportsOfficialOAuth || capability.supportsBackendReparse else {
+        guard capability.supportsBackendReparse || capability.supportsOfficialOAuth else {
             return nil
         }
 

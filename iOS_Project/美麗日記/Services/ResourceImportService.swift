@@ -25,14 +25,13 @@ struct CompositeResourceImportService: ResourceImportService {
         }
 
         let source = ImportSourceType.detectedSource(from: normalizedURL)
-        if source == .instagram,
-           let authorizedDraft = await officialImportService.parseIfAvailable(
+        if let authorizedDraft = await officialImportService.parseIfAvailable(
             url: normalizedURL,
             source: source,
             downloadPolicy: .metadataOnly,
             selectedIndexes: nil,
             needComments: false
-           ) {
+        ) {
             return authorizedDraft.draft
         }
         let parser: any PlatformParser

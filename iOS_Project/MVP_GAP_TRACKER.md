@@ -28,7 +28,7 @@ This document turns the current prototype gaps into an execution list. Priority 
   - server-side RLS deployment verification in the real Supabase project
 
 ### 2. Backend import / recommendation functions
-- Status: scaffolded on client, not production-ready
+- Status: deployed and smoke-tested on the real Supabase project
 - Why it matters:
   - Resource import needs backend execution for protected APIs, cookies, retries, and queue workers.
 - Scope:
@@ -40,6 +40,10 @@ This document turns the current prototype gaps into an execution list. Priority 
   - `iOS_Project/BACKEND_RESOURCE_PIPELINE.md`
   - `iOS_Project/supabase_resource_schema.sql`
   - `iOS_Project/美麗日記/Services/ResourcePipelineServices.swift`
+  - `supabase/functions/resource-import/index.ts`
+  - `supabase/functions/resource-reparse/index.ts`
+  - `supabase/functions/resource-recommendation/index.ts`
+  - `supabase/functions/resource-media-cleanup/index.ts`
 
 ### 3. Real platform import capability
 - Status: partial
@@ -56,7 +60,7 @@ This document turns the current prototype gaps into an execution list. Priority 
   - `iOS_Project/美麗日記/Services/ResourcePipelineServices.swift`
 
 ### 4. Real AI analysis and recommendations
-- Status: local rule engine only
+- Status: server-side rule engine verified, external AI provider not connected
 - Why it matters:
   - Current recommendation quality is good for prototype demos, not for production usefulness.
 - Scope:
@@ -122,3 +126,5 @@ Implemented now:
 Still not finished in this round:
 - automatic retry / refresh on expired token during sync
 - cross-device profile conflict resolution beyond seed-profile adoption
+- production-grade Xiaohongshu / Instagram ingestion depth
+- true external AI provider integration
