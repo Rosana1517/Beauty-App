@@ -69,6 +69,7 @@ export interface AIAnalysisResult {
   confidence: number;
   provider: string;
   generatedAt: string;
+  category?: ResourceCategory;
 }
 
 export interface ResourceRecommendationCard {

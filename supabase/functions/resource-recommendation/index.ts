@@ -1,5 +1,6 @@
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { createAnalysis, createRecommendations } from "../_shared/metadata.ts";
+import { analyzeWithAI } from "../_shared/aiProvider.ts";
 import { createAdminClient, resolveAuthenticatedUserID } from "../_shared/runtime.ts";
 import type {
   RecommendationFunctionRequest,
@@ -32,7 +33,7 @@ Deno.serve(async (req) => {
     }
 
     const draft = resourceRowToDraft(resource);
-    const analysis = createAnalysis(draft);
+    const analysis = (await analyzeWithAI(draft)) ?? createAnalysis(draft);
     const cards = createRecommendations(draft, analysis);
 
     const { error: clearAnalysisError } = await supabase

@@ -27,6 +27,10 @@ interface ParsedMetadata {
   pageHost: string;
   finalURL: string;
   html: string;
+  imageList: string[];
+  videoURL: string | null;
+  likeCount: number | null;
+  richSource: "xhsState" | "igSidecar" | "fallback";
 }
 
 const USER_AGENT =
@@ -71,7 +75,7 @@ export function createAnalysis(draft: ResourceImportDraft): AIAnalysisResult {
 }
 
 export function createRecommendations(draft: ResourceImportDraft, analysis: AIAnalysisResult): ResourceRecommendationCard[] {
-  const category = normalizeCategory(draft.category, draft.title, draft.descriptionText, draft.source);
+  const category = analysis.category ?? normalizeCategory(draft.category, draft.title, draft.descriptionText, draft.source);
   return analysis.recommendedActions.slice(0, 3).map((title, index) => ({
     id: crypto.randomUUID(),
     title,
@@ -127,7 +131,7 @@ async function fetchMetadata(inputURL: string, source: ImportSourceType): Promis
   const tags = extractKeywords(html);
   const platformContentType = detectContentType(source, finalURL, html, thumbnailURL);
 
-  return {
+  const base: ParsedMetadata = {
     title,
     descriptionText,
     authorName,
@@ -141,7 +145,162 @@ async function fetchMetadata(inputURL: string, source: ImportSourceType): Promis
     pageHost: safeHost(finalURL),
     finalURL,
     html: html.slice(0, 12000),
+    imageList: thumbnailURL ? [thumbnailURL] : [],
+    videoURL: null,
+    likeCount: null,
+    richSource: "fallback",
   };
+
+  if (source === "xiaohongshu") {
+    return enrichWithXHSState(base, html);
+  }
+  if (source === "instagram") {
+    return enrichWithInstagramData(base, html);
+  }
+  return base;
+}
+
+function enrichWithXHSState(metadata: ParsedMetadata, html: string): ParsedMetadata {
+  const state = extractXHSInitialState(html);
+  if (!state) return metadata;
+
+  // The XHS SSR state shape is undocumented and varies by note type, so we
+  // intentionally read it as `any` rather than maintaining a brittle type.
+  // deno-lint-ignore no-explicit-any
+  const note = findNoteDetail(state) as any;
+  if (!note) return metadata;
+
+  const images = Array.isArray(note.imageList)
+    ? note.imageList
+      .map((item: unknown) => (typeof item === "string" ? item : (item as Record<string, unknown>)?.urlDefault ?? (item as Record<string, unknown>)?.url))
+      .filter((url: unknown): url is string => typeof url === "string" && url.length > 0)
+    : [];
+  const videoURL = typeof note.video?.media?.stream?.h264?.[0]?.masterUrl === "string"
+    ? note.video.media.stream.h264[0].masterUrl
+    : typeof note.video?.url === "string"
+      ? note.video.url
+      : null;
+  const likeCount = typeof note.interactInfo?.likedCount === "string"
+    ? Number(note.interactInfo.likedCount) || null
+    : typeof note.interactInfo?.likedCount === "number"
+      ? note.interactInfo.likedCount
+      : null;
+  const tags = Array.isArray(note.tagList)
+    ? note.tagList.map((tag: Record<string, unknown>) => String(tag?.name ?? "")).filter(Boolean)
+    : metadata.tags;
+
+  return {
+    ...metadata,
+    title: firstNonEmpty(String(note.title ?? ""), metadata.title),
+    descriptionText: firstNonEmpty(String(note.desc ?? ""), metadata.descriptionText),
+    authorName: firstNonEmpty(String(note.user?.nickname ?? ""), metadata.authorName),
+    thumbnailURL: firstNonEmpty(images[0] ?? "", metadata.thumbnailURL),
+    publishedAt: normalizeDate(String(note.time ?? "")) ?? metadata.publishedAt,
+    tags,
+    imageList: images.length > 0 ? images : metadata.imageList,
+    videoURL,
+    likeCount,
+    platformContentType: videoURL ? "video" : images.length > 1 ? "carousel" : images.length === 1 ? "imagePost" : metadata.platformContentType,
+    richSource: "xhsState",
+  };
+}
+
+function enrichWithInstagramData(metadata: ParsedMetadata, html: string): ParsedMetadata {
+  const ogImages = extractAllMeta(html, "og:image");
+  const sidecarImages = extractInstagramSidecarImages(html);
+  const images = dedupe([...sidecarImages, ...ogImages, ...metadata.imageList]);
+  if (images.length === 0) return metadata;
+
+  const videoURL = extractMeta(html, "og:video") || extractMeta(html, "og:video:url") || null;
+
+  return {
+    ...metadata,
+    thumbnailURL: firstNonEmpty(images[0] ?? "", metadata.thumbnailURL),
+    imageList: images,
+    videoURL: videoURL || metadata.videoURL,
+    platformContentType: videoURL ? "video" : images.length > 1 ? "carousel" : "imagePost",
+    richSource: sidecarImages.length > 0 ? "igSidecar" : metadata.richSource,
+  };
+}
+
+/**
+ * 小紅書頁面在 SSR 階段會把整篇筆記資料以 `window.__INITIAL_STATE__ = {...}`
+ * 的形式內嵌在 HTML 中，這比公開的 og: meta tag 完整得多（含多圖、影片、互動數）。
+ * 頁面可能含多個 `<script>` 區塊，較新/完整的狀態通常出現在較後面的區塊，
+ * 因此優先嘗試「最後一個」符合前綴的 script，找不到才退回第一個相符的。
+ * 物件中可能含 JS 字面量 `undefined`/`NaN`，需先正規化成合法 JSON 再解析；
+ * 若仍解析失敗則放寬限制再試一次（移除控制字元、修剪結尾多餘逗號）。
+ */
+function extractXHSInitialState(html: string): Record<string, unknown> | null {
+  const candidates = Array.from(
+    html.matchAll(/window\.__INITIAL_STATE__\s*=\s*(\{[\s\S]*?\})\s*(?:;\s*(?:<\/script>|window\.)|<\/script>)/g),
+  ).map((match) => match[1]);
+  if (candidates.length === 0) return null;
+
+  for (const candidate of [...candidates].reverse()) {
+    const parsed = tryParseJSLiteralObject(candidate);
+    if (parsed) return parsed;
+  }
+  return null;
+}
+
+function tryParseJSLiteralObject(raw: string): Record<string, unknown> | null {
+  const normalized = raw
+    .replace(/:\s*undefined/g, ": null")
+    .replace(/:\s*NaN/g, ": null")
+    // deno-lint-ignore no-control-regex
+    .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f]/g, "")
+    .replace(/,(\s*[}\]])/g, "$1");
+  try {
+    return JSON.parse(normalized);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 手機版頁面（`noteData.data.noteData`）與桌面版頁面
+ * （`note.noteDetailMap.<noteID>.note`）的狀態結構不同，因此兩條路徑都嘗試。
+ * `noteDetailMap` 可能含多筆（例如同時帶入相關推薦筆記），取「最後一筆」
+ * 通常對應目前瀏覽的筆記本身。
+ */
+function findNoteDetail(state: Record<string, unknown>): Record<string, unknown> | null {
+  const phonePath = deepGet(state, ["noteData", "data", "noteData"]);
+  if (phonePath) return phonePath as Record<string, unknown>;
+
+  const noteData = state?.note as Record<string, unknown> | undefined;
+  const noteDetailMap = noteData?.noteDetailMap as Record<string, unknown> | undefined;
+  if (!noteDetailMap) return null;
+  const entries = Object.values(noteDetailMap) as Record<string, unknown>[];
+  const lastEntry = entries[entries.length - 1];
+  const note = lastEntry?.note as Record<string, unknown> | undefined;
+  return note ?? null;
+}
+
+function deepGet(data: unknown, keys: string[]): unknown {
+  let current = data;
+  for (const key of keys) {
+    if (current == null || typeof current !== "object") return undefined;
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+}
+
+/**
+ * Instagram 對未登入的爬蟲已大幅限制資料，但部分公開貼文頁仍會在
+ * `edge_sidecar_to_children` 結構中以 SEO 用途留下完整輪播圖網址。
+ * 這裡用寬鬆字串掃描而非完整 JSON parse，因為該結構通常深埋在大型
+ * `additionalDataLoaded`／`__NEXT_DATA__` blob 裡，完整 parse 容易因
+ * 版面變動而整段失敗。
+ */
+function extractInstagramSidecarImages(html: string): string[] {
+  const matches = html.matchAll(/"display_url":"([^"]+)"/g);
+  const urls = Array.from(matches, (m) => m[1].replace(/\\u0026/g, "&").replace(/\\\//g, "/"));
+  return dedupe(urls);
+}
+
+function dedupe(values: string[]): string[] {
+  return Array.from(new Set(values.filter((value) => value && value.trim().length > 0)));
 }
 
 function buildDraft(
@@ -151,7 +310,12 @@ function buildDraft(
   xhsPayload: XHSParsedPayload | null,
 ): ResourceImportDraft {
   const category = normalizeCategory("all", metadata.title, metadata.descriptionText, source);
-  const mediaAssets = xhsPayload?.mediaAssets ?? buildGenericAssets(metadata.thumbnailURL, metadata.platformContentType, retentionPolicy);
+  const mediaAssets = xhsPayload?.mediaAssets ?? buildAssetsFromImages(
+    metadata.imageList.length > 0 ? metadata.imageList : [metadata.thumbnailURL].filter(Boolean),
+    metadata.platformContentType,
+    retentionPolicy,
+    metadata.videoURL,
+  );
   const importStatus: ResourceImportStatus = metadata.title ? "parsed" : "partial";
   const confidence = scoreConfidence(metadata);
   return {
@@ -202,7 +366,12 @@ function buildXHSPayload(
   retentionPolicy: MediaRetentionPolicy,
 ): XHSParsedPayload {
   const noteID = extractTrailingToken(metadata.canonicalURL);
-  const mediaAssets = buildGenericAssets(metadata.thumbnailURL, metadata.platformContentType, retentionPolicy);
+  const mediaAssets = buildAssetsFromImages(
+    metadata.imageList.length > 0 ? metadata.imageList : [metadata.thumbnailURL].filter(Boolean),
+    metadata.platformContentType,
+    retentionPolicy,
+    metadata.videoURL,
+  );
   return {
     identifier: {
       noteID,
@@ -219,7 +388,7 @@ function buildXHSPayload(
       avatarURL: "",
       noteCountSummary: "",
     },
-    likeCount: null,
+    likeCount: metadata.likeCount,
     tags: metadata.tags,
     publishedAt: metadata.publishedAt ?? null,
     contentType: mapToXHSContentType(metadata.platformContentType),
@@ -229,30 +398,49 @@ function buildXHSPayload(
   };
 }
 
-function buildGenericAssets(
-  thumbnailURL: string,
+function buildAssetsFromImages(
+  imageURLs: string[],
   contentType: ImportedContentType,
   retentionPolicy: MediaRetentionPolicy,
+  videoURL?: string | null,
 ): XHSMediaAsset[] {
-  if (!thumbnailURL) return [];
-  return [
-    {
+  const assets: XHSMediaAsset[] = imageURLs.map((url, index) => ({
+    id: crypto.randomUUID(),
+    assetID: `image-${index}`,
+    type: contentType === "video" && index === 0 ? "cover" : "image",
+    remoteURL: url,
+    previewURL: url,
+    width: null,
+    height: null,
+    duration: null,
+    index,
+    retentionPolicy,
+    localStoragePath: null,
+    checksum: null,
+    isSelectedForImport: true,
+    expiresAt: null,
+  }));
+
+  if (videoURL) {
+    assets.push({
       id: crypto.randomUUID(),
-      assetID: "cover-0",
-      type: contentType === "video" ? "cover" : "image",
-      remoteURL: thumbnailURL,
-      previewURL: thumbnailURL,
+      assetID: "video-0",
+      type: "video",
+      remoteURL: videoURL,
+      previewURL: imageURLs[0] ?? videoURL,
       width: null,
       height: null,
       duration: null,
-      index: 0,
+      index: assets.length,
       retentionPolicy,
       localStoragePath: null,
       checksum: null,
       isSelectedForImport: true,
       expiresAt: null,
-    },
-  ];
+    });
+  }
+
+  return assets;
 }
 
 function normalizeCategory(
@@ -290,13 +478,16 @@ function actionTemplates(category: ResourceCategory): string[] {
 
 function scoreConfidence(metadata: ParsedMetadata): number {
   let score = 0.25;
-  if (metadata.title) score += 0.25;
-  if (metadata.descriptionText) score += 0.15;
+  if (metadata.title) score += 0.2;
+  if (metadata.descriptionText) score += 0.1;
   if (metadata.authorName) score += 0.1;
   if (metadata.thumbnailURL) score += 0.1;
   if (metadata.externalID) score += 0.1;
   if (metadata.publishedAt) score += 0.05;
-  return Math.min(0.95, score);
+  if (metadata.imageList.length > 1) score += 0.05;
+  if (metadata.videoURL) score += 0.05;
+  if (metadata.richSource !== "fallback") score += 0.1;
+  return Math.min(0.97, score);
 }
 
 function detectContentType(source: ImportSourceType, url: string, html: string, thumbnailURL: string): ImportedContentType {
@@ -332,6 +523,20 @@ function extractMeta(html: string, name: string): string {
     if (match?.[1]) return decodeHTMLEntities(match[1].trim());
   }
   return "";
+}
+
+function extractAllMeta(html: string, name: string): string[] {
+  const patterns = [
+    new RegExp(`<meta[^>]+property=["']${escapeRegExp(name)}["'][^>]+content=["']([^"']+)["']`, "gi"),
+    new RegExp(`<meta[^>]+content=["']([^"']+)["'][^>]+property=["']${escapeRegExp(name)}["']`, "gi"),
+  ];
+  const results: string[] = [];
+  for (const pattern of patterns) {
+    for (const match of html.matchAll(pattern)) {
+      if (match[1]) results.push(decodeHTMLEntities(match[1].trim()));
+    }
+  }
+  return dedupe(results);
 }
 
 function extractCanonicalURL(html: string): string {
