@@ -1,4 +1,5 @@
 import type { AIAnalysisResult, ResourceCategory, ResourceImportDraft } from "./types.ts";
+import { createAdminClient } from "./runtime.ts";
 
 interface AIProviderConfig {
   provider: "openai" | "anthropic";
@@ -9,7 +10,45 @@ interface AIProviderConfig {
 
 const VALID_CATEGORIES: ResourceCategory[] = ["skincare", "fitness", "food", "outfit", "learning", "other"];
 
-function getAIProviderConfig(): AIProviderConfig | null {
+/**
+ * Each signed-in user can bring their own AI provider/key (stored, RLS-scoped
+ * to that user, in `user_ai_provider_settings`) so this isn't a single
+ * shared key for every installation. Falls back to the global
+ * AI_PROVIDER/AI_API_KEY env vars (e.g. for the developer's own testing)
+ * when the user hasn't configured one of their own.
+ */
+async function resolveAIProviderConfig(userID: string): Promise<AIProviderConfig | null> {
+  const userConfig = await fetchUserAIProviderConfig(userID);
+  return userConfig ?? getEnvAIProviderConfig();
+}
+
+async function fetchUserAIProviderConfig(userID: string): Promise<AIProviderConfig | null> {
+  try {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("user_ai_provider_settings")
+      .select("provider, api_key, base_url, model")
+      .eq("user_id", userID)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    const provider = String(data.provider ?? "").trim().toLowerCase();
+    const apiKey = String(data.api_key ?? "").trim();
+    if (!apiKey || (provider !== "openai" && provider !== "anthropic")) {
+      return null;
+    }
+
+    const model = String(data.model ?? "").trim() || defaultModelFor(provider);
+    const baseURL = String(data.base_url ?? "").trim().replace(/\/+$/, "") || defaultBaseURLFor(provider);
+    return { provider, apiKey, model, baseURL };
+  } catch (error) {
+    console.error("Failed to load user AI provider settings, falling back.", error);
+    return null;
+  }
+}
+
+function getEnvAIProviderConfig(): AIProviderConfig | null {
   const provider = (Deno.env.get("AI_PROVIDER") ?? "").trim().toLowerCase();
   const apiKey = (Deno.env.get("AI_API_KEY") ?? "").trim();
   if (!apiKey || (provider !== "openai" && provider !== "anthropic")) {
@@ -38,8 +77,8 @@ function defaultBaseURLFor(provider: "openai" | "anthropic"): string {
  * Returns null when no provider is configured or the call fails, so the
  * caller can fall back to the local rule engine without breaking the flow.
  */
-export async function analyzeWithAI(draft: ResourceImportDraft): Promise<AIAnalysisResult | null> {
-  const config = getAIProviderConfig();
+export async function analyzeWithAI(draft: ResourceImportDraft, userID: string): Promise<AIAnalysisResult | null> {
+  const config = await resolveAIProviderConfig(userID);
   if (!config) return null;
 
   try {

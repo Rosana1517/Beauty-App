@@ -56,6 +56,9 @@ protocol CloudResourceSyncService {
     func enqueueReparse(for item: ResourceItem, reason: String) async throws -> ResourceSyncQueueItem
     func enqueueMediaCleanup(for item: ResourceItem) async throws -> ResourceSyncQueueItem
     func requestRecommendations(for item: ResourceItem) async throws -> [ResourceRecommendationCard]
+    func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws
+    func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings?
+    func deleteAIProviderSettings(session: SupabaseAuthSession) async throws
 }
 
 struct CloudSyncResult {
@@ -319,6 +322,10 @@ struct NoopCloudResourceSyncService: CloudResourceSyncService {
     func requestRecommendations(for item: ResourceItem) async throws -> [ResourceRecommendationCard] {
         []
     }
+
+    func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws {}
+    func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings? { nil }
+    func deleteAIProviderSettings(session: SupabaseAuthSession) async throws {}
 }
 
 struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
@@ -431,6 +438,34 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
         return response.cards
     }
 
+    /// Stored per-user (RLS-scoped to `session.userID`) so each signed-in
+    /// person can bring their own AI provider key instead of sharing a
+    /// single key baked into the backend's environment variables.
+    func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws {
+        let payload = SupabaseAIProviderSettingsPayload(userID: session.userID, settings: settings)
+        _ = try await client.upsert(
+            table: "user_ai_provider_settings",
+            payload: [payload],
+            responseType: [SupabaseAIProviderSettingsRow].self
+        )
+    }
+
+    func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings? {
+        let rows: [SupabaseAIProviderSettingsRow] = try await client.select(
+            table: "user_ai_provider_settings",
+            queryItems: [URLQueryItem(name: "user_id", value: "eq.\(session.userID)")],
+            responseType: [SupabaseAIProviderSettingsRow].self
+        )
+        return rows.first?.settings
+    }
+
+    func deleteAIProviderSettings(session: SupabaseAuthSession) async throws {
+        try await client.delete(
+            table: "user_ai_provider_settings",
+            queryItems: [URLQueryItem(name: "user_id", value: "eq.\(session.userID)")]
+        )
+    }
+
     private func createImportEvent(for item: ResourceItem, remoteRecordID: String?) async throws {
         let payload = SupabaseImportEventPayload(item: item, remoteRecordID: remoteRecordID, userID: try resolvedUserID())
         _ = try await client.insert(
@@ -539,6 +574,32 @@ private struct SupabaseRESTClient {
             body: payload,
             responseType: responseType
         )
+    }
+
+    func delete(table: String, queryItems: [URLQueryItem]) async throws {
+        guard var components = URLComponents(string: baseURL) else {
+            throw URLError(.badURL)
+        }
+        components.path = "/rest/v1/\(table)"
+        components.queryItems = queryItems
+        guard let url = components.url else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "DELETE"
+        request.timeoutInterval = 20
+        request.setValue(anonKey, forHTTPHeaderField: "apikey")
+        request.setValue("Bearer \(authorizationToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw SupabaseRESTError.invalidResponse
+        }
+        guard (200...299).contains(httpResponse.statusCode) else {
+            throw mappedError(from: data, statusCode: httpResponse.statusCode)
+        }
     }
 
     private func requestWithoutBody<Response: Decodable>(
@@ -877,6 +938,42 @@ private struct SupabaseAppUserRow: Decodable {
             skincareFocus: skincareFocus ?? "",
             themeName: themeName ?? "",
             notificationTime: notificationTime ?? ""
+        )
+    }
+}
+
+private struct SupabaseAIProviderSettingsPayload: Encodable {
+    let userID: String
+    let provider: String
+    let apiKey: String
+    let baseURL: String?
+    let model: String?
+
+    init(userID: String, settings: AIProviderSettings) {
+        self.userID = userID
+        provider = settings.provider.rawValue
+        apiKey = settings.apiKey
+        baseURL = settings.baseURL.nilIfEmpty
+        model = settings.model.nilIfEmpty
+    }
+}
+
+private struct SupabaseAIProviderSettingsRow: Decodable {
+    // `user_id` is intentionally omitted: JSONDecoder's `.convertFromSnakeCase`
+    // can't reconstruct the "ID" acronym (it produces "userId", not "userID"),
+    // and the field isn't needed here since the query already filters by
+    // user_id.
+    let provider: String
+    let apiKey: String
+    let baseURL: String?
+    let model: String?
+
+    var settings: AIProviderSettings {
+        AIProviderSettings(
+            provider: AIProviderKind(rawValue: provider) ?? .openai,
+            apiKey: apiKey,
+            baseURL: baseURL ?? "",
+            model: model ?? ""
         )
     }
 }

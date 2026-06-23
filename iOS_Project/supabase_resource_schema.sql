@@ -160,6 +160,20 @@ create table if not exists public.resource_sync_queue (
 create index if not exists idx_resource_sync_queue_resource_id on public.resource_sync_queue(resource_id);
 create index if not exists idx_resource_sync_queue_status on public.resource_sync_queue(sync_status, updated_at desc);
 
+-- 讓每個使用者可以自行接入自己的 AI provider（OpenAI / Anthropic 相容端點），
+-- 而不是共用一組寫在 Edge Function 環境變數裡的全域金鑰。金鑰只會被
+-- 該使用者自己的 client（透過 RLS 限制）與後端 service-role 角色讀取，
+-- 絕不回傳給其他使用者。
+create table if not exists public.user_ai_provider_settings (
+  user_id uuid primary key references public.app_users(id) on delete cascade,
+  provider text not null check (provider in ('openai', 'anthropic')),
+  api_key text not null,
+  base_url text,
+  model text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 create or replace function public.set_updated_at()
 returns trigger
 language plpgsql
@@ -201,6 +215,7 @@ grant select on public.resource_media_assets to authenticated;
 grant select on public.resource_source_payloads to authenticated;
 grant select on public.temporary_media_leases to authenticated;
 grant select on public.resource_sync_queue to authenticated;
+grant select, insert, update, delete on public.user_ai_provider_settings to authenticated;
 
 alter table public.app_users enable row level security;
 alter table public.resource_items enable row level security;
@@ -211,6 +226,7 @@ alter table public.resource_media_assets enable row level security;
 alter table public.resource_source_payloads enable row level security;
 alter table public.temporary_media_leases enable row level security;
 alter table public.resource_sync_queue enable row level security;
+alter table public.user_ai_provider_settings enable row level security;
 
 drop policy if exists app_users_select_own on public.app_users;
 create policy app_users_select_own
@@ -327,6 +343,40 @@ on public.resource_sync_queue
 for select
 to authenticated
 using (public.owns_resource_item(resource_id));
+
+drop policy if exists user_ai_provider_settings_select_own on public.user_ai_provider_settings;
+create policy user_ai_provider_settings_select_own
+on public.user_ai_provider_settings
+for select
+to authenticated
+using (user_id = auth.uid());
+
+drop policy if exists user_ai_provider_settings_insert_own on public.user_ai_provider_settings;
+create policy user_ai_provider_settings_insert_own
+on public.user_ai_provider_settings
+for insert
+to authenticated
+with check (user_id = auth.uid());
+
+drop policy if exists user_ai_provider_settings_update_own on public.user_ai_provider_settings;
+create policy user_ai_provider_settings_update_own
+on public.user_ai_provider_settings
+for update
+to authenticated
+using (user_id = auth.uid())
+with check (user_id = auth.uid());
+
+drop policy if exists user_ai_provider_settings_delete_own on public.user_ai_provider_settings;
+create policy user_ai_provider_settings_delete_own
+on public.user_ai_provider_settings
+for delete
+to authenticated
+using (user_id = auth.uid());
+
+drop trigger if exists trg_user_ai_provider_settings_updated_at on public.user_ai_provider_settings;
+create trigger trg_user_ai_provider_settings_updated_at
+before update on public.user_ai_provider_settings
+for each row execute function public.set_updated_at();
 
 drop trigger if exists trg_app_users_updated_at on public.app_users;
 create trigger trg_app_users_updated_at

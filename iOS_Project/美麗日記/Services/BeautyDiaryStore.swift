@@ -657,6 +657,7 @@ final class BeautyDiaryStore: ObservableObject {
 
         authStatus = .authenticated
         await reconcileCurrentUserProfileWithCloud()
+        await fetchAIProviderSettingsFromCloud()
         await refreshCloudResources()
         await syncPendingResources()
     }
@@ -677,6 +678,7 @@ final class BeautyDiaryStore: ObservableObject {
             authStatus = .authenticated
             authMessage = "Signed in. Cloud sync is ready."
             await reconcileCurrentUserProfileWithCloud()
+            await fetchAIProviderSettingsFromCloud()
             await refreshCloudResources()
             await syncPendingResources()
         } catch {
@@ -699,6 +701,7 @@ final class BeautyDiaryStore: ObservableObject {
             authStatus = .authenticated
             authMessage = "Magic link sign-in completed."
             await reconcileCurrentUserProfileWithCloud()
+            await fetchAIProviderSettingsFromCloud()
             await refreshCloudResources()
             await syncPendingResources()
         } catch {
@@ -850,6 +853,77 @@ final class BeautyDiaryStore: ObservableObject {
                 return
             }
             authMessage = error.localizedDescription
+        }
+    }
+
+    /// Saves the signed-in user's own AI provider config (URL/key/model) to
+    /// their RLS-scoped row in `user_ai_provider_settings`. Each user brings
+    /// their own key instead of sharing one baked into backend env vars.
+    func saveAIProviderSettings(_ settings: AIProviderSettings) async {
+        await saveAIProviderSettings(settings, allowRetry: true)
+    }
+
+    private func saveAIProviderSettings(_ settings: AIProviderSettings, allowRetry: Bool) async {
+        state.aiProviderSettings = settings
+        save()
+
+        guard let session = authSession else {
+            authMessage = "Sign in to Supabase to sync your AI provider key across devices."
+            return
+        }
+
+        do {
+            try await cloudSyncService.upsertAIProviderSettings(session: session, settings: settings)
+            authMessage = "AI provider settings saved."
+        } catch {
+            if allowRetry, await recoverSessionIfNeeded(after: error) {
+                await saveAIProviderSettings(settings, allowRetry: false)
+                return
+            }
+            authMessage = "Saved locally, but cloud sync failed: \(error.localizedDescription)"
+        }
+    }
+
+    func clearAIProviderSettings() async {
+        await clearAIProviderSettings(allowRetry: true)
+    }
+
+    private func clearAIProviderSettings(allowRetry: Bool) async {
+        state.aiProviderSettings = nil
+        save()
+
+        guard let session = authSession else { return }
+
+        do {
+            try await cloudSyncService.deleteAIProviderSettings(session: session)
+        } catch {
+            if allowRetry, await recoverSessionIfNeeded(after: error) {
+                await clearAIProviderSettings(allowRetry: false)
+                return
+            }
+            authMessage = "Removed locally, but cloud delete failed: \(error.localizedDescription)"
+        }
+    }
+
+    private func fetchAIProviderSettingsFromCloud() async {
+        await fetchAIProviderSettingsFromCloud(allowRetry: true)
+    }
+
+    private func fetchAIProviderSettingsFromCloud(allowRetry: Bool) async {
+        guard let session = authSession else { return }
+
+        do {
+            if let remoteSettings = try await cloudSyncService.fetchAIProviderSettings(session: session) {
+                state.aiProviderSettings = remoteSettings
+                save()
+            }
+        } catch {
+            if allowRetry, await recoverSessionIfNeeded(after: error) {
+                await fetchAIProviderSettingsFromCloud(allowRetry: false)
+                return
+            }
+            // Non-fatal: keep whatever AI provider settings are already
+            // cached locally rather than surfacing this as a user-facing error.
         }
     }
 

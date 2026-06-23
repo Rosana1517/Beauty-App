@@ -1069,6 +1069,10 @@ struct PersonalSettingsView: View {
     @State private var notificationTime = ""
     @State private var authEmail = ""
     @State private var authPassword = ""
+    @State private var aiProvider: AIProviderKind = .openai
+    @State private var aiAPIKey = ""
+    @State private var aiBaseURL = ""
+    @State private var aiModel = ""
 
     var body: some View {
         ScrollView {
@@ -1116,6 +1120,13 @@ struct PersonalSettingsView: View {
                         .buttonStyle(.plain)
                     }
                 }
+
+                AIProviderSettingsCard(
+                    provider: $aiProvider,
+                    apiKey: $aiAPIKey,
+                    baseURL: $aiBaseURL,
+                    model: $aiModel
+                )
             }
             .padding(20)
         }
@@ -1133,6 +1144,12 @@ struct PersonalSettingsView: View {
             skincareFocus = store.state.profile.skincareFocus
             notificationTime = store.state.profile.notificationTime
             authEmail = store.authSession?.email ?? ""
+
+            let aiSettings = store.state.aiProviderSettings ?? .empty
+            aiProvider = aiSettings.provider
+            aiAPIKey = aiSettings.apiKey
+            aiBaseURL = aiSettings.baseURL
+            aiModel = aiSettings.model
         }
     }
 }
@@ -1156,6 +1173,76 @@ struct CustomizationView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+    }
+}
+
+/// Lets each signed-in user bring their own AI provider (OpenAI/Anthropic
+/// compatible) key instead of relying on a key shared across every
+/// installation. Saved to the user's own RLS-scoped row in Supabase via
+/// `BeautyDiaryStore.saveAIProviderSettings`, plus cached locally so it
+/// still shows up while offline.
+private struct AIProviderSettingsCard: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @Binding var provider: AIProviderKind
+    @Binding var apiKey: String
+    @Binding var baseURL: String
+    @Binding var model: String
+
+    var body: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("AI 解析設定")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                Text("接入你自己的 OpenAI 或 Anthropic 帳號，資源匯入後的 AI 分析會改用這組設定，而不是共用金鑰。金鑰只會存在你自己的帳號底下。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subtext)
+
+                Picker("Provider", selection: $provider) {
+                    ForEach(AIProviderKind.allCases) { kind in
+                        Text(kind.displayName).tag(kind)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                ThemedTextField(title: "API Base URL（留空使用官方端點）", text: $baseURL)
+                ThemedSecureField(title: "API Key", text: $apiKey)
+                ThemedTextField(title: "Model（留空使用預設）", text: $model)
+
+                if let message = store.authMessage, !message.isEmpty {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.subtext)
+                }
+
+                PrimaryButton(title: "儲存 AI 設定") {
+                    Task {
+                        await store.saveAIProviderSettings(
+                            AIProviderSettings(provider: provider, apiKey: apiKey, baseURL: baseURL, model: model)
+                        )
+                    }
+                }
+
+                if store.state.aiProviderSettings?.isConfigured == true {
+                    Button {
+                        Task {
+                            await store.clearAIProviderSettings()
+                            apiKey = ""
+                            baseURL = ""
+                            model = ""
+                        }
+                    } label: {
+                        Text("移除 AI 設定")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.subtext)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
     }
 }
 

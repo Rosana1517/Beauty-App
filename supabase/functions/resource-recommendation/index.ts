@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
     }
 
     const draft = resourceRowToDraft(resource);
-    const analysis = (await analyzeWithAI(draft)) ?? createAnalysis(draft);
+    const analysis = (await analyzeWithAI(draft, userID)) ?? createAnalysis(draft);
     const cards = createRecommendations(draft, analysis);
 
     const { error: clearAnalysisError } = await supabase

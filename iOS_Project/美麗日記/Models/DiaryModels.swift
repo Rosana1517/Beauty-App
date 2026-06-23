@@ -285,6 +285,38 @@ struct UserProfileRecord: Codable, Equatable {
     var notificationTime: String
 }
 
+enum AIProviderKind: String, Codable, CaseIterable, Identifiable, Hashable {
+    case openai
+    case anthropic
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .openai: return "OpenAI"
+        case .anthropic: return "Anthropic"
+        }
+    }
+}
+
+/// Each signed-in user can bring their own AI provider key instead of
+/// relying on a single key shared across every installation. This is
+/// synced to the user's own row in `user_ai_provider_settings` (RLS-scoped
+/// to that user) so the key never needs to live in app code or a shared
+/// backend secret.
+struct AIProviderSettings: Codable, Equatable {
+    var provider: AIProviderKind
+    var apiKey: String
+    var baseURL: String
+    var model: String
+
+    var isConfigured: Bool {
+        !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    static let empty = AIProviderSettings(provider: .openai, apiKey: "", baseURL: "", model: "")
+}
+
 struct ChecklistItem: Identifiable, Codable {
     var id: UUID
     var title: String
@@ -844,6 +876,7 @@ struct BeautyDiaryState: Codable {
     var resourceImportHistory: [ResourceImportHistoryEntry]
     var pendingImportDraft: ResourceImportDraft?
     var resourceSyncQueue: [ResourceSyncQueueItem]
+    var aiProviderSettings: AIProviderSettings?
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -864,6 +897,7 @@ struct BeautyDiaryState: Codable {
         case resourceImportHistory
         case pendingImportDraft
         case resourceSyncQueue
+        case aiProviderSettings
     }
 
     init(
@@ -884,7 +918,8 @@ struct BeautyDiaryState: Codable {
         resourceFilter: ResourceCategory,
         resourceImportHistory: [ResourceImportHistoryEntry],
         pendingImportDraft: ResourceImportDraft?,
-        resourceSyncQueue: [ResourceSyncQueueItem]
+        resourceSyncQueue: [ResourceSyncQueueItem],
+        aiProviderSettings: AIProviderSettings? = nil
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -904,6 +939,7 @@ struct BeautyDiaryState: Codable {
         self.resourceImportHistory = resourceImportHistory
         self.pendingImportDraft = pendingImportDraft
         self.resourceSyncQueue = resourceSyncQueue
+        self.aiProviderSettings = aiProviderSettings
     }
 
     init(from decoder: Decoder) throws {
@@ -926,6 +962,7 @@ struct BeautyDiaryState: Codable {
         resourceImportHistory = try container.decodeIfPresent([ResourceImportHistoryEntry].self, forKey: .resourceImportHistory) ?? []
         pendingImportDraft = try container.decodeIfPresent(ResourceImportDraft.self, forKey: .pendingImportDraft)
         resourceSyncQueue = try container.decodeIfPresent([ResourceSyncQueueItem].self, forKey: .resourceSyncQueue) ?? []
+        aiProviderSettings = try container.decodeIfPresent(AIProviderSettings.self, forKey: .aiProviderSettings)
     }
 }
 
