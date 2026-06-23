@@ -25,6 +25,32 @@ jobs:
       - name: Select latest Xcode
         run: sudo xcode-select -s /Applications/Xcode.app
 
+      - name: Read runtime config from project.yml
+        run: |
+          # SUPABASE_URL/SUPABASE_ANON_KEY are committed in plaintext in
+          # project.yml's scheme environmentVariables (the anon key is a
+          # public, RLS-scoped key by design, not a secret). `simctl launch`
+          # doesn't honor the Xcode scheme's environment variables the way
+          # running from Xcode does, so we read the same values here to pass
+          # them in explicitly when launching the app for the smoke test.
+          SUPABASE_URL=$(grep -A2 'environmentVariables:' project.yml | grep 'SUPABASE_URL:' | sed -E 's/.*SUPABASE_URL: *"([^"]*)".*/\1/')
+          SUPABASE_ANON_KEY=$(grep -A2 'environmentVariables:' project.yml | grep 'SUPABASE_ANON_KEY:' | sed -E 's/.*SUPABASE_ANON_KEY: *"([^"]*)".*/\1/')
+          echo "SUPABASE_URL=$SUPABASE_URL" >> "$GITHUB_ENV"
+          echo "SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY" >> "$GITHUB_ENV"
+          echo "Read SUPABASE_URL=$SUPABASE_URL (anon key length: ${#SUPABASE_ANON_KEY})"
+
+      - name: Check network reachability from runner
+        continue-on-error: true
+        run: |
+          mkdir -p artifacts
+          {
+            for url in "https://www.xiaohongshu.com" "https://www.instagram.com" "https://www.youtube.com" "$SUPABASE_URL"; do
+              if [ -z "$url" ]; then continue; fi
+              echo "== $url =="
+              curl -s -o /dev/null -w "HTTP %{http_code}, time %{time_total}s\n" --max-time 10 "$url" || echo "FAILED to connect"
+            done
+          } | tee artifacts/network-reachability.txt
+
       - name: Install XcodeGen
         run: brew install xcodegen
 
@@ -52,11 +78,75 @@ jobs:
             echo "No simulator app found"
             exit 1
           fi
+          echo "APP_PATH=$APP_PATH" >> "$GITHUB_ENV"
           mkdir -p artifacts
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" artifacts/BeautifulDiary-simulator-app.zip
+
+      - name: Launch app in iOS Simulator and capture smoke-test evidence
+        env:
+          SIMCTL_CHILD_SUPABASE_URL: ${{ env.SUPABASE_URL }}
+          SIMCTL_CHILD_SUPABASE_ANON_KEY: ${{ env.SUPABASE_ANON_KEY }}
+        run: |
+          set -e
+          BUNDLE_ID="com.example.beautifuldiary"
+          DEVICE_ID=$(xcrun simctl list devices available | grep -m1 "iPhone" | grep -oE '[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}')
+          if [ -z "$DEVICE_ID" ]; then
+            echo "No available iPhone simulator found."
+            xcrun simctl list devices
+            exit 1
+          fi
+          echo "Using simulator: $DEVICE_ID"
+
+          xcrun simctl boot "$DEVICE_ID" || true
+          xcrun simctl bootstatus "$DEVICE_ID" -b
+
+          xcrun simctl install "$DEVICE_ID" "$APP_PATH"
+          xcrun simctl launch "$DEVICE_ID" "$BUNDLE_ID"
+
+          # Give SwiftUI/launch-time async work (e.g. session restore, cloud
+          # sync) a few seconds to run and either settle or crash, then grab
+          # a screenshot + crash report + recent log lines as evidence.
+          sleep 8
+
+          xcrun simctl io "$DEVICE_ID" screenshot artifacts/launch-screenshot.png || true
+
+          CRASH_DIR="$HOME/Library/Logs/DiagnosticReports"
+          if ls "$CRASH_DIR"/*BeautifulDiary*.ips >/dev/null 2>&1 || ls "$CRASH_DIR"/*美麗日記*.ips >/dev/null 2>&1; then
+            echo "CRASH DETECTED:"
+            cp "$CRASH_DIR"/*BeautifulDiary*.ips artifacts/ 2>/dev/null || true
+            cp "$CRASH_DIR"/*美麗日記*.ips artifacts/ 2>/dev/null || true
+            echo "crashed=true" >> "$GITHUB_ENV"
+          else
+            echo "No crash report found for the app after launch."
+            echo "crashed=false" >> "$GITHUB_ENV"
+          fi
+
+          xcrun simctl spawn "$DEVICE_ID" log show \
+            --predicate 'process == "美麗日記" OR process == "BeautifulDiary"' \
+            --last 1m > artifacts/app-launch-log.txt || true
+
+          xcrun simctl shutdown "$DEVICE_ID" || true
+
+      - name: Fail if the app crashed on launch
+        if: env.crashed == 'true'
+        run: |
+          echo "App crashed shortly after launch. See uploaded artifacts (launch-screenshot.png, app-launch-log.txt, *.ips)."
+          exit 1
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: beautiful-diary-simulator-build
           path: iOS_Project/artifacts/BeautifulDiary-simulator-app.zip
+
+      - name: Upload smoke-test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: beautiful-diary-smoke-test-evidence
+          path: |
+            iOS_Project/artifacts/network-reachability.txt
+            iOS_Project/artifacts/launch-screenshot.png
+            iOS_Project/artifacts/app-launch-log.txt
+            iOS_Project/artifacts/*.ips
+          if-no-files-found: ignore
