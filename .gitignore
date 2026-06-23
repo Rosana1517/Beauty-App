@@ -12,3 +12,6 @@ artifacts/
 *.ipa
 *.app
 *.dSYM
+.npm-cache/
+build_artifacts/
+supabase/.temp/
