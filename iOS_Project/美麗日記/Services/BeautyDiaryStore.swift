@@ -566,12 +566,47 @@ final class BeautyDiaryStore: ObservableObject {
     }
 
     func syncPendingResources() async {
-        let pendingIDs = state.resourceSyncQueue
-            .filter { $0.syncStatus == .pending || $0.syncStatus == .failed }
+        await syncPendingResources(respectBackoff: true)
+    }
+
+    /// `respectBackoff: false` is used for explicit user-triggered syncs
+    /// (e.g. `syncCloudNow()`) so a manual retry isn't silently skipped just
+    /// because the automatic backoff window hasn't elapsed yet. The max
+    /// retry cap still applies either way, since repeated failures usually
+    /// mean a real error, not a transient one.
+    private func syncPendingResources(respectBackoff: Bool) async {
+        let dueResourceIDs = state.resourceSyncQueue
+            .filter { item in
+                guard item.jobType == .importJob else { return false }
+                guard item.syncStatus == .pending || item.syncStatus == .failed else { return false }
+                guard item.retryCount < Self.maxResourceSyncRetryCount else { return false }
+                return !respectBackoff || isDueForRetry(item)
+            }
             .map(\.resourceID)
 
-        for resourceID in pendingIDs {
+        for resourceID in Set(dueResourceIDs) {
             await syncResource(resourceID)
+        }
+    }
+
+    private static let maxResourceSyncRetryCount = 5
+
+    private func backoffInterval(forRetryCount retryCount: Int) -> TimeInterval {
+        min(pow(2.0, Double(retryCount)) * 5, 300)
+    }
+
+    private func isDueForRetry(_ item: ResourceSyncQueueItem) -> Bool {
+        guard item.syncStatus == .failed else { return true }
+        return Date().timeIntervalSince(item.updatedAt) >= backoffInterval(forRetryCount: item.retryCount)
+    }
+
+    private func isTransientNetworkError(_ error: Error) -> Bool {
+        guard let urlError = error as? URLError else { return false }
+        switch urlError.code {
+        case .timedOut, .networkConnectionLost, .notConnectedToInternet, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed:
+            return true
+        default:
+            return false
         }
     }
 
@@ -712,7 +747,7 @@ final class BeautyDiaryStore: ObservableObject {
 
         authMessage = nil
         await reconcileCurrentUserProfileWithCloud()
-        await syncPendingResources()
+        await syncPendingResources(respectBackoff: false)
         await refreshCloudResources()
         authMessage = "Cloud sync finished."
     }
@@ -853,10 +888,10 @@ final class BeautyDiaryStore: ObservableObject {
     }
 
     private func syncResource(_ resourceID: UUID) async {
-        await syncResource(resourceID, allowRetry: true)
+        await syncResource(resourceID, allowSessionRetry: true, allowTransientRetry: true)
     }
 
-    private func syncResource(_ resourceID: UUID, allowRetry: Bool) async {
+    private func syncResource(_ resourceID: UUID, allowSessionRetry: Bool, allowTransientRetry: Bool) async {
         guard let resourceIndex = state.resourceItems.firstIndex(where: { $0.id == resourceID }) else { return }
 
         updateSyncState(for: resourceID, jobType: .importJob, status: .syncing, errorMessage: nil)
@@ -869,8 +904,16 @@ final class BeautyDiaryStore: ObservableObject {
             save()
             await applyBackendRecommendationsIfNeeded(for: state.resourceItems[resourceIndex])
         } catch {
-            if allowRetry, await recoverSessionIfNeeded(after: error) {
-                await syncResource(resourceID, allowRetry: false)
+            if allowSessionRetry, await recoverSessionIfNeeded(after: error) {
+                await syncResource(resourceID, allowSessionRetry: false, allowTransientRetry: allowTransientRetry)
+                return
+            }
+            // A single short-delay retry for transient network blips (timeout,
+            // dropped connection) so a flaky network during bulk import
+            // doesn't immediately burn through the queue's retry budget.
+            if allowTransientRetry, isTransientNetworkError(error) {
+                try? await Task.sleep(nanoseconds: 1_500_000_000)
+                await syncResource(resourceID, allowSessionRetry: false, allowTransientRetry: false)
                 return
             }
             state.resourceItems[resourceIndex].syncStatus = .failed
@@ -929,14 +972,26 @@ final class BeautyDiaryStore: ObservableObject {
         var merged = local
         for remoteItem in remote {
             if let index = merged.firstIndex(where: { $0.remoteRecordID == remoteItem.remoteRecordID && !$0.remoteRecordID.isEmpty }) {
+                guard canOverwriteWithRemote(merged[index]) else { continue }
                 merged[index] = remoteItem
             } else if let index = merged.firstIndex(where: { $0.originalURL == remoteItem.originalURL && $0.source == remoteItem.source }) {
+                guard canOverwriteWithRemote(merged[index]) else { continue }
                 merged[index] = remoteItem
             } else {
                 merged.append(remoteItem)
             }
         }
         return merged.sorted { $0.importedAt > $1.importedAt }
+    }
+
+    /// Local edits made while a push is pending/in-flight/failed haven't been
+    /// confirmed by the server yet. If a cloud refresh overwrote them with
+    /// (possibly stale) remote data, the unsynced local change would be lost
+    /// silently. Only items the server has already acknowledged
+    /// (`.succeeded`) are safe to replace wholesale here; pending ones will
+    /// reconcile themselves once `syncPendingResources()` pushes them up.
+    private func canOverwriteWithRemote(_ localItem: ResourceItem) -> Bool {
+        localItem.syncStatus == .succeeded
     }
 
     private func save() {
