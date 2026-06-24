@@ -27,7 +27,17 @@ final class CloudSyncUITests: XCTestCase {
             throw XCTSkip("CI_TEST_USER_EMAIL/CI_TEST_USER_PASSWORD not provided; skipping cloud sync test.")
         }
 
+        // XCUIApplication().launch() does NOT automatically inherit the
+        // scheme's environment variables for the app-under-test process -
+        // those only apply when Xcode itself launches the app via Run.
+        // Forward what this test process already has (via TestAction's
+        // EnvironmentVariables) explicitly, otherwise AppRuntimeConfiguration
+        // .hasSupabaseConfig is false and auth never leaves .unavailable.
         let app = XCUIApplication()
+        app.launchEnvironment = [
+            "SUPABASE_URL": env["SUPABASE_URL"] ?? "",
+            "SUPABASE_ANON_KEY": env["SUPABASE_ANON_KEY"] ?? "",
+        ]
         app.launch()
 
         let profileTab = app.tabBars.buttons["我的"]
