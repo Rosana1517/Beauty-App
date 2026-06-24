@@ -105,6 +105,9 @@ jobs:
           print("Injected CI_TEST_USER_EMAIL/CI_TEST_USER_PASSWORD into TestAction (values redacted from this log).")
           PYEOF
 
+          echo "-- TestAction block right after injection (keys only, values redacted) --"
+          grep -A2 "TestAction\|EnvironmentVariable" BeautifulDiary.xcodeproj/xcshareddata/xcschemes/BeautifulDiary.xcscheme | grep -v "value = " || true
+
       - name: Show schemes
         run: xcodebuild -list -project BeautifulDiary.xcodeproj
 
@@ -150,6 +153,9 @@ jobs:
       # ...instead of only asserting that the app launches without crashing.
       - name: Run UI tests
         run: |
+          echo "-- TestAction block right before running tests (keys only, values redacted) --"
+          grep -A2 "TestAction\|EnvironmentVariable" BeautifulDiary.xcodeproj/xcshareddata/xcschemes/BeautifulDiary.xcscheme | grep -v "value = " || true
+
           mkdir -p artifacts
           xcodebuild test \
             -project BeautifulDiary.xcodeproj \
