@@ -391,6 +391,50 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func addFavoriteRecipe(title: String, url: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.favoriteRecipes.append(TutorialLink(id: UUID(), title: trimmed, url: url))
+        save()
+    }
+
+    func deleteFavoriteRecipe(_ recipe: TutorialLink) {
+        state.favoriteRecipes.removeAll { $0.id == recipe.id }
+        save()
+    }
+
+    func setFaceShape(_ shape: String) {
+        state.faceShape = shape
+        save()
+    }
+
+    func addSavedHairstyle(title: String, url: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.savedHairstyles.append(TutorialLink(id: UUID(), title: trimmed, url: url))
+        save()
+    }
+
+    func deleteSavedHairstyle(_ hairstyle: TutorialLink) {
+        state.savedHairstyles.removeAll { $0.id == hairstyle.id }
+        save()
+    }
+
+    func addMakeupInspiration(title: String, url: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.makeupInspirations.append(TutorialLink(id: UUID(), title: trimmed, url: url))
+        save()
+    }
+
+    func deleteMakeupInspiration(_ inspiration: TutorialLink) {
+        state.makeupInspirations.removeAll { $0.id == inspiration.id }
+        save()
+    }
+
     func addFaceLiftAction(name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }

@@ -140,7 +140,7 @@ struct BeautyRootView: View {
             case .faceLift:
                 FaceLiftYogaView()
             case .hairstyleMatch:
-                GenericSummaryView(title: route.rawValue, subtitle: "臉型設定、髮型收藏、試髮型比對、適配建議")
+                HairstyleMatchView()
             case .bodySkincare:
                 BodySkincareView()
             case .productLibrary:
@@ -148,7 +148,7 @@ struct BeautyRootView: View {
             case .appointments:
                 BeautyAppointmentsView()
             case .makeupInspiration:
-                GenericSummaryView(title: route.rawValue, subtitle: "妝容收藏、產品試色、妝容打卡")
+                MakeupInspirationView()
             }
         }
         .navigationBarBackButtonHidden()
@@ -1214,6 +1214,170 @@ struct ProductLibraryView: View {
     }
 }
 
+struct HairstyleMatchView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showAddHairstyle = false
+
+    private let faceShapes = ["圓臉", "長臉", "方臉", "心形臉", "鵜蛋臉", "菱形臉"]
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "髮型臉型適配") {}
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("我的臉型")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                            ForEach(faceShapes, id: \.self) { shape in
+                                Button {
+                                    store.setFaceShape(shape)
+                                } label: {
+                                    Text(shape)
+                                        .font(.subheadline.weight(.medium))
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(store.state.faceShape == shape ? AppTheme.primary : AppTheme.primarySoft)
+                                        .foregroundStyle(store.state.faceShape == shape ? Color.white : AppTheme.text)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("髮型收藏")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("添加") { showAddHairstyle = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.savedHairstyles.isEmpty {
+                            EmptyStateView(title: "暫無收藏", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.savedHairstyles) { hairstyle in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(hairstyle.title)
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(AppTheme.text)
+                                        if !hairstyle.url.isEmpty {
+                                            Text(hairstyle.url)
+                                                .font(.caption)
+                                                .foregroundStyle(AppTheme.subtext)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteSavedHairstyle(hairstyle)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAddHairstyle) {
+            AddLinkSheet(sheetTitle: "添加髮型", titleFieldLabel: "髮型名稱") { title, url in
+                store.addSavedHairstyle(title: title, url: url)
+            }
+        }
+    }
+}
+
+struct MakeupInspirationView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showAddInspiration = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "妝容靈感") {}
+
+                AIAdviceSection(
+                    topic: .makeup,
+                    title: "AI 妝容推薦",
+                    subtitle: "輸入場合、臉型、髮型、穿搭等資訊",
+                    commonConcerns: ["日常通勤", "約會", "派對", "面試", "婚禮", "晚宴", "運動", "度假", "韓系", "日系", "歐美", "中式", "自然裸妝", "甜美", "高冷", "復古"],
+                    buttonTitle: "AI 推薦妝容"
+                )
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("妝容收藏")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("添加") { showAddInspiration = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.makeupInspirations.isEmpty {
+                            EmptyStateView(title: "暫無靈感，開始收藏吧", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.makeupInspirations) { inspiration in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(inspiration.title)
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(AppTheme.text)
+                                        if !inspiration.url.isEmpty {
+                                            Text(inspiration.url)
+                                                .font(.caption)
+                                                .foregroundStyle(AppTheme.subtext)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteMakeupInspiration(inspiration)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAddInspiration) {
+            AddLinkSheet(sheetTitle: "添加妝容靈感", titleFieldLabel: "妝容名稱") { title, url in
+                store.addMakeupInspiration(title: title, url: url)
+            }
+        }
+    }
+}
+
 struct BeautyAppointmentsView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
@@ -1389,6 +1553,13 @@ struct BodyMetricsView: View {
 struct MealRecordsView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var showAddRecipe = false
+
+    private var todaysMealSummaries: [String] {
+        store.state.mealRecords
+            .filter { Calendar.current.isDateInToday($0.date) }
+            .map { "\($0.mealType): \($0.summary)" }
+    }
 
     var body: some View {
         ScrollView {
@@ -1425,11 +1596,97 @@ struct MealRecordsView: View {
                         }
                     }
                 }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("AI 營養建議")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+                        Text("根據今日飲食，獲取營養補充建議")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.subtext)
+
+                        PrimaryButton(title: store.isLoadingAdvice(for: .diet) ? "正在分析…" : "分析今日營養") {
+                            Task { await store.requestAIAdvice(topic: .diet, concerns: todaysMealSummaries) }
+                        }
+                        .disabled(store.isLoadingAdvice(for: .diet))
+
+                        if let errorMessage = store.errorMessage(for: .diet) {
+                            Text(errorMessage)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+
+                        if !store.suggestions(for: .diet).isEmpty {
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(store.suggestions(for: .diet), id: \.self) { suggestion in
+                                    Text("• \(suggestion)")
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.text)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(12)
+                                        .background(AppTheme.primarySoft)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("收藏食譜")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("添加") { showAddRecipe = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.favoriteRecipes.isEmpty {
+                            EmptyStateView(title: "暫無食譜", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.favoriteRecipes) { recipe in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(recipe.title)
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(AppTheme.text)
+                                        if !recipe.url.isEmpty {
+                                            Text(recipe.url)
+                                                .font(.caption)
+                                                .foregroundStyle(AppTheme.subtext)
+                                                .lineLimit(1)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteFavoriteRecipe(recipe)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
             .padding(20)
         }
         .background(AppTheme.background)
         .sheet(isPresented: $showAdd) { AddMealSheet() }
+        .sheet(isPresented: $showAddRecipe) {
+            AddLinkSheet(sheetTitle: "添加食譜", titleFieldLabel: "食譜名稱") { title, url in
+                store.addFavoriteRecipe(title: title, url: url)
+            }
+        }
     }
 }
 
@@ -2265,6 +2522,30 @@ private struct AddSkinRecordSheet: View {
 
             PrimaryButton(title: "保存") {
                 store.addSkinRecord(type: type, concerns: Array(selected), note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+/// Generic title+url add form, shared by 收藏食譜/髮型收藏/妝容靈感 (and
+/// anything else that's just "save a link with a title").
+private struct AddLinkSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let sheetTitle: String
+    let titleFieldLabel: String
+    let onSave: (String, String) -> Void
+
+    @State private var title = ""
+    @State private var url = ""
+
+    var body: some View {
+        FormSheet(title: sheetTitle) {
+            ThemedTextField(title: titleFieldLabel, text: $title)
+            ThemedTextField(title: "連結（選填）", text: $url)
+
+            PrimaryButton(title: "保存") {
+                onSave(title, url)
                 dismiss()
             }
         }

@@ -959,6 +959,10 @@ struct BeautyDiaryState: Codable {
     var whiteningProductUsages: [WhiteningProductUsage]
     var shadeTrackingRecords: [ShadeTrackingRecord]
     var beforeAfterPhotos: [BeforeAfterPhotoPair]
+    var favoriteRecipes: [TutorialLink]
+    var faceShape: String?
+    var savedHairstyles: [TutorialLink]
+    var makeupInspirations: [TutorialLink]
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -993,6 +997,10 @@ struct BeautyDiaryState: Codable {
         case whiteningProductUsages
         case shadeTrackingRecords
         case beforeAfterPhotos
+        case favoriteRecipes
+        case faceShape
+        case savedHairstyles
+        case makeupInspirations
     }
 
     init(
@@ -1027,7 +1035,11 @@ struct BeautyDiaryState: Codable {
         careFrequencyDays: Int = 7,
         whiteningProductUsages: [WhiteningProductUsage] = [],
         shadeTrackingRecords: [ShadeTrackingRecord] = [],
-        beforeAfterPhotos: [BeforeAfterPhotoPair] = []
+        beforeAfterPhotos: [BeforeAfterPhotoPair] = [],
+        favoriteRecipes: [TutorialLink] = [],
+        faceShape: String? = nil,
+        savedHairstyles: [TutorialLink] = [],
+        makeupInspirations: [TutorialLink] = []
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -1061,6 +1073,10 @@ struct BeautyDiaryState: Codable {
         self.whiteningProductUsages = whiteningProductUsages
         self.shadeTrackingRecords = shadeTrackingRecords
         self.beforeAfterPhotos = beforeAfterPhotos
+        self.favoriteRecipes = favoriteRecipes
+        self.faceShape = faceShape
+        self.savedHairstyles = savedHairstyles
+        self.makeupInspirations = makeupInspirations
     }
 
     init(from decoder: Decoder) throws {
@@ -1097,6 +1113,10 @@ struct BeautyDiaryState: Codable {
         whiteningProductUsages = try container.decodeIfPresent([WhiteningProductUsage].self, forKey: .whiteningProductUsages) ?? []
         shadeTrackingRecords = try container.decodeIfPresent([ShadeTrackingRecord].self, forKey: .shadeTrackingRecords) ?? []
         beforeAfterPhotos = try container.decodeIfPresent([BeforeAfterPhotoPair].self, forKey: .beforeAfterPhotos) ?? []
+        favoriteRecipes = try container.decodeIfPresent([TutorialLink].self, forKey: .favoriteRecipes) ?? []
+        faceShape = try container.decodeIfPresent(String.self, forKey: .faceShape)
+        savedHairstyles = try container.decodeIfPresent([TutorialLink].self, forKey: .savedHairstyles) ?? []
+        makeupInspirations = try container.decodeIfPresent([TutorialLink].self, forKey: .makeupInspirations) ?? []
     }
 }
 
@@ -1167,6 +1187,10 @@ extension BeautyDiaryState {
         careFrequencyDays: 7,
         whiteningProductUsages: [],
         shadeTrackingRecords: [],
-        beforeAfterPhotos: []
+        beforeAfterPhotos: [],
+        favoriteRecipes: [],
+        faceShape: nil,
+        savedHairstyles: [],
+        makeupInspirations: []
     )
 }
