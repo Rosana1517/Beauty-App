@@ -62,11 +62,12 @@ jobs:
         run: |
           # The scheme's TestAction environment variables are the only ones
           # the XCUITest runner process actually sees (a plain env: on the
-          # xcodebuild step, and XcodeGen's top-level scheme.environmentVariables
-          # which lands in ProfileAction/LaunchAction instead, are both
-          # invisible to it) - see CloudSyncUITests.swift. XcodeGen has no
-          # YAML key for TestAction-specific env vars, so this edits the
-          # generated .xcscheme XML directly.
+          # xcodebuild step is invisible to it - see CloudSyncUITests.swift).
+          # XcodeGen's top-level scheme.environmentVariables (SUPABASE_URL/
+          # SUPABASE_ANON_KEY) already generates a <EnvironmentVariables>
+          # block inside TestAction - adding a second sibling block (as an
+          # earlier attempt did) produces invalid duplicate XML that Xcode
+          # silently ignores. This inserts into that EXISTING block instead.
           python3 - <<'PYEOF'
           import os
           import re
@@ -80,29 +81,34 @@ jobs:
           with open(scheme_path, "r", encoding="utf-8") as f:
               content = f.read()
 
-          match = re.search(r"<TestAction[^>]*>", content)
-          if not match:
+          test_action_match = re.search(r"<TestAction.*?</TestAction>", content, re.DOTALL)
+          if not test_action_match:
               print("No TestAction element found in generated scheme.")
               sys.exit(1)
+          test_action = test_action_match.group(0)
 
-          env_block = (
-              "\n      <EnvironmentVariables>\n"
-              f"         <EnvironmentVariable\n            key = \"CI_TEST_USER_EMAIL\"\n"
+          env_vars_match = re.search(r"<EnvironmentVariables>", test_action)
+          if not env_vars_match:
+              print("No EnvironmentVariables block found inside TestAction.")
+              sys.exit(1)
+
+          entries = (
+              f"\n         <EnvironmentVariable\n            key = \"CI_TEST_USER_EMAIL\"\n"
               f"            value = {quoteattr(email)}\n            isEnabled = \"YES\">\n"
-              "         </EnvironmentVariable>\n"
-              f"         <EnvironmentVariable\n            key = \"CI_TEST_USER_PASSWORD\"\n"
+              "         </EnvironmentVariable>"
+              f"\n         <EnvironmentVariable\n            key = \"CI_TEST_USER_PASSWORD\"\n"
               f"            value = {quoteattr(password)}\n            isEnabled = \"YES\">\n"
-              "         </EnvironmentVariable>\n"
-              "      </EnvironmentVariables>\n"
+              "         </EnvironmentVariable>"
           )
 
-          insertion_point = match.end()
-          content = content[:insertion_point] + env_block + content[insertion_point:]
+          insertion_point = env_vars_match.end()
+          new_test_action = test_action[:insertion_point] + entries + test_action[insertion_point:]
+          content = content[:test_action_match.start()] + new_test_action + content[test_action_match.end():]
 
           with open(scheme_path, "w", encoding="utf-8") as f:
               f.write(content)
 
-          print("Injected CI_TEST_USER_EMAIL/CI_TEST_USER_PASSWORD into TestAction (values redacted from this log).")
+          print("Injected CI_TEST_USER_EMAIL/CI_TEST_USER_PASSWORD into TestAction's existing EnvironmentVariables block (values redacted from this log).")
           PYEOF
 
           echo "-- Full TestAction element right after injection (CI_TEST_USER_* values redacted) --"
