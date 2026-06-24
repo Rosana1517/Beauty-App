@@ -93,6 +93,57 @@ export async function analyzeWithAI(draft: ResourceImportDraft, userID: string):
   }
 }
 
+/**
+ * Calls the configured external AI provider for a free-text request that
+ * isn't tied to a resource draft (e.g. "give me facial improvement
+ * suggestions for these concerns"). Returns null when no provider is
+ * configured or the call fails, so the caller can show a clear "please
+ * set up an AI provider" message instead of fabricating fake suggestions.
+ */
+export async function requestFreeformSuggestions(
+  concerns: string[],
+  userID: string,
+): Promise<string[] | null> {
+  const config = await resolveAIProviderConfig(userID);
+  if (!config) return null;
+
+  const prompt = buildFacialAdvicePrompt(concerns);
+  try {
+    const rawText = config.provider === "openai"
+      ? await callOpenAI(config, prompt)
+      : await callAnthropic(config, prompt);
+    return parseSuggestionsResponse(rawText);
+  } catch (error) {
+    console.error("AI provider call failed for freeform suggestions.", error);
+    return null;
+  }
+}
+
+function buildFacialAdvicePrompt(concerns: string[]): string {
+  return [
+    "你是一個美容生活管理 App 的臉部保養顧問。",
+    "使用者想改善以下臉部問題，請給出 4 到 6 個具體、可執行的改善建議",
+    "（例如：臉部按摩手法、瑜珈動作、保養品成分、生活習慣調整）。",
+    "請只回覆一個 JSON 物件，不要有任何其他文字、不要用 markdown code block。",
+    `JSON 格式：{"suggestions": string[]}`,
+    `想改善的問題：${concerns.join("、") || "（使用者未提供具體問題，請給通用的臉部緊緻保養建議）"}`,
+  ].join("\n");
+}
+
+function parseSuggestionsResponse(rawText: string): string[] {
+  const jsonText = extractJSONObject(rawText);
+  const parsed = JSON.parse(jsonText);
+  const suggestions = Array.isArray(parsed.suggestions)
+    ? parsed.suggestions.filter((item: unknown) => typeof item === "string" && item.trim()).slice(0, 8)
+    : [];
+
+  if (suggestions.length === 0) {
+    throw new Error("AI response did not include any suggestions.");
+  }
+
+  return suggestions;
+}
+
 function buildPrompt(draft: ResourceImportDraft): string {
   return [
     "你是一個美容生活管理 App 的內容分析助手。",

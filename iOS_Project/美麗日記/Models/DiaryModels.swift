@@ -373,6 +373,23 @@ struct BodySkinRecord: Identifiable, Codable {
     var note: String
 }
 
+struct FaceLiftAction: Identifiable, Codable {
+    var id: UUID
+    var name: String
+}
+
+struct FaceLiftPunchRecord: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+}
+
+struct FaceLiftRatingRecord: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var score: Int
+    var note: String
+}
+
 struct BodyMetricRecord: Identifiable, Codable {
     var id: UUID
     var date: Date
@@ -900,6 +917,9 @@ struct BeautyDiaryState: Codable {
     var aiProviderSettings: AIProviderSettings?
     var hairCareRecords: [HairCareRecord]
     var bodySkinRecords: [BodySkinRecord]
+    var faceLiftActions: [FaceLiftAction]
+    var faceLiftPunches: [FaceLiftPunchRecord]
+    var faceLiftRatings: [FaceLiftRatingRecord]
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -923,6 +943,9 @@ struct BeautyDiaryState: Codable {
         case aiProviderSettings
         case hairCareRecords
         case bodySkinRecords
+        case faceLiftActions
+        case faceLiftPunches
+        case faceLiftRatings
     }
 
     init(
@@ -946,7 +969,10 @@ struct BeautyDiaryState: Codable {
         resourceSyncQueue: [ResourceSyncQueueItem],
         aiProviderSettings: AIProviderSettings? = nil,
         hairCareRecords: [HairCareRecord] = [],
-        bodySkinRecords: [BodySkinRecord] = []
+        bodySkinRecords: [BodySkinRecord] = [],
+        faceLiftActions: [FaceLiftAction] = [],
+        faceLiftPunches: [FaceLiftPunchRecord] = [],
+        faceLiftRatings: [FaceLiftRatingRecord] = []
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -969,6 +995,9 @@ struct BeautyDiaryState: Codable {
         self.aiProviderSettings = aiProviderSettings
         self.hairCareRecords = hairCareRecords
         self.bodySkinRecords = bodySkinRecords
+        self.faceLiftActions = faceLiftActions
+        self.faceLiftPunches = faceLiftPunches
+        self.faceLiftRatings = faceLiftRatings
     }
 
     init(from decoder: Decoder) throws {
@@ -994,6 +1023,9 @@ struct BeautyDiaryState: Codable {
         aiProviderSettings = try container.decodeIfPresent(AIProviderSettings.self, forKey: .aiProviderSettings)
         hairCareRecords = try container.decodeIfPresent([HairCareRecord].self, forKey: .hairCareRecords) ?? []
         bodySkinRecords = try container.decodeIfPresent([BodySkinRecord].self, forKey: .bodySkinRecords) ?? []
+        faceLiftActions = try container.decodeIfPresent([FaceLiftAction].self, forKey: .faceLiftActions) ?? []
+        faceLiftPunches = try container.decodeIfPresent([FaceLiftPunchRecord].self, forKey: .faceLiftPunches) ?? []
+        faceLiftRatings = try container.decodeIfPresent([FaceLiftRatingRecord].self, forKey: .faceLiftRatings) ?? []
     }
 }
 
@@ -1053,6 +1085,9 @@ extension BeautyDiaryState {
         pendingImportDraft: nil,
         resourceSyncQueue: [],
         hairCareRecords: [],
-        bodySkinRecords: []
+        bodySkinRecords: [],
+        faceLiftActions: [],
+        faceLiftPunches: [],
+        faceLiftRatings: []
     )
 }

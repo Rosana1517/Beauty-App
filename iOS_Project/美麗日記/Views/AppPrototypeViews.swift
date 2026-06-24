@@ -136,7 +136,7 @@ struct BeautyRootView: View {
             case .whitening:
                 WhiteningPlanView()
             case .faceLift:
-                GenericSummaryView(title: route.rawValue, subtitle: "臉部與頸部拉提動作、瑜珈課表、每日打卡、緊緻度評分歷史")
+                FaceLiftYogaView()
             case .hairstyleMatch:
                 GenericSummaryView(title: route.rawValue, subtitle: "臉型設定、髮型收藏、試髮型比對、適配建議")
             case .bodySkincare:
@@ -531,6 +531,212 @@ struct WhiteningPlanView: View {
             }
 
             EmptyStateView(title: placeholder, subtitle: "")
+        }
+    }
+}
+
+struct FaceLiftYogaView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var selectedConcerns: Set<String> = []
+    @State private var customConcern = ""
+    @State private var customConcerns: [String] = []
+    @State private var showAddAction = false
+    @State private var showAddRating = false
+
+    private let commonConcerns = ["法令紋", "雙下巴", "臉頰鬆弛", "額頭紋", "魚尾紋", "嘴角下垂", "水腫", "膚色不均", "毛孔粗大", "V臉塑形"]
+
+    private var allConcerns: [String] {
+        Array(selectedConcerns) + customConcerns
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "面部拉提/瑜珈") {}
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("AI 臉部改善建議")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        Text("輸入想改善的臉部問題")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.subtext)
+
+                        WrapToggleChips(items: commonConcerns, selection: $selectedConcerns)
+
+                        HStack(spacing: 10) {
+                            ThemedTextField(title: "自訂問題…", text: $customConcern)
+                            Button("加入") {
+                                let trimmed = customConcern.trimmingCharacters(in: .whitespacesAndNewlines)
+                                guard !trimmed.isEmpty else { return }
+                                customConcerns.append(trimmed)
+                                customConcern = ""
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if !customConcerns.isEmpty {
+                            WrapToggleChips(items: customConcerns, selection: .constant(Set(customConcerns)))
+                        }
+
+                        PrimaryButton(title: store.isLoadingFacialAdvice ? "正在取得建議…" : "獲取 AI 推薦") {
+                            Task { await store.requestFacialAdvice(concerns: allConcerns) }
+                        }
+                        .disabled(store.isLoadingFacialAdvice)
+
+                        if let errorMessage = store.facialAdviceErrorMessage {
+                            Text(errorMessage)
+                                .font(.caption)
+                                .foregroundStyle(.red)
+                        }
+
+                        if !store.facialAdviceSuggestions.isEmpty {
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(store.facialAdviceSuggestions, id: \.self) { suggestion in
+                                    Text("• \(suggestion)")
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.text)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(12)
+                                        .background(AppTheme.primarySoft)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("動作庫")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("+添加") { showAddAction = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.faceLiftActions.isEmpty {
+                            EmptyStateView(title: "暫無動作", subtitle: "添加你的第一個動作吧")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.faceLiftActions) { action in
+                                    Text(action.name)
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.text)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(12)
+                                        .background(AppTheme.primarySoft)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                        .contextMenu {
+                                            Button(role: .destructive) {
+                                                store.deleteFaceLiftAction(action)
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                        }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("每日打卡")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("打卡") { store.addFaceLiftPunch() }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Color.white)
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 8)
+                                .background(AppTheme.primary)
+                                .clipShape(Capsule())
+                        }
+
+                        Text("本月打卡 \(store.faceLiftPunchDaysThisMonth) 天")
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.subtext)
+
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible()), count: 14), spacing: 6) {
+                            ForEach(1...daysInCurrentMonth, id: \.self) { day in
+                                Circle()
+                                    .fill(isDayPunched(day) ? AppTheme.primary : AppTheme.primarySoft)
+                                    .frame(width: 16, height: 16)
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("緊緻度評分歷史")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("+評分") { showAddRating = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.faceLiftRatings.isEmpty {
+                            EmptyStateView(title: "暫無評分記錄", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.faceLiftRatings) { rating in
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("\(rating.score) 分")
+                                                .font(.body.weight(.medium))
+                                                .foregroundStyle(AppTheme.text)
+                                            Text(rating.note.isEmpty ? rating.date.formatted(date: .abbreviated, time: .omitted) : rating.note)
+                                                .font(.caption)
+                                                .foregroundStyle(AppTheme.subtext)
+                                        }
+                                        Spacer()
+                                    }
+                                    .padding(12)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteFaceLiftRating(rating)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAddAction) { AddFaceLiftActionSheet() }
+        .sheet(isPresented: $showAddRating) { AddFaceLiftRatingSheet() }
+    }
+
+    private var daysInCurrentMonth: Int {
+        Calendar.current.range(of: .day, in: .month, for: Date())?.count ?? 30
+    }
+
+    private func isDayPunched(_ day: Int) -> Bool {
+        let calendar = Calendar.current
+        let now = Date()
+        return store.state.faceLiftPunches.contains { punch in
+            calendar.isDate(punch.date, equalTo: now, toGranularity: .month)
+                && calendar.dateComponents([.day], from: punch.date).day == day
         }
     }
 }
@@ -1768,6 +1974,49 @@ private struct AddSkinRecordSheet: View {
 
             PrimaryButton(title: "保存") {
                 store.addSkinRecord(type: type, concerns: Array(selected), note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddFaceLiftActionSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var name = ""
+
+    var body: some View {
+        FormSheet(title: "新增動作") {
+            ThemedTextField(title: "動作名稱", text: $name)
+
+            PrimaryButton(title: "保存") {
+                store.addFaceLiftAction(name: name)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddFaceLiftRatingSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var score: Double = 7
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "緊緻度評分") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("評分：\(Int(score)) 分")
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.text)
+                Slider(value: $score, in: 1...10, step: 1)
+                    .tint(AppTheme.primary)
+            }
+
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addFaceLiftRating(score: Int(score), note: note)
                 dismiss()
             }
         }

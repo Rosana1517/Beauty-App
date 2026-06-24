@@ -145,6 +145,14 @@ export interface RecommendationFunctionResponse {
   cards: ResourceRecommendationCard[];
 }
 
+export interface FacialAdviceRequest {
+  concerns: string[];
+}
+
+export interface FacialAdviceResponse {
+  suggestions: string[];
+}
+
 export interface SupabaseQueueJobResponse {
   id: string;
   sync_status: ResourceSyncStatus;

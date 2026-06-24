@@ -9,6 +9,7 @@ struct PipelineRuntimeConfiguration {
     let resourceReparseFunction: String
     let resourceRecommendationFunction: String
     let resourceMediaCleanupFunction: String
+    let facialAdviceFunction: String
     let instagramAppID: String
     let instagramRedirectURI: String
     let xiaohongshuClientID: String
@@ -24,6 +25,7 @@ struct PipelineRuntimeConfiguration {
             resourceReparseFunction: AppRuntimeConfiguration.resourceReparseFunction,
             resourceRecommendationFunction: AppRuntimeConfiguration.resourceRecommendationFunction,
             resourceMediaCleanupFunction: AppRuntimeConfiguration.resourceMediaCleanupFunction,
+            facialAdviceFunction: AppRuntimeConfiguration.facialAdviceFunction,
             instagramAppID: AppRuntimeConfiguration.instagramAppID,
             instagramRedirectURI: AppRuntimeConfiguration.instagramRedirectURI,
             xiaohongshuClientID: AppRuntimeConfiguration.xiaohongshuClientID,
@@ -56,6 +58,7 @@ protocol CloudResourceSyncService {
     func enqueueReparse(for item: ResourceItem, reason: String) async throws -> ResourceSyncQueueItem
     func enqueueMediaCleanup(for item: ResourceItem) async throws -> ResourceSyncQueueItem
     func requestRecommendations(for item: ResourceItem) async throws -> [ResourceRecommendationCard]
+    func requestFacialImprovementAdvice(concerns: [String]) async throws -> [String]
     func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws
     func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings?
     func deleteAIProviderSettings(session: SupabaseAuthSession) async throws
@@ -323,6 +326,10 @@ struct NoopCloudResourceSyncService: CloudResourceSyncService {
         []
     }
 
+    func requestFacialImprovementAdvice(concerns: [String]) async throws -> [String] {
+        []
+    }
+
     func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws {}
     func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings? { nil }
     func deleteAIProviderSettings(session: SupabaseAuthSession) async throws {}
@@ -436,6 +443,15 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
             responseType: RecommendationFunctionResponse.self
         )
         return response.cards
+    }
+
+    func requestFacialImprovementAdvice(concerns: [String]) async throws -> [String] {
+        let response: FacialAdviceFunctionResponse = try await client.invokeFunction(
+            named: configuration.facialAdviceFunction,
+            payload: FacialAdviceFunctionRequest(concerns: concerns),
+            responseType: FacialAdviceFunctionResponse.self
+        )
+        return response.suggestions
     }
 
     /// Stored per-user (RLS-scoped to `session.userID`) so each signed-in
@@ -744,6 +760,14 @@ private struct RecommendationFunctionRequest: Encodable {
 
 private struct RecommendationFunctionResponse: Decodable {
     let cards: [ResourceRecommendationCard]
+}
+
+private struct FacialAdviceFunctionRequest: Encodable {
+    let concerns: [String]
+}
+
+private struct FacialAdviceFunctionResponse: Decodable {
+    let suggestions: [String]
 }
 
 private struct SupabaseQueueJobResponse: Decodable {

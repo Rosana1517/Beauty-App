@@ -292,6 +292,73 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func addFaceLiftAction(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.faceLiftActions.append(FaceLiftAction(id: UUID(), name: trimmed))
+        save()
+    }
+
+    func deleteFaceLiftAction(_ action: FaceLiftAction) {
+        state.faceLiftActions.removeAll { $0.id == action.id }
+        save()
+    }
+
+    func addFaceLiftPunch() {
+        let calendar = Calendar.current
+        let alreadyPunchedToday = state.faceLiftPunches.contains { calendar.isDateInToday($0.date) }
+        guard !alreadyPunchedToday else { return }
+
+        state.faceLiftPunches.insert(FaceLiftPunchRecord(id: UUID(), date: Date()), at: 0)
+        save()
+    }
+
+    var faceLiftPunchDaysThisMonth: Int {
+        let calendar = Calendar.current
+        let now = Date()
+        let punchedDays = state.faceLiftPunches
+            .filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
+            .compactMap { calendar.dateComponents([.day], from: $0.date).day }
+        return Set(punchedDays).count
+    }
+
+    func addFaceLiftRating(score: Int, note: String) {
+        state.faceLiftRatings.insert(
+            FaceLiftRatingRecord(id: UUID(), date: Date(), score: score, note: note),
+            at: 0
+        )
+        save()
+    }
+
+    func deleteFaceLiftRating(_ record: FaceLiftRatingRecord) {
+        state.faceLiftRatings.removeAll { $0.id == record.id }
+        save()
+    }
+
+    @Published private(set) var facialAdviceSuggestions: [String] = []
+    @Published private(set) var facialAdviceErrorMessage: String?
+    @Published private(set) var isLoadingFacialAdvice = false
+
+    func requestFacialAdvice(concerns: [String]) async {
+        guard authSession != nil else {
+            facialAdviceErrorMessage = "請先登入雲端同步帳號，才能使用 AI 推薦功能。"
+            return
+        }
+
+        isLoadingFacialAdvice = true
+        facialAdviceErrorMessage = nil
+
+        do {
+            let suggestions = try await cloudSyncService.requestFacialImprovementAdvice(concerns: concerns)
+            facialAdviceSuggestions = suggestions
+        } catch {
+            facialAdviceErrorMessage = error.localizedDescription
+        }
+
+        isLoadingFacialAdvice = false
+    }
+
     func addPunchRecord(summary: String) {
         let trimmed = summary.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
