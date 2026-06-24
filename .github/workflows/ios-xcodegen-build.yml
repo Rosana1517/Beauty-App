@@ -134,10 +134,15 @@ jobs:
       # confirm the CI test account's app_users row was actually
       # written/updated moments ago by this run, not just rendered in the app.
       - name: Verify cloud sync actually wrote to Supabase
-        if: ${{ always() && secrets.CI_TEST_USER_EMAIL != '' && secrets.SUPABASE_SECRET_KEY != '' }}
+        if: always()
         env:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: |
+          if [ -z "$SUPABASE_SECRET_KEY" ]; then
+            echo "SUPABASE_SECRET_KEY not configured; skipping backend verification."
+            exit 0
+          fi
+
           RESPONSE=$(curl -s "$SUPABASE_URL/rest/v1/app_users?email=eq.ci-test@beautifuldiary.app&select=id,updated_at" \
             -H "apikey: $SUPABASE_SECRET_KEY" \
             -H "Authorization: Bearer $SUPABASE_SECRET_KEY")
