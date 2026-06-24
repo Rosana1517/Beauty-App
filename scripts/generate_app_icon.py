@@ -6,6 +6,7 @@ cream background) so the icon matches the in-app look. Run with:
 Output: iOS_Project/美麗日記/Assets.xcassets/AppIcon.appiconset/icon-1024.png
 """
 
+import json
 import math
 import os
 
@@ -97,24 +98,82 @@ def draw_heart(draw, cx, cy, r, color):
     draw.polygon(points, fill=color)
 
 
-def main():
-    img = vertical_gradient(SIZE, BACKGROUND_TOP, BACKGROUND_BOTTOM)
+def render_master(size):
+    img = vertical_gradient(size, BACKGROUND_TOP, BACKGROUND_BOTTOM)
     draw = ImageDraw.Draw(img)
 
-    cx, cy = SIZE / 2, SIZE / 2 + 60
-    draw_open_book(draw, cx, cy, scale=SIZE / 1024)
+    scale = size / 1024
+    cx, cy = size / 2, size / 2 + 60 * scale
+    draw_open_book(draw, cx, cy, scale=scale)
 
     # Heart sparkle above the book spine, the "beauty diary" accent.
-    draw_heart(draw, cx, cy - 320, r=110, color=CREAM)
+    draw_heart(draw, cx, cy - 320 * scale, r=110 * scale, color=CREAM)
+    return img
 
+
+# The classic full icon set (every idiom/size/scale Xcode has required since
+# before the Xcode 14 "single size" shortcut). The single-1024-only
+# appiconset that shipped initially produced an Assets.car missing most of
+# these - AltServer/installd rejected the sideloaded .ipa with "Could not
+# install" as a result. Explicitly rendering and listing every size here
+# works unconditionally for direct installs (ad-hoc/sideload), not just
+# App Store Connect-processed builds.
+ICON_SPECS = [
+    # (filename, idiom, size_pt, scale, role-only-for-readability)
+    ("icon-20@2x.png", "iphone", 20, 2),
+    ("icon-20@3x.png", "iphone", 20, 3),
+    ("icon-29@2x.png", "iphone", 29, 2),
+    ("icon-29@3x.png", "iphone", 29, 3),
+    ("icon-40@2x.png", "iphone", 40, 2),
+    ("icon-40@3x.png", "iphone", 40, 3),
+    ("icon-60@2x.png", "iphone", 60, 2),
+    ("icon-60@3x.png", "iphone", 60, 3),
+    ("icon-20-ipad@1x.png", "ipad", 20, 1),
+    ("icon-20-ipad@2x.png", "ipad", 20, 2),
+    ("icon-29-ipad@1x.png", "ipad", 29, 1),
+    ("icon-29-ipad@2x.png", "ipad", 29, 2),
+    ("icon-40-ipad@1x.png", "ipad", 40, 1),
+    ("icon-40-ipad@2x.png", "ipad", 40, 2),
+    ("icon-76-ipad@1x.png", "ipad", 76, 1),
+    ("icon-76-ipad@2x.png", "ipad", 76, 2),
+    ("icon-83.5-ipad@2x.png", "ipad", 83.5, 2),
+    ("icon-1024.png", "ios-marketing", 1024, 1),
+]
+
+
+def main():
     out_dir = os.path.join(
         os.path.dirname(__file__), "..", "iOS_Project", "美麗日記",
         "Assets.xcassets", "AppIcon.appiconset",
     )
     os.makedirs(out_dir, exist_ok=True)
-    out_path = os.path.join(out_dir, "icon-1024.png")
-    img.save(out_path, "PNG")
-    print(f"Wrote {out_path} ({img.size[0]}x{img.size[1]})")
+
+    contents_images = []
+    for filename, idiom, point_size, scale in ICON_SPECS:
+        pixel_size = round(point_size * scale)
+        img = render_master(pixel_size)
+        img.save(os.path.join(out_dir, filename), "PNG")
+        print(f"Wrote {filename} ({pixel_size}x{pixel_size}, idiom={idiom})")
+
+        size_str = f"{point_size:g}x{point_size:g}"
+        entry = {
+            "filename": filename,
+            "idiom": idiom,
+            "size": size_str,
+        }
+        if idiom != "ios-marketing":
+            entry["scale"] = f"{scale}x"
+        contents_images.append(entry)
+
+    contents = {
+        "images": contents_images,
+        "info": {"author": "xcode", "version": 1},
+    }
+    contents_path = os.path.join(out_dir, "Contents.json")
+    with open(contents_path, "w", encoding="utf-8") as f:
+        json.dump(contents, f, indent=2)
+        f.write("\n")
+    print(f"Wrote {contents_path}")
 
 
 if __name__ == "__main__":
