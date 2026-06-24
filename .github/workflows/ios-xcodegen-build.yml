@@ -90,12 +90,18 @@ jobs:
           echo "Using simulator: $DEVICE_ID"
           echo "DEVICE_ID=$DEVICE_ID" >> "$GITHUB_ENV"
 
-      # This actually taps through the real import flow (Profile > 資源庫 >
-      # 匯入精靈 > paste URL > parse > save) inside the simulator via
-      # BeautifulDiaryUITests/ImportFlowUITests.swift, instead of only
-      # asserting that the app launches without crashing. A crash or any
-      # assertion failure during the flow fails this step.
-      - name: Run UI test for the import flow
+      # This actually taps through real user flows inside the simulator:
+      # - ImportFlowUITests: paste a plain URL, parse, save, see it listed
+      # - XiaohongshuImportUITests: same flow against a real 小紅書 share
+      #   link, asserting the parsed title isn't the generic fallback
+      # - CloudSyncUITests: sign in with a dedicated CI-only Supabase test
+      #   account and confirm it reaches "Authenticated" + a real sync
+      #   round trip (skips itself if the CI secrets aren't configured)
+      # ...instead of only asserting that the app launches without crashing.
+      - name: Run UI tests
+        env:
+          CI_TEST_USER_EMAIL: ${{ secrets.CI_TEST_USER_EMAIL }}
+          CI_TEST_USER_PASSWORD: ${{ secrets.CI_TEST_USER_PASSWORD }}
         run: |
           mkdir -p artifacts
           xcodebuild test \
@@ -104,8 +110,7 @@ jobs:
             -destination "id=$DEVICE_ID" \
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
-            -resultBundlePath artifacts/ImportFlowUITests.xcresult \
-            -only-testing:BeautifulDiaryUITests/ImportFlowUITests
+            -resultBundlePath artifacts/UITests.xcresult
 
       - name: Extract UI test screenshots
         if: always()
@@ -113,7 +118,7 @@ jobs:
         run: |
           brew install chargepoint/xcparse/xcparse
           mkdir -p artifacts/ui-test-screenshots
-          xcparse screenshots artifacts/ImportFlowUITests.xcresult artifacts/ui-test-screenshots/
+          xcparse screenshots artifacts/UITests.xcresult artifacts/ui-test-screenshots/
 
       - name: Collect crash reports if the UI test run crashed
         if: always()
@@ -123,6 +128,37 @@ jobs:
           CRASH_DIR="$HOME/Library/Logs/DiagnosticReports"
           cp "$CRASH_DIR"/*BeautifulDiary*.ips artifacts/ 2>/dev/null || true
           cp "$CRASH_DIR"/*美麗日記*.ips artifacts/ 2>/dev/null || true
+
+      # Closes the loop beyond the UI's own "Cloud sync finished." message:
+      # queries the real Supabase database (via service-role key) to
+      # confirm the CI test account's app_users row was actually
+      # written/updated moments ago by this run, not just rendered in the app.
+      - name: Verify cloud sync actually wrote to Supabase
+        if: ${{ always() && secrets.CI_TEST_USER_EMAIL != '' && secrets.SUPABASE_SECRET_KEY != '' }}
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          RESPONSE=$(curl -s "$SUPABASE_URL/rest/v1/app_users?email=eq.ci-test@beautifuldiary.app&select=id,updated_at" \
+            -H "apikey: $SUPABASE_SECRET_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SECRET_KEY")
+          echo "Response: $RESPONSE"
+          echo "$RESPONSE" > artifacts/supabase-sync-verification.json
+
+          UPDATED_AT=$(echo "$RESPONSE" | grep -o '"updated_at":"[^"]*"' | head -1 | sed -E 's/"updated_at":"([^"]*)"/\1/')
+          if [ -z "$UPDATED_AT" ]; then
+            echo "No app_users row found for the CI test account - cloud sync did not actually persist."
+            exit 1
+          fi
+
+          UPDATED_EPOCH=$(date -j -f "%Y-%m-%dT%H:%M:%S" "${UPDATED_AT%%.*}" "+%s" 2>/dev/null || echo 0)
+          NOW_EPOCH=$(date "+%s")
+          AGE=$((NOW_EPOCH - UPDATED_EPOCH))
+          echo "app_users row last updated $AGE seconds ago (updated_at=$UPDATED_AT)."
+          if [ "$AGE" -gt 600 ] || [ "$AGE" -lt 0 ]; then
+            echo "Row exists but wasn't updated in this run (>10 min old) - sync may not have actually executed."
+            exit 1
+          fi
+          echo "Confirmed: this CI run's sign-in really wrote to the Supabase app_users table."
 
       - name: Upload build artifacts
         if: always()
@@ -139,7 +175,8 @@ jobs:
           name: beautiful-diary-smoke-test-evidence
           path: |
             iOS_Project/artifacts/network-reachability.txt
-            iOS_Project/artifacts/ImportFlowUITests.xcresult
+            iOS_Project/artifacts/UITests.xcresult
             iOS_Project/artifacts/ui-test-screenshots
+            iOS_Project/artifacts/supabase-sync-verification.json
             iOS_Project/artifacts/*.ips
           if-no-files-found: ignore

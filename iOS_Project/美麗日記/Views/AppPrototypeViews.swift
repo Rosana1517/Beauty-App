@@ -1260,6 +1260,9 @@ private struct SupabaseSyncSettingsCard: View {
                     .foregroundStyle(AppTheme.text)
 
                 InfoRow(title: "Status", value: authStatusText)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityIdentifier("supabaseSync.statusValue")
+                    .accessibilityValue(authStatusText)
                 InfoRow(title: "User", value: resolvedEmail)
                 InfoRow(title: "Sync User ID", value: resolvedSyncUserID)
 
@@ -1271,6 +1274,7 @@ private struct SupabaseSyncSettingsCard: View {
                         .padding(12)
                         .background(AppTheme.primarySoft)
                         .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .accessibilityIdentifier("supabaseSync.authMessage")
                 }
 
                 ThemedTextField(title: "Supabase email", text: $authEmail)
@@ -2350,6 +2354,7 @@ private struct MetadataHero: View {
                 Text(title)
                     .font(.headline)
                     .foregroundStyle(AppTheme.text)
+                    .accessibilityIdentifier("metadataHero.title")
                 Text(subtitle)
                     .font(.caption)
                     .foregroundStyle(AppTheme.subtext)
