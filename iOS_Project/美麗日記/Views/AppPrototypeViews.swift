@@ -2206,6 +2206,7 @@ private struct InfoCallout: View {
             Text(detail)
                 .font(.caption)
                 .foregroundStyle(AppTheme.text)
+                .accessibilityIdentifier("infoCallout.detail")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
