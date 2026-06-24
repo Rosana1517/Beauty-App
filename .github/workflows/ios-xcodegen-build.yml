@@ -65,6 +65,9 @@ jobs:
             echo "Scheme file not found at $SCHEME_FILE"
             exit 1
           fi
+          echo "-- TestAction block before substitution (placeholders only, safe to print) --"
+          grep -A1 "EnvironmentVariable" "$SCHEME_FILE" || echo "No EnvironmentVariable elements found in generated scheme."
+
           # The scheme's Test action environment variables are the only
           # ones the XCUITest runner process actually sees (a plain env:
           # on the xcodebuild step is invisible to it) - see CloudSyncUITests.swift.
@@ -73,6 +76,11 @@ jobs:
           fi
           if [ -n "$CI_TEST_USER_PASSWORD" ]; then
             sed -i '' "s/__CI_TEST_USER_PASSWORD__/${CI_TEST_USER_PASSWORD//\//\\/}/" "$SCHEME_FILE"
+          fi
+
+          if grep -q "__CI_TEST_USER_EMAIL__\|__CI_TEST_USER_PASSWORD__" "$SCHEME_FILE"; then
+            echo "Placeholder still present after substitution - injection did not take effect."
+            exit 1
           fi
 
       - name: Show schemes
