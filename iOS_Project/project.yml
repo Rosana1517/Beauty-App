@@ -18,20 +18,21 @@ settings:
     GENERATE_INFOPLIST_FILE: NO
     CURRENT_PROJECT_VERSION: 1
     MARKETING_VERSION: 1.0.0
-    # Intentionally empty/Automatic - this project is built two different
-    # ways and neither needs a real team ID filled in here:
-    #   1. AltStore release builds (.github/workflows/build-ios-release.yml)
-    #      explicitly pass CODE_SIGN_IDENTITY=""/CODE_SIGNING_ALLOWED=NO on
-    #      the xcodebuild command line, which overrides whatever's here -
-    #      the archive is genuinely unsigned; AltServer signs it with the
-    #      user's own free Apple ID at install time.
-    #   2. If you open this in Xcode locally to Run on your own device, pick
-    #      your Personal Team in Signing & Capabilities (Automatic signing
-    #      will then resolve it) instead of hardcoding a team ID here, so
-    #      this file doesn't end up tied to one person's Apple Developer
-    #      account.
+    # Baked in (not just passed on the xcodebuild command line) to match
+    # the sibling TeachingApp project's working AltStore release setup
+    # exactly - that project bakes CODE_SIGN_STYLE: Manual/CODE_SIGNING_
+    # ALLOWED: NO into project.yml itself rather than relying on Automatic
+    # signing overridden at archive time, and installs fine via AltServer.
+    # This project previously used CODE_SIGN_STYLE: Automatic overridden
+    # via command-line flags during archive, which produced an .ipa
+    # AltServer rejected with "Could not install" even after fixing the
+    # bundle identifier and app icon set - this is the remaining structural
+    # difference between the two projects' otherwise-equivalent CI setups.
     DEVELOPMENT_TEAM: ""
-    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_STYLE: Manual
+    CODE_SIGN_IDENTITY: ""
+    CODE_SIGNING_REQUIRED: NO
+    CODE_SIGNING_ALLOWED: NO
     # Substituted into Info.plist's SupabaseURL/SupabaseAnonKey keys at
     # compile time via $(VAR) macros, so the values are baked into the app
     # bundle itself - needed for any normal launch (sideloaded/AltStore,
