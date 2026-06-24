@@ -60,6 +60,12 @@ targets:
       - path: 美麗日記UITests
     settings:
       base:
+        # Override the globally-set PRODUCT_NAME/PRODUCT_BUNDLE_IDENTIFIER
+        # (settings.base above applies to every target by default) - without
+        # this, the UI test target's build product collides with the app's
+        # own module output ("Multiple commands produce ... .swiftmodule").
+        PRODUCT_NAME: BeautifulDiaryUITests
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.beautifuldiary.uitests
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_ENTITLEMENTS: ""
     dependencies:
