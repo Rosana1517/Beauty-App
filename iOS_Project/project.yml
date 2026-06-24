@@ -20,6 +20,13 @@ settings:
     MARKETING_VERSION: 1.0.0
     DEVELOPMENT_TEAM: ""
     CODE_SIGN_STYLE: Automatic
+    # Substituted into Info.plist's SupabaseURL/SupabaseAnonKey keys at
+    # compile time via $(VAR) macros, so the values are baked into the app
+    # bundle itself - needed for any normal launch (sideloaded/AltStore,
+    # TestFlight, App Store) where no Xcode scheme environment variable
+    # exists. The anon key is public/RLS-scoped by design, not a secret.
+    SUPABASE_URL_VALUE: "https://iajbkfbpoaswitawdlpm.supabase.co"
+    SUPABASE_ANON_KEY_VALUE: "sb_publishable_Aerb53afbyeend77xwxcLg_snsNj2aB"
 
 targets:
   BeautifulDiary:

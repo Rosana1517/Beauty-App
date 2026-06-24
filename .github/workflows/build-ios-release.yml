@@ -1,0 +1,131 @@
+name: Build iOS IPA for AltStore
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "iOS_Project/**"
+      - ".github/workflows/build-ios-release.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write  # needed to create a Release and push source.json
+
+jobs:
+  build:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: iOS_Project
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate --spec project.yml
+
+      # Same pattern as the TeachingApp project: build a genuinely unsigned
+      # device archive in CI (no Apple Developer account needed here at
+      # all). AltServer re-signs the .ipa with the user's own (free) Apple
+      # ID at install time, so CI never needs real signing credentials.
+      - name: Build Archive (unsigned)
+        run: |
+          xcodebuild archive \
+            -project BeautifulDiary.xcodeproj \
+            -scheme BeautifulDiary \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            -archivePath ./build/BeautifulDiary.xcarchive \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p ./build/output/Payload
+          cp -R "./build/BeautifulDiary.xcarchive/Products/Applications/美麗日記.app" "./build/output/Payload/美麗日記.app"
+          cd ./build/output
+          zip -r -y BeautifulDiary.ipa Payload
+
+      - name: Upload IPA to GitHub Releases
+        uses: softprops/action-gh-release@v1
+        with:
+          files: iOS_Project/build/output/BeautifulDiary.ipa
+          tag_name: v${{ github.run_number }}
+          name: Build #${{ github.run_number }}
+          body: |
+            Auto-built from commit ${{ github.sha }}
+            Build time: ${{ github.event.head_commit.timestamp }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update source.json
+        if: success()
+        run: |
+          VERSION="1.0.${{ github.run_number }}"
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/v${{ github.run_number }}/BeautifulDiary.ipa"
+          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          IPA_SIZE=$(stat -f%z ./build/output/BeautifulDiary.ipa)
+
+          python3 - "../source.json" "$VERSION" "$DOWNLOAD_URL" "$IPA_SIZE" "$DATE" <<'PYEOF'
+          import json, sys
+
+          path, version, url, size, date = sys.argv[1:6]
+          size = int(size)
+
+          with open(path) as f:
+              data = json.load(f)
+
+          app = data["apps"][0]
+          app["version"] = version
+          app["versionDate"] = date
+          app["versionDescription"] = f"Build #{version}"
+          app["downloadURL"] = url
+          app["size"] = size
+          app.setdefault("versions", [])
+          app["versions"].insert(0, {
+              "version": version,
+              "date": date,
+              "localizedDescription": f"Build #{version}",
+              "downloadURL": url,
+              "size": size,
+          })
+          # Keep this in sync with the releases the cleanup step below
+          # retains, otherwise old entries point at deleted IPA assets.
+          app["versions"] = app["versions"][:5]
+
+          with open(path, "w") as f:
+              json.dump(data, f, indent=2, ensure_ascii=False)
+              f.write("\n")
+          PYEOF
+
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add ../source.json
+          git diff --cached --quiet || git commit -m "Update source.json for build #${{ github.run_number }}"
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
+
+      - name: Clean up old IPA build releases
+        if: success()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          KEEP=5
+
+          gh release list --repo "${{ github.repository }}" --limit 200 --json tagName \
+            --jq '.[] | select(.tagName | test("^v[0-9]+$")) | .tagName' \
+            | sort -t v -k2 -n -r \
+            | tail -n +$((KEEP + 1)) \
+            | while read -r tag; do
+                echo "Deleting old build release: $tag"
+                gh release delete "$tag" --repo "${{ github.repository }}" --yes --cleanup-tag
+              done

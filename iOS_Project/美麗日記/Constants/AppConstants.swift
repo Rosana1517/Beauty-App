@@ -32,12 +32,27 @@ enum AppRuntimeConfiguration {
         ProcessInfo.processInfo.environment[youtubeAPIKeyEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }
 
+    /// Environment variables (set via the Xcode scheme) only exist when
+    /// Xcode itself launches the app - debug runs, or XCUITest's
+    /// app.launchEnvironment. A normally-launched app (tap the home screen
+    /// icon, including a sideloaded AltStore build) gets none of that, so
+    /// real distribution falls back to values baked into Info.plist at
+    /// compile time via $(SUPABASE_URL_VALUE)-style build setting macros.
+    private static func configValue(env: String, infoPlistKey: String) -> String {
+        if let fromEnv = ProcessInfo.processInfo.environment[env]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !fromEnv.isEmpty {
+            return fromEnv
+        }
+        return (Bundle.main.object(forInfoDictionaryKey: infoPlistKey) as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+
     static var supabaseURL: String {
-        ProcessInfo.processInfo.environment[supabaseURLEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        configValue(env: supabaseURLEnv, infoPlistKey: "SupabaseURL")
     }
 
     static var supabaseAnonKey: String {
-        ProcessInfo.processInfo.environment[supabaseAnonKeyEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        configValue(env: supabaseAnonKeyEnv, infoPlistKey: "SupabaseAnonKey")
     }
 
     static var supabaseAuthRedirectURL: String {

@@ -22,6 +22,10 @@
     <string>1.0.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>SupabaseURL</key>
+    <string>$(SUPABASE_URL_VALUE)</string>
+    <key>SupabaseAnonKey</key>
+    <string>$(SUPABASE_ANON_KEY_VALUE)</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
