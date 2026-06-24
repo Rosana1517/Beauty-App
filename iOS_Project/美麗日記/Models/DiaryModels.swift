@@ -94,6 +94,15 @@ enum AIAdviceTopic: String, Codable {
     case bodySkin
     case diet
     case makeup
+    case exercise
+    case wellness
+}
+
+enum WellnessSection: String, CaseIterable, Identifiable, Hashable {
+    case status = "健康狀況"
+    case nourishment = "養生內調"
+
+    var id: String { rawValue }
 }
 
 enum ImportSourceType: String, CaseIterable, Codable, Identifiable {
@@ -401,6 +410,37 @@ struct BeforeAfterPhotoPair: Identifiable, Codable {
     var date: Date
     var beforeImageData: Data?
     var afterImageData: Data?
+    var note: String
+}
+
+struct ExercisePunchRecord: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var category: String
+    var durationMinutes: Int
+}
+
+struct CustomExercise: Identifiable, Codable {
+    var id: UUID
+    var name: String
+}
+
+struct TrainingScheduleItem: Identifiable, Codable {
+    var id: UUID
+    var name: String
+}
+
+struct SymptomRecord: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var symptom: String
+    var note: String
+}
+
+struct BodyAlbumPhoto: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var imageData: Data?
     var note: String
 }
 
@@ -963,6 +1003,13 @@ struct BeautyDiaryState: Codable {
     var faceShape: String?
     var savedHairstyles: [TutorialLink]
     var makeupInspirations: [TutorialLink]
+    var exercisePunches: [ExercisePunchRecord]
+    var customExercises: [CustomExercise]
+    var targetWeight: Double?
+    var targetBodyFat: Double?
+    var trainingSchedule: [TrainingScheduleItem]
+    var symptomRecords: [SymptomRecord]
+    var bodyAlbumPhotos: [BodyAlbumPhoto]
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -1001,6 +1048,13 @@ struct BeautyDiaryState: Codable {
         case faceShape
         case savedHairstyles
         case makeupInspirations
+        case exercisePunches
+        case customExercises
+        case targetWeight
+        case targetBodyFat
+        case trainingSchedule
+        case symptomRecords
+        case bodyAlbumPhotos
     }
 
     init(
@@ -1039,7 +1093,14 @@ struct BeautyDiaryState: Codable {
         favoriteRecipes: [TutorialLink] = [],
         faceShape: String? = nil,
         savedHairstyles: [TutorialLink] = [],
-        makeupInspirations: [TutorialLink] = []
+        makeupInspirations: [TutorialLink] = [],
+        exercisePunches: [ExercisePunchRecord] = [],
+        customExercises: [CustomExercise] = [],
+        targetWeight: Double? = nil,
+        targetBodyFat: Double? = nil,
+        trainingSchedule: [TrainingScheduleItem] = [],
+        symptomRecords: [SymptomRecord] = [],
+        bodyAlbumPhotos: [BodyAlbumPhoto] = []
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -1077,6 +1138,13 @@ struct BeautyDiaryState: Codable {
         self.faceShape = faceShape
         self.savedHairstyles = savedHairstyles
         self.makeupInspirations = makeupInspirations
+        self.exercisePunches = exercisePunches
+        self.customExercises = customExercises
+        self.targetWeight = targetWeight
+        self.targetBodyFat = targetBodyFat
+        self.trainingSchedule = trainingSchedule
+        self.symptomRecords = symptomRecords
+        self.bodyAlbumPhotos = bodyAlbumPhotos
     }
 
     init(from decoder: Decoder) throws {
@@ -1117,6 +1185,13 @@ struct BeautyDiaryState: Codable {
         faceShape = try container.decodeIfPresent(String.self, forKey: .faceShape)
         savedHairstyles = try container.decodeIfPresent([TutorialLink].self, forKey: .savedHairstyles) ?? []
         makeupInspirations = try container.decodeIfPresent([TutorialLink].self, forKey: .makeupInspirations) ?? []
+        exercisePunches = try container.decodeIfPresent([ExercisePunchRecord].self, forKey: .exercisePunches) ?? []
+        customExercises = try container.decodeIfPresent([CustomExercise].self, forKey: .customExercises) ?? []
+        targetWeight = try container.decodeIfPresent(Double.self, forKey: .targetWeight)
+        targetBodyFat = try container.decodeIfPresent(Double.self, forKey: .targetBodyFat)
+        trainingSchedule = try container.decodeIfPresent([TrainingScheduleItem].self, forKey: .trainingSchedule) ?? []
+        symptomRecords = try container.decodeIfPresent([SymptomRecord].self, forKey: .symptomRecords) ?? []
+        bodyAlbumPhotos = try container.decodeIfPresent([BodyAlbumPhoto].self, forKey: .bodyAlbumPhotos) ?? []
     }
 }
 
@@ -1191,6 +1266,13 @@ extension BeautyDiaryState {
         favoriteRecipes: [],
         faceShape: nil,
         savedHairstyles: [],
-        makeupInspirations: []
+        makeupInspirations: [],
+        exercisePunches: [],
+        customExercises: [],
+        targetWeight: nil,
+        targetBodyFat: nil,
+        trainingSchedule: [],
+        symptomRecords: [],
+        bodyAlbumPhotos: []
     )
 }

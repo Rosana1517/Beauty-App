@@ -156,6 +156,16 @@ const TOPIC_FRAMING: Record<AIAdviceTopic, { persona: string; askedFor: string; 
     askedFor: "請推薦適合的妝容風格、配色與技巧",
     fallback: "使用者未提供場合或風格偏好，請給通用的妝容建議",
   },
+  exercise: {
+    persona: "你是一個美容生活管理 App 的運動健身顧問。",
+    askedFor: "請推薦適合的運動類型、訓練動作與頻率",
+    fallback: "使用者未提供具體部位或目標，請給通用的運動建議",
+  },
+  wellness: {
+    persona: "你是一個美容生活管理 App 的養生顧問。",
+    askedFor: "請依據症狀，給出個人化的養生與生活習慣建議",
+    fallback: "使用者未提供想改善的方向，請給通用的養生建議",
+  },
 };
 
 function buildAdvicePrompt(topic: AIAdviceTopic, concerns: string[]): string {

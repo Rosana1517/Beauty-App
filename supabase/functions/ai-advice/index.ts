@@ -3,7 +3,7 @@ import { requestFreeformSuggestions } from "../_shared/aiProvider.ts";
 import { resolveAuthenticatedUserID } from "../_shared/runtime.ts";
 import type { AIAdviceRequest, AIAdviceResponse, AIAdviceTopic } from "../_shared/types.ts";
 
-const VALID_TOPICS: AIAdviceTopic[] = ["skincare", "hair", "facialLift", "bodySkin", "diet", "makeup"];
+const VALID_TOPICS: AIAdviceTopic[] = ["skincare", "hair", "facialLift", "bodySkin", "diet", "makeup", "exercise", "wellness"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {

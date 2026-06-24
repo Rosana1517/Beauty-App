@@ -1449,17 +1449,17 @@ struct BodyRootView: View {
         .navigationDestination(for: BodyRoute.self) { route in
             switch route {
             case .exercise:
-                GenericSummaryView(title: route.rawValue, subtitle: "運動類型設定、頻率規劃、歷史打卡、消耗熱量統計")
+                ExercisePunchView()
             case .shaping:
-                GenericSummaryView(title: route.rawValue, subtitle: "體型目標設定、全身或局部訓練規劃、執行率")
+                ShapingPlanView()
             case .metrics:
                 BodyMetricsView()
             case .meals:
                 MealRecordsView()
             case .wellness:
-                GenericSummaryView(title: route.rawValue, subtitle: "症狀追蹤、AI 養生建議、經期記錄、體質調養")
+                WellnessView()
             case .album:
-                GenericSummaryView(title: route.rawValue, subtitle: "進度照片與時間軸、對比功能")
+                BodyAlbumView()
             }
         }
         .navigationBarBackButtonHidden()
@@ -1497,6 +1497,478 @@ struct BodyRootView: View {
             return "症狀追蹤、AI 養生建議、經期記錄、體質調養"
         case .album:
             return "進度照片與時間軸、對比功能"
+        }
+    }
+}
+
+struct ExercisePunchView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var selectedCategory: String?
+    @State private var durationText = ""
+    @State private var showAddExercise = false
+
+    private let categories = ["有氧", "力量", "瑜珈", "HIIT", "拉伸", "核心"]
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "運動塑型打卡") {}
+
+                AIAdviceSection(
+                    topic: .exercise,
+                    title: "AI 運動推薦",
+                    subtitle: "輸入想訓練的部位或想改善的外型問題",
+                    commonConcerns: [],
+                    buttonTitle: "獲取推薦"
+                )
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("今日運動")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                            ForEach(categories, id: \.self) { category in
+                                Button {
+                                    selectedCategory = category
+                                } label: {
+                                    Text(category)
+                                        .font(.subheadline.weight(.medium))
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                        .background(selectedCategory == category ? AppTheme.primary : AppTheme.primarySoft)
+                                        .foregroundStyle(selectedCategory == category ? Color.white : AppTheme.text)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+                        }
+
+                        HStack(spacing: 10) {
+                            ThemedTextField(title: "時長(分鐘)", text: $durationText)
+                                .keyboardType(.numberPad)
+                            Button("打卡") {
+                                guard let category = selectedCategory, let duration = Int(durationText) else { return }
+                                store.addExercisePunch(category: category, durationMinutes: duration)
+                                durationText = ""
+                            }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(AppTheme.primary)
+                            .clipShape(Capsule())
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("自訂運動")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("+添加") { showAddExercise = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.customExercises.isEmpty {
+                            EmptyStateView(title: "暫無自訂運動", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.customExercises) { exercise in
+                                    Text(exercise.name)
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.text)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(12)
+                                        .background(AppTheme.primarySoft)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                        .contextMenu {
+                                            Button(role: .destructive) {
+                                                store.deleteCustomExercise(exercise)
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                        }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        NavigationLink(value: BodyRoute.shaping) {
+                            HStack {
+                                Text("塑型計畫")
+                                    .font(.headline)
+                                    .foregroundStyle(AppTheme.text)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                        }
+
+                        if store.state.targetWeight == nil && store.state.trainingSchedule.isEmpty {
+                            EmptyStateView(title: "暫無計畫", subtitle: "")
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("打卡記錄")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        if store.state.exercisePunches.isEmpty {
+                            EmptyStateView(title: "暫無記錄", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.exercisePunches) { record in
+                                    HStack {
+                                        Text("\(record.category) · \(record.durationMinutes) 分鐘")
+                                            .font(.subheadline)
+                                            .foregroundStyle(AppTheme.text)
+                                        Spacer()
+                                        Text(record.date.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                    .padding(12)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteExercisePunch(record)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAddExercise) {
+            AddLinkSheet(sheetTitle: "新增自訂運動", titleFieldLabel: "運動名稱") { name, _ in
+                store.addCustomExercise(name: name)
+            }
+        }
+    }
+}
+
+struct ShapingPlanView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var weightText = ""
+    @State private var bodyFatText = ""
+    @State private var showAddSchedule = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "塑型計畫") {}
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("體型目標設定")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        HStack(spacing: 12) {
+                            goalField(title: "目標體重", unit: "kg", text: $weightText)
+                            goalField(title: "目標體脂", unit: "%", text: $bodyFatText)
+                        }
+
+                        PrimaryButton(title: "保存目標") {
+                            store.setShapingGoal(targetWeight: Double(weightText), targetBodyFat: Double(bodyFatText))
+                        }
+                    }
+                }
+                .onAppear {
+                    weightText = store.state.targetWeight.map { String(format: "%.1f", $0) } ?? ""
+                    bodyFatText = store.state.targetBodyFat.map { String(format: "%.1f", $0) } ?? ""
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("訓練課表")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("+添加") { showAddSchedule = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.trainingSchedule.isEmpty {
+                            EmptyStateView(title: "暫無課表", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.trainingSchedule) { item in
+                                    Text(item.name)
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.text)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(12)
+                                        .background(AppTheme.primarySoft)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                        .contextMenu {
+                                            Button(role: .destructive) {
+                                                store.deleteTrainingScheduleItem(item)
+                                            } label: {
+                                                Label("Delete", systemImage: "trash")
+                                            }
+                                        }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("執行率")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        HStack(spacing: 12) {
+                            rateStat(title: "本週", value: "\(store.exerciseCompletionRates.week)%")
+                            rateStat(title: "本月", value: "\(store.exerciseCompletionRates.month)%")
+                            rateStat(title: "總計", value: "\(store.exerciseCompletionRates.total)次")
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAddSchedule) {
+            AddLinkSheet(sheetTitle: "新增訓練課表", titleFieldLabel: "課表名稱") { name, _ in
+                store.addTrainingScheduleItem(name: name)
+            }
+        }
+    }
+
+    private func goalField(title: String, unit: String, text: Binding<String>) -> some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(AppTheme.subtext)
+            TextField("--", text: text)
+                .keyboardType(.decimalPad)
+                .multilineTextAlignment(.center)
+                .font(.title3.weight(.semibold))
+            Text(unit)
+                .font(.caption2)
+                .foregroundStyle(AppTheme.subtext)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func rateStat(title: String, value: String) -> some View {
+        VStack(spacing: 6) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(AppTheme.subtext)
+            Text(value)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(AppTheme.primary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+struct WellnessView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var section: WellnessSection = .status
+    @State private var showAddSymptom = false
+    @State private var improvementDirection = ""
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "養生健康") {}
+
+                Picker("", selection: $section) {
+                    ForEach(WellnessSection.allCases) { item in
+                        Text(item.rawValue).tag(item)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                switch section {
+                case .status:
+                    statusContent
+                case .nourishment:
+                    GenericSummaryView(title: "養生內調", subtitle: "經期記錄、體質調養、茶飲食譜")
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAddSymptom) { AddSymptomSheet() }
+    }
+
+    private var statusContent: some View {
+        VStack(spacing: 18) {
+            CardView {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack {
+                        Text("症狀記錄")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+                        Spacer()
+                        Button("+記錄") { showAddSymptom = true }
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                    }
+
+                    if store.state.symptomRecords.isEmpty {
+                        EmptyStateView(title: "暫無症狀記錄", subtitle: "")
+                    } else {
+                        VStack(spacing: 10) {
+                            ForEach(store.state.symptomRecords) { record in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(record.symptom)
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(AppTheme.text)
+                                    Text(record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .omitted) : record.note)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.deleteSymptomRecord(record)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            AIAdviceSection(
+                topic: .wellness,
+                title: "AI 健康建議",
+                subtitle: "基於當前症狀，輸入想要改善的方向，獲取個人化養生建議",
+                commonConcerns: [],
+                buttonTitle: "獲取 AI 養生建議"
+            )
+
+            CardView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("症狀頻率統計")
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.text)
+
+                    if store.symptomFrequency.isEmpty {
+                        EmptyStateView(title: "暫無統計數據", subtitle: "")
+                    } else {
+                        VStack(spacing: 10) {
+                            ForEach(store.symptomFrequency, id: \.symptom) { entry in
+                                HStack {
+                                    Text(entry.symptom)
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.text)
+                                    Spacer()
+                                    Text("\(entry.count) 次")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                }
+                                .padding(12)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+struct BodyAlbumView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var photoItem: PhotosPickerItem?
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                HStack {
+                    Text("體態相簿")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundStyle(AppTheme.text)
+                    Spacer()
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Text("添加照片")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 10)
+                            .background(AppTheme.primary)
+                            .clipShape(Capsule())
+                    }
+                }
+
+                if store.state.bodyAlbumPhotos.isEmpty {
+                    EmptyStateView(title: "上傳照片進行對比", subtitle: "")
+                        .padding(.top, 60)
+                } else {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        ForEach(store.state.bodyAlbumPhotos) { photo in
+                            VStack(spacing: 6) {
+                                if let data = photo.imageData, let uiImage = UIImage(data: data) {
+                                    Image(uiImage: uiImage)
+                                        .resizable()
+                                        .scaledToFill()
+                                        .frame(height: 160)
+                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                }
+                                Text(photo.date.formatted(date: .abbreviated, time: .omitted))
+                                    .font(.caption2)
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    store.deleteBodyAlbumPhoto(photo)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .onChange(of: photoItem) { newItem in
+            Task {
+                if let newItem, let data = try? await newItem.loadTransferable(type: Data.self) {
+                    store.addBodyAlbumPhoto(imageData: data, note: "")
+                }
+            }
         }
     }
 }
@@ -2640,6 +3112,25 @@ private struct AddBeforeAfterPhotoSheet: View {
                 if let newItem, let loaded = try? await newItem.loadTransferable(type: Data.self) {
                     data.wrappedValue = loaded
                 }
+            }
+        }
+    }
+}
+
+private struct AddSymptomSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var symptom = ""
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "新增症狀記錄") {
+            ThemedTextField(title: "症狀", text: $symptom)
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addSymptomRecord(symptom: symptom, note: note)
+                dismiss()
             }
         }
     }

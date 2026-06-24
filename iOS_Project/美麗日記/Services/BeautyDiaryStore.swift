@@ -435,6 +435,99 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func addExercisePunch(category: String, durationMinutes: Int) {
+        state.exercisePunches.insert(
+            ExercisePunchRecord(id: UUID(), date: Date(), category: category, durationMinutes: durationMinutes),
+            at: 0
+        )
+        save()
+    }
+
+    func deleteExercisePunch(_ record: ExercisePunchRecord) {
+        state.exercisePunches.removeAll { $0.id == record.id }
+        save()
+    }
+
+    func addCustomExercise(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.customExercises.append(CustomExercise(id: UUID(), name: trimmed))
+        save()
+    }
+
+    func deleteCustomExercise(_ exercise: CustomExercise) {
+        state.customExercises.removeAll { $0.id == exercise.id }
+        save()
+    }
+
+    func setShapingGoal(targetWeight: Double?, targetBodyFat: Double?) {
+        state.targetWeight = targetWeight
+        state.targetBodyFat = targetBodyFat
+        save()
+    }
+
+    func addTrainingScheduleItem(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.trainingSchedule.append(TrainingScheduleItem(id: UUID(), name: trimmed))
+        save()
+    }
+
+    func deleteTrainingScheduleItem(_ item: TrainingScheduleItem) {
+        state.trainingSchedule.removeAll { $0.id == item.id }
+        save()
+    }
+
+    var exerciseCompletionRates: (week: Int, month: Int, total: Int) {
+        let calendar = Calendar.current
+        let now = Date()
+        let weekCount = state.exercisePunches.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .weekOfYear) }.count
+        let monthCount = state.exercisePunches.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }.count
+        let weeklyGoal = 7
+        let monthlyGoal = 30
+        let weekPercent = min(100, Int(Double(weekCount) / Double(weeklyGoal) * 100))
+        let monthPercent = min(100, Int(Double(monthCount) / Double(monthlyGoal) * 100))
+        return (weekPercent, monthPercent, state.exercisePunches.count)
+    }
+
+    func addSymptomRecord(symptom: String, note: String) {
+        let trimmed = symptom.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.symptomRecords.insert(
+            SymptomRecord(id: UUID(), date: Date(), symptom: trimmed, note: note),
+            at: 0
+        )
+        save()
+    }
+
+    func deleteSymptomRecord(_ record: SymptomRecord) {
+        state.symptomRecords.removeAll { $0.id == record.id }
+        save()
+    }
+
+    var symptomFrequency: [(symptom: String, count: Int)] {
+        let grouped = Dictionary(grouping: state.symptomRecords, by: \.symptom)
+        return grouped.map { (symptom: $0.key, count: $0.value.count) }.sorted { $0.count > $1.count }
+    }
+
+    func addBodyAlbumPhoto(imageData: Data?, note: String) {
+        guard let imageData else { return }
+
+        state.bodyAlbumPhotos.insert(
+            BodyAlbumPhoto(id: UUID(), date: Date(), imageData: imageData, note: note),
+            at: 0
+        )
+        save()
+    }
+
+    func deleteBodyAlbumPhoto(_ photo: BodyAlbumPhoto) {
+        state.bodyAlbumPhotos.removeAll { $0.id == photo.id }
+        save()
+    }
+
     func addFaceLiftAction(name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
