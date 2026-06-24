@@ -479,10 +479,18 @@ final class BeautyDiaryStore: ObservableObject {
 
     func saveImportedResource(_ draft: ResourceImportDraft) {
         let trimmedTitle = draft.title.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTitle.isEmpty else { return }
+        // A completely failed fetch (e.g. unreachable host) leaves the
+        // title empty - falling back to the URL instead of silently
+        // dropping the save, since the "保存到資源庫" button is always
+        // shown regardless of parse outcome and gives no feedback when it
+        // no-ops.
+        let resolvedTitle = trimmedTitle.isEmpty
+            ? draft.originalURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            : trimmedTitle
+        guard !resolvedTitle.isEmpty else { return }
 
         var normalizedDraft = draft
-        normalizedDraft.title = trimmedTitle
+        normalizedDraft.title = resolvedTitle
         normalizedDraft.category = draft.category == .all ? .other : draft.category
         normalizedDraft.importedAt = Date()
         normalizedDraft.temporaryMediaLeases = normalizedDraft.temporaryMediaLeases.filter { $0.cleanedAt == nil }
