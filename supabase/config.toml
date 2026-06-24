@@ -9,3 +9,6 @@ verify_jwt = true
 
 [functions.resource-media-cleanup]
 verify_jwt = true
+
+[functions.facial-improvement-advice]
+verify_jwt = true
