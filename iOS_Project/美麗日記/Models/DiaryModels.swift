@@ -382,6 +382,28 @@ struct BodySkinRecord: Identifiable, Codable {
     var note: String
 }
 
+struct WhiteningProductUsage: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var productName: String
+    var note: String
+}
+
+struct ShadeTrackingRecord: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var shadeName: String
+    var note: String
+}
+
+struct BeforeAfterPhotoPair: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var beforeImageData: Data?
+    var afterImageData: Data?
+    var note: String
+}
+
 struct FaceLiftAction: Identifiable, Codable {
     var id: UUID
     var name: String
@@ -934,6 +956,9 @@ struct BeautyDiaryState: Codable {
     var hairAppointments: [Appointment]
     var washFrequencyDays: Int
     var careFrequencyDays: Int
+    var whiteningProductUsages: [WhiteningProductUsage]
+    var shadeTrackingRecords: [ShadeTrackingRecord]
+    var beforeAfterPhotos: [BeforeAfterPhotoPair]
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -965,6 +990,9 @@ struct BeautyDiaryState: Codable {
         case hairAppointments
         case washFrequencyDays
         case careFrequencyDays
+        case whiteningProductUsages
+        case shadeTrackingRecords
+        case beforeAfterPhotos
     }
 
     init(
@@ -996,7 +1024,10 @@ struct BeautyDiaryState: Codable {
         hairProducts: [Product] = [],
         hairAppointments: [Appointment] = [],
         washFrequencyDays: Int = 2,
-        careFrequencyDays: Int = 7
+        careFrequencyDays: Int = 7,
+        whiteningProductUsages: [WhiteningProductUsage] = [],
+        shadeTrackingRecords: [ShadeTrackingRecord] = [],
+        beforeAfterPhotos: [BeforeAfterPhotoPair] = []
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -1027,6 +1058,9 @@ struct BeautyDiaryState: Codable {
         self.hairAppointments = hairAppointments
         self.washFrequencyDays = washFrequencyDays
         self.careFrequencyDays = careFrequencyDays
+        self.whiteningProductUsages = whiteningProductUsages
+        self.shadeTrackingRecords = shadeTrackingRecords
+        self.beforeAfterPhotos = beforeAfterPhotos
     }
 
     init(from decoder: Decoder) throws {
@@ -1060,6 +1094,9 @@ struct BeautyDiaryState: Codable {
         hairAppointments = try container.decodeIfPresent([Appointment].self, forKey: .hairAppointments) ?? []
         washFrequencyDays = try container.decodeIfPresent(Int.self, forKey: .washFrequencyDays) ?? 2
         careFrequencyDays = try container.decodeIfPresent(Int.self, forKey: .careFrequencyDays) ?? 7
+        whiteningProductUsages = try container.decodeIfPresent([WhiteningProductUsage].self, forKey: .whiteningProductUsages) ?? []
+        shadeTrackingRecords = try container.decodeIfPresent([ShadeTrackingRecord].self, forKey: .shadeTrackingRecords) ?? []
+        beforeAfterPhotos = try container.decodeIfPresent([BeforeAfterPhotoPair].self, forKey: .beforeAfterPhotos) ?? []
     }
 }
 
@@ -1127,6 +1164,9 @@ extension BeautyDiaryState {
         hairProducts: [],
         hairAppointments: [],
         washFrequencyDays: 2,
-        careFrequencyDays: 7
+        careFrequencyDays: 7,
+        whiteningProductUsages: [],
+        shadeTrackingRecords: [],
+        beforeAfterPhotos: []
     )
 }

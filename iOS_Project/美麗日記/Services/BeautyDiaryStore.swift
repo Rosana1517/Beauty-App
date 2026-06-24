@@ -344,6 +344,53 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func addWhiteningProductUsage(productName: String, note: String) {
+        let trimmed = productName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.whiteningProductUsages.insert(
+            WhiteningProductUsage(id: UUID(), date: Date(), productName: trimmed, note: note),
+            at: 0
+        )
+        save()
+    }
+
+    func deleteWhiteningProductUsage(_ record: WhiteningProductUsage) {
+        state.whiteningProductUsages.removeAll { $0.id == record.id }
+        save()
+    }
+
+    func addShadeTrackingRecord(shadeName: String, note: String) {
+        let trimmed = shadeName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.shadeTrackingRecords.insert(
+            ShadeTrackingRecord(id: UUID(), date: Date(), shadeName: trimmed, note: note),
+            at: 0
+        )
+        save()
+    }
+
+    func deleteShadeTrackingRecord(_ record: ShadeTrackingRecord) {
+        state.shadeTrackingRecords.removeAll { $0.id == record.id }
+        save()
+    }
+
+    func addBeforeAfterPhoto(beforeImageData: Data?, afterImageData: Data?, note: String) {
+        guard beforeImageData != nil || afterImageData != nil else { return }
+
+        state.beforeAfterPhotos.insert(
+            BeforeAfterPhotoPair(id: UUID(), date: Date(), beforeImageData: beforeImageData, afterImageData: afterImageData, note: note),
+            at: 0
+        )
+        save()
+    }
+
+    func deleteBeforeAfterPhoto(_ pair: BeforeAfterPhotoPair) {
+        state.beforeAfterPhotos.removeAll { $0.id == pair.id }
+        save()
+    }
+
     func addFaceLiftAction(name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }

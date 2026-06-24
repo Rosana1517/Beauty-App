@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct HomeView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
@@ -506,41 +508,144 @@ struct SkincareManagementView: View {
 }
 
 struct WhiteningPlanView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showAddUsage = false
+    @State private var showAddShade = false
+    @State private var showAddPhoto = false
+
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                titleRow(title: "美白計畫", action: "記錄") {}
+                titleRow(title: "美白計畫") {}
 
                 CardView {
-                    planEmptySection(title: "產品使用記錄", button: "+記錄", placeholder: "暫無記錄")
+                    VStack(alignment: .leading, spacing: 14) {
+                        planHeader(title: "產品使用記錄", button: "+記錄") { showAddUsage = true }
+
+                        if store.state.whiteningProductUsages.isEmpty {
+                            EmptyStateView(title: "暫無記錄", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.whiteningProductUsages) { record in
+                                    planRow(
+                                        title: record.productName,
+                                        subtitle: record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .omitted) : record.note
+                                    ) { store.deleteWhiteningProductUsage(record) }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 CardView {
-                    planEmptySection(title: "色號追蹤", button: "+記錄", placeholder: "暫無記錄")
+                    VStack(alignment: .leading, spacing: 14) {
+                        planHeader(title: "色號追蹤", button: "+記錄") { showAddShade = true }
+
+                        if store.state.shadeTrackingRecords.isEmpty {
+                            EmptyStateView(title: "暫無記錄", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.shadeTrackingRecords) { record in
+                                    planRow(
+                                        title: record.shadeName,
+                                        subtitle: record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .omitted) : record.note
+                                    ) { store.deleteShadeTrackingRecord(record) }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 CardView {
-                    planEmptySection(title: "前後對比照", button: "+添加", placeholder: "暫無對比照")
+                    VStack(alignment: .leading, spacing: 14) {
+                        planHeader(title: "前後對比照", button: "+添加") { showAddPhoto = true }
+
+                        if store.state.beforeAfterPhotos.isEmpty {
+                            EmptyStateView(title: "暫無對比照", subtitle: "")
+                        } else {
+                            VStack(spacing: 12) {
+                                ForEach(store.state.beforeAfterPhotos) { pair in
+                                    HStack(spacing: 12) {
+                                        photoThumbnail(pair.beforeImageData, label: "前")
+                                        photoThumbnail(pair.afterImageData, label: "後")
+                                        Spacer()
+                                        Text(pair.date.formatted(date: .abbreviated, time: .omitted))
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                    .padding(10)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteBeforeAfterPhoto(pair)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(isPresented: $showAddUsage) { AddWhiteningProductUsageSheet() }
+        .sheet(isPresented: $showAddShade) { AddShadeTrackingSheet() }
+        .sheet(isPresented: $showAddPhoto) { AddBeforeAfterPhotoSheet() }
     }
 
-    private func planEmptySection(title: String, button: String, placeholder: String) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.text)
-                Spacer()
-                Text(button)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppTheme.primary)
-            }
+    private func planHeader(title: String, button: String, action: @escaping () -> Void) -> some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(AppTheme.text)
+            Spacer()
+            Button(button, action: action)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.primary)
+        }
+    }
 
-            EmptyStateView(title: placeholder, subtitle: "")
+    private func planRow(title: String, subtitle: String, onDelete: @escaping () -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.body.weight(.medium))
+                .foregroundStyle(AppTheme.text)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundStyle(AppTheme.subtext)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .contextMenu {
+            Button(role: .destructive, action: onDelete) {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func photoThumbnail(_ data: Data?, label: String) -> some View {
+        VStack(spacing: 4) {
+            if let data, let uiImage = UIImage(data: data) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 64, height: 64)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(AppTheme.card)
+                    .frame(width: 64, height: 64)
+            }
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(AppTheme.subtext)
         }
     }
 }
@@ -2161,6 +2266,99 @@ private struct AddSkinRecordSheet: View {
             PrimaryButton(title: "保存") {
                 store.addSkinRecord(type: type, concerns: Array(selected), note: note)
                 dismiss()
+            }
+        }
+    }
+}
+
+private struct AddWhiteningProductUsageSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var productName = ""
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "新增產品使用記錄") {
+            ThemedTextField(title: "產品名稱", text: $productName)
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addWhiteningProductUsage(productName: productName, note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddShadeTrackingSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var shadeName = ""
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "新增色號記錄") {
+            ThemedTextField(title: "色號", text: $shadeName)
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addShadeTrackingRecord(shadeName: shadeName, note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddBeforeAfterPhotoSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var beforeItem: PhotosPickerItem?
+    @State private var afterItem: PhotosPickerItem?
+    @State private var beforeData: Data?
+    @State private var afterData: Data?
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "新增前後對比照") {
+            HStack(spacing: 16) {
+                photoPickerSlot(label: "前", item: $beforeItem, data: $beforeData)
+                photoPickerSlot(label: "後", item: $afterItem, data: $afterData)
+            }
+
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addBeforeAfterPhoto(beforeImageData: beforeData, afterImageData: afterData, note: note)
+                dismiss()
+            }
+        }
+    }
+
+    private func photoPickerSlot(label: String, item: Binding<PhotosPickerItem?>, data: Binding<Data?>) -> some View {
+        VStack(spacing: 6) {
+            PhotosPicker(selection: item, matching: .images) {
+                if let value = data.wrappedValue, let uiImage = UIImage(data: value) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 90, height: 90)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                } else {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(AppTheme.primarySoft)
+                        .frame(width: 90, height: 90)
+                        .overlay(Image(systemName: "camera").foregroundStyle(AppTheme.primary))
+                }
+            }
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(AppTheme.subtext)
+        }
+        .onChange(of: item.wrappedValue) { newItem in
+            Task {
+                if let newItem, let loaded = try? await newItem.loadTransferable(type: Data.self) {
+                    data.wrappedValue = loaded
+                }
             }
         }
     }
