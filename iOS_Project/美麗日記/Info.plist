@@ -4,8 +4,12 @@
 <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>zh_TW</string>
+    <!-- Temporarily ASCII to isolate whether a non-ASCII display name
+         (rather than the file paths, fixed by PRODUCT_NAME in project.yml)
+         is what triggers AltServer's Windows buffer-overrun crash on
+         install. Restore to 美麗日記 once the actual cause is confirmed. -->
     <key>CFBundleDisplayName</key>
-    <string>美麗日記</string>
+    <string>BeautifulDiary</string>
     <key>CFBundleExecutable</key>
     <string>$(EXECUTABLE_NAME)</string>
     <key>CFBundleIconName</key>

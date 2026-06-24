@@ -59,7 +59,7 @@ jobs:
       - name: Package unsigned IPA
         run: |
           mkdir -p ./build/output/Payload
-          cp -R "./build/BeautifulDiary.xcarchive/Products/Applications/美麗日記.app" "./build/output/Payload/美麗日記.app"
+          cp -R "./build/BeautifulDiary.xcarchive/Products/Applications/BeautifulDiary.app" "./build/output/Payload/BeautifulDiary.app"
           cd ./build/output
           zip -r -y BeautifulDiary.ipa Payload
 

@@ -10,7 +10,16 @@ options:
 
 settings:
   base:
-    PRODUCT_NAME: "美麗日記"
+    # ASCII on purpose, not just the CFBundleDisplayName below - this name
+    # also becomes the .app bundle directory name and executable filename
+    # inside the .ipa (e.g. Payload/BeautifulDiary.app/BeautifulDiary).
+    # AltServer kept crashing on Windows with a native buffer-overrun (BEX,
+    # ucrtbase.dll, STATUS_STACK_BUFFER_OVERRUN) every time this app was
+    # installed, while the sibling TeachingApp project (plain-ASCII
+    # PRODUCT_NAME) installs fine via the same AltServer/device setup -
+    # multi-byte UTF-8 paths inside the zip are a known category of bug for
+    # tools written against narrow/ANSI Windows string APIs.
+    PRODUCT_NAME: "BeautifulDiary"
     PRODUCT_BUNDLE_IDENTIFIER: com.rosana1517.beautifuldiary
     SWIFT_VERSION: 5.10
     TARGETED_DEVICE_FAMILY: "1,2"
