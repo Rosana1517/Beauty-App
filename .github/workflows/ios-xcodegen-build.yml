@@ -55,6 +55,26 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate --spec project.yml
 
+      - name: Inject CI test credentials into the generated scheme
+        env:
+          CI_TEST_USER_EMAIL: ${{ secrets.CI_TEST_USER_EMAIL }}
+          CI_TEST_USER_PASSWORD: ${{ secrets.CI_TEST_USER_PASSWORD }}
+        run: |
+          SCHEME_FILE="BeautifulDiary.xcodeproj/xcshareddata/xcschemes/BeautifulDiary.xcscheme"
+          if [ ! -f "$SCHEME_FILE" ]; then
+            echo "Scheme file not found at $SCHEME_FILE"
+            exit 1
+          fi
+          # The scheme's Test action environment variables are the only
+          # ones the XCUITest runner process actually sees (a plain env:
+          # on the xcodebuild step is invisible to it) - see CloudSyncUITests.swift.
+          if [ -n "$CI_TEST_USER_EMAIL" ]; then
+            sed -i '' "s/__CI_TEST_USER_EMAIL__/${CI_TEST_USER_EMAIL//\//\\/}/" "$SCHEME_FILE"
+          fi
+          if [ -n "$CI_TEST_USER_PASSWORD" ]; then
+            sed -i '' "s/__CI_TEST_USER_PASSWORD__/${CI_TEST_USER_PASSWORD//\//\\/}/" "$SCHEME_FILE"
+          fi
+
       - name: Show schemes
         run: xcodebuild -list -project BeautifulDiary.xcodeproj
 
@@ -99,14 +119,6 @@ jobs:
       #   round trip (skips itself if the CI secrets aren't configured)
       # ...instead of only asserting that the app launches without crashing.
       - name: Run UI tests
-        env:
-          # TEST_RUNNER_ prefix is required for xcodebuild test to forward
-          # these into the XCUITest runner process - a plain env var here
-          # is invisible to the test target (confirmed by an earlier run
-          # where CloudSyncUITests always self-skipped despite the secrets
-          # being set).
-          TEST_RUNNER_CI_TEST_USER_EMAIL: ${{ secrets.CI_TEST_USER_EMAIL }}
-          TEST_RUNNER_CI_TEST_USER_PASSWORD: ${{ secrets.CI_TEST_USER_PASSWORD }}
         run: |
           mkdir -p artifacts
           xcodebuild test \

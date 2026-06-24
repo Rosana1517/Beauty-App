@@ -51,6 +51,14 @@ targets:
       environmentVariables:
         SUPABASE_URL: "https://iajbkfbpoaswitawdlpm.supabase.co"
         SUPABASE_ANON_KEY: "sb_publishable_Aerb53afbyeend77xwxcLg_snsNj2aB"
+      test:
+        # Placeholders only - CI substitutes the real values into the
+        # generated .xcscheme file (see ios-xcodegen-build.yml) right after
+        # `xcodegen generate`, before xcodebuild test runs. Left as-is for
+        # local runs, CloudSyncUITests just skips itself.
+        environmentVariables:
+          CI_TEST_USER_EMAIL: "__CI_TEST_USER_EMAIL__"
+          CI_TEST_USER_PASSWORD: "__CI_TEST_USER_PASSWORD__"
 
   BeautifulDiaryUITests:
     type: bundle.ui-testing
