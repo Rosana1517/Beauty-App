@@ -55,33 +55,55 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate --spec project.yml
 
-      - name: Inject CI test credentials into the generated scheme
+      - name: Inject CI test credentials into the generated scheme's TestAction
         env:
           CI_TEST_USER_EMAIL: ${{ secrets.CI_TEST_USER_EMAIL }}
           CI_TEST_USER_PASSWORD: ${{ secrets.CI_TEST_USER_PASSWORD }}
         run: |
-          SCHEME_FILE="BeautifulDiary.xcodeproj/xcshareddata/xcschemes/BeautifulDiary.xcscheme"
-          if [ ! -f "$SCHEME_FILE" ]; then
-            echo "Scheme file not found at $SCHEME_FILE"
-            exit 1
-          fi
-          echo "-- TestAction block before substitution (placeholders only, safe to print) --"
-          grep -A1 "EnvironmentVariable" "$SCHEME_FILE" || echo "No EnvironmentVariable elements found in generated scheme."
+          # The scheme's TestAction environment variables are the only ones
+          # the XCUITest runner process actually sees (a plain env: on the
+          # xcodebuild step, and XcodeGen's top-level scheme.environmentVariables
+          # which lands in ProfileAction/LaunchAction instead, are both
+          # invisible to it) - see CloudSyncUITests.swift. XcodeGen has no
+          # YAML key for TestAction-specific env vars, so this edits the
+          # generated .xcscheme XML directly.
+          python3 - <<'PYEOF'
+          import os
+          import re
+          import sys
+          from xml.sax.saxutils import quoteattr
 
-          # The scheme's Test action environment variables are the only
-          # ones the XCUITest runner process actually sees (a plain env:
-          # on the xcodebuild step is invisible to it) - see CloudSyncUITests.swift.
-          if [ -n "$CI_TEST_USER_EMAIL" ]; then
-            sed -i '' "s/__CI_TEST_USER_EMAIL__/${CI_TEST_USER_EMAIL//\//\\/}/" "$SCHEME_FILE"
-          fi
-          if [ -n "$CI_TEST_USER_PASSWORD" ]; then
-            sed -i '' "s/__CI_TEST_USER_PASSWORD__/${CI_TEST_USER_PASSWORD//\//\\/}/" "$SCHEME_FILE"
-          fi
+          scheme_path = "BeautifulDiary.xcodeproj/xcshareddata/xcschemes/BeautifulDiary.xcscheme"
+          email = os.environ.get("CI_TEST_USER_EMAIL", "")
+          password = os.environ.get("CI_TEST_USER_PASSWORD", "")
 
-          if grep -q "__CI_TEST_USER_EMAIL__\|__CI_TEST_USER_PASSWORD__" "$SCHEME_FILE"; then
-            echo "Placeholder still present after substitution - injection did not take effect."
-            exit 1
-          fi
+          with open(scheme_path, "r", encoding="utf-8") as f:
+              content = f.read()
+
+          match = re.search(r"<TestAction[^>]*>", content)
+          if not match:
+              print("No TestAction element found in generated scheme.")
+              sys.exit(1)
+
+          env_block = (
+              "\n      <EnvironmentVariables>\n"
+              f"         <EnvironmentVariable\n            key = \"CI_TEST_USER_EMAIL\"\n"
+              f"            value = {quoteattr(email)}\n            isEnabled = \"YES\">\n"
+              "         </EnvironmentVariable>\n"
+              f"         <EnvironmentVariable\n            key = \"CI_TEST_USER_PASSWORD\"\n"
+              f"            value = {quoteattr(password)}\n            isEnabled = \"YES\">\n"
+              "         </EnvironmentVariable>\n"
+              "      </EnvironmentVariables>\n"
+          )
+
+          insertion_point = match.end()
+          content = content[:insertion_point] + env_block + content[insertion_point:]
+
+          with open(scheme_path, "w", encoding="utf-8") as f:
+              f.write(content)
+
+          print("Injected CI_TEST_USER_EMAIL/CI_TEST_USER_PASSWORD into TestAction (values redacted from this log).")
+          PYEOF
 
       - name: Show schemes
         run: xcodebuild -list -project BeautifulDiary.xcodeproj
