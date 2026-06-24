@@ -30,6 +30,7 @@ targets:
       - path: 美麗日記/美麗日記App.swift
       - path: 美麗日記/Info.plist
         buildPhase: none
+      - path: 美麗日記/Assets.xcassets
       - path: 美麗日記/Constants/AppConstants.swift
       - path: 美麗日記/Models/DiaryModels.swift
       - path: 美麗日記/Services/BeautyDiaryStore.swift
@@ -43,6 +44,7 @@ targets:
     settings:
       base:
         INFOPLIST_FILE: 美麗日記/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_ENTITLEMENTS: ""
     scheme:
       gatherCoverageData: false
