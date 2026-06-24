@@ -69,10 +69,33 @@ struct HomeView: View {
 
                 sectionTitle("快速入口")
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
-                    QuickLinkCard(title: "護膚管理", subtitle: "步驟、保養品、膚況追蹤", systemImage: "sparkles")
-                    QuickLinkCard(title: "體態紀錄", subtitle: "體重體脂與飲食回顧", systemImage: "figure.walk")
-                    QuickLinkCard(title: "閱讀追蹤", subtitle: "書單與外部連結收藏", systemImage: "book")
-                    QuickLinkCard(title: "資源庫", subtitle: "匯入內容與 AI 推薦", systemImage: "folder")
+                    NavigationLink {
+                        SkincareManagementView()
+                    } label: {
+                        QuickLinkCard(title: "護膚管理", subtitle: "步驟、保養品、膚況追蹤", systemImage: "sparkles")
+                    }
+                    .buttonStyle(.plain)
+
+                    NavigationLink {
+                        BodyMetricsView()
+                    } label: {
+                        QuickLinkCard(title: "體態紀錄", subtitle: "體重體脂與飲食回顧", systemImage: "figure.walk")
+                    }
+                    .buttonStyle(.plain)
+
+                    NavigationLink {
+                        ReadingTrackerView()
+                    } label: {
+                        QuickLinkCard(title: "閱讀追蹤", subtitle: "書單與外部連結收藏", systemImage: "book")
+                    }
+                    .buttonStyle(.plain)
+
+                    NavigationLink {
+                        ResourceLibraryView()
+                    } label: {
+                        QuickLinkCard(title: "資源庫", subtitle: "匯入內容與 AI 推薦", systemImage: "folder")
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(20)
@@ -95,16 +118,10 @@ struct BeautyRootView: View {
             VStack(alignment: .leading, spacing: 18) {
                 header(title: "變美", subtitle: "建立你的護膚與美容管理流程")
 
-                NavigationLink(value: BeautyRoute.skincare) {
-                    HubCard(title: "護膚管理", subtitle: "護膚步驟、保養品、膚質追蹤", icon: "sparkles")
-                }
-
-                NavigationLink(value: BeautyRoute.whitening) {
-                    HubCard(title: "美白計畫", subtitle: "產品使用、色號追蹤、前後對比", icon: "sun.max")
-                }
-
-                NavigationLink(value: BeautyRoute.appointments) {
-                    HubCard(title: "美容預約", subtitle: "店家安排、日期提醒、服務備註", icon: "calendar")
+                ForEach(BeautyRoute.allCases) { route in
+                    NavigationLink(value: route) {
+                        HubCard(title: route.rawValue, subtitle: beautySubtitle(for: route), icon: beautyIcon(for: route))
+                    }
                 }
             }
             .padding(20)
@@ -114,14 +131,72 @@ struct BeautyRootView: View {
             switch route {
             case .skincare:
                 SkincareManagementView()
+            case .hairCare:
+                HairCareView()
             case .whitening:
                 WhiteningPlanView()
+            case .faceLift:
+                GenericSummaryView(title: route.rawValue, subtitle: "臉部與頸部拉提動作、瑜珈課表、每日打卡、緊緻度評分歷史")
+            case .hairstyleMatch:
+                GenericSummaryView(title: route.rawValue, subtitle: "臉型設定、髮型收藏、試髮型比對、適配建議")
+            case .bodySkincare:
+                BodySkincareView()
+            case .productLibrary:
+                ProductLibraryView()
             case .appointments:
                 BeautyAppointmentsView()
+            case .makeupInspiration:
+                GenericSummaryView(title: route.rawValue, subtitle: "妝容收藏、產品試色、妝容打卡")
             }
         }
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
+    }
+
+    private func beautyIcon(for route: BeautyRoute) -> String {
+        switch route {
+        case .skincare:
+            return "sparkles"
+        case .hairCare:
+            return "comb"
+        case .whitening:
+            return "sun.max"
+        case .faceLift:
+            return "face.smiling"
+        case .hairstyleMatch:
+            return "person.crop.circle"
+        case .bodySkincare:
+            return "figure.arms.open"
+        case .productLibrary:
+            return "shippingbox"
+        case .appointments:
+            return "calendar"
+        case .makeupInspiration:
+            return "paintpalette"
+        }
+    }
+
+    private func beautySubtitle(for route: BeautyRoute) -> String {
+        switch route {
+        case .skincare:
+            return "護膚步驟、保養品、膚質追蹤"
+        case .hairCare:
+            return "洗護週期設定、髮質檢測、護髮療程預約"
+        case .whitening:
+            return "產品使用記錄、色號追蹤、前後對比"
+        case .faceLift:
+            return "動作課表、每日打卡、緊緻度評分歷史"
+        case .hairstyleMatch:
+            return "臉型設定、髮型收藏、試髮型對比"
+        case .bodySkincare:
+            return "身體皮膚問題、AI產品推薦、保養記錄"
+        case .productLibrary:
+            return "產品庫存、成分記錄、空瓶提醒、使用週期"
+        case .appointments:
+            return "店家安排、日期提醒、服務備註"
+        case .makeupInspiration:
+            return "妝容收藏、產品試色、妝容打卡"
+        }
     }
 }
 
@@ -457,6 +532,198 @@ struct WhiteningPlanView: View {
 
             EmptyStateView(title: placeholder, subtitle: "")
         }
+    }
+}
+
+struct HairCareView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showAdd = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "頭髮保養", action: "記錄") {
+                    showAdd = true
+                }
+
+                CardView {
+                    if store.state.hairCareRecords.isEmpty {
+                        EmptyStateView(title: "尚無護髮紀錄", subtitle: "記錄洗護週期、髮質檢測或療程預約。")
+                    } else {
+                        VStack(spacing: 12) {
+                            ForEach(store.state.hairCareRecords) { record in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(record.careType)
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(AppTheme.text)
+                                    Text(record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .shortened) : record.note)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(14)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.deleteHairCareRecord(record)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAdd) { AddHairCareSheet() }
+    }
+}
+
+struct BodySkincareView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showAdd = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "身體皮膚保養", action: "記錄") {
+                    showAdd = true
+                }
+
+                CardView {
+                    if store.state.bodySkinRecords.isEmpty {
+                        EmptyStateView(title: "尚無保養紀錄", subtitle: "記錄身體皮膚問題與保養進度。")
+                    } else {
+                        VStack(spacing: 12) {
+                            ForEach(store.state.bodySkinRecords) { record in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("\(record.area) · \(record.concern)")
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(AppTheme.text)
+                                    Text(record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .shortened) : record.note)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(14)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.deleteBodySkinRecord(record)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAdd) { AddBodySkinRecordSheet() }
+    }
+}
+
+struct ProductLibraryView: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showAdd = false
+    @State private var categoryFilter = "全部"
+
+    private var categories: [String] {
+        let set = Set(store.state.products.map(\.category)).filter { !$0.isEmpty }
+        return ["全部"] + set.sorted()
+    }
+
+    private var filteredProducts: [Product] {
+        guard categoryFilter != "全部" else { return store.state.products }
+        return store.state.products.filter { $0.category == categoryFilter }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                titleRow(title: "產品管理庫", action: "新增產品") {
+                    showAdd = true
+                }
+
+                if categories.count > 1 {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 10) {
+                            ForEach(categories, id: \.self) { category in
+                                Button {
+                                    categoryFilter = category
+                                } label: {
+                                    Text(category)
+                                        .font(.subheadline.weight(.medium))
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                        .background(categoryFilter == category ? AppTheme.primary : AppTheme.card)
+                                        .foregroundStyle(categoryFilter == category ? Color.white : AppTheme.text)
+                                        .clipShape(Capsule())
+                                }
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    if filteredProducts.isEmpty {
+                        EmptyStateView(title: "尚無產品", subtitle: "新增保養品、彩妝或其他產品到管理庫。")
+                    } else {
+                        VStack(spacing: 12) {
+                            ForEach(filteredProducts) { product in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text(product.name)
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(AppTheme.text)
+                                        Spacer()
+                                        if !product.category.isEmpty {
+                                            Text(product.category)
+                                                .font(.caption2.weight(.semibold))
+                                                .foregroundStyle(AppTheme.primary)
+                                                .padding(.horizontal, 10)
+                                                .padding(.vertical, 4)
+                                                .background(AppTheme.primarySoft)
+                                                .clipShape(Capsule())
+                                        }
+                                    }
+                                    Text(product.brand.isEmpty ? "未填寫品牌" : product.brand)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                    if !product.notes.isEmpty {
+                                        Text(product.notes)
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(14)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        store.deleteProduct(product)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(20)
+        }
+        .background(AppTheme.background)
+        .sheet(isPresented: $showAdd) { AddProductSheet() }
     }
 }
 
@@ -1501,6 +1768,46 @@ private struct AddSkinRecordSheet: View {
 
             PrimaryButton(title: "保存") {
                 store.addSkinRecord(type: type, concerns: Array(selected), note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddHairCareSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var careType = ""
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "新增護髮紀錄") {
+            ThemedTextField(title: "保養類型（洗髮、護髮療程…）", text: $careType)
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addHairCareRecord(careType: careType, note: note)
+                dismiss()
+            }
+        }
+    }
+}
+
+private struct AddBodySkinRecordSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var area = ""
+    @State private var concern = ""
+    @State private var note = ""
+
+    var body: some View {
+        FormSheet(title: "新增身體保養紀錄") {
+            ThemedTextField(title: "部位", text: $area)
+            ThemedTextField(title: "膚況問題", text: $concern)
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存") {
+                store.addBodySkinRecord(area: area, concern: concern, note: note)
                 dismiss()
             }
         }

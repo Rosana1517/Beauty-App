@@ -260,6 +260,38 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func addHairCareRecord(careType: String, note: String) {
+        let trimmed = careType.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.hairCareRecords.insert(
+            HairCareRecord(id: UUID(), date: Date(), careType: trimmed, note: note),
+            at: 0
+        )
+        save()
+    }
+
+    func deleteHairCareRecord(_ record: HairCareRecord) {
+        state.hairCareRecords.removeAll { $0.id == record.id }
+        save()
+    }
+
+    func addBodySkinRecord(area: String, concern: String, note: String) {
+        let trimmedArea = area.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedArea.isEmpty else { return }
+
+        state.bodySkinRecords.insert(
+            BodySkinRecord(id: UUID(), date: Date(), area: trimmedArea, concern: concern, note: note),
+            at: 0
+        )
+        save()
+    }
+
+    func deleteBodySkinRecord(_ record: BodySkinRecord) {
+        state.bodySkinRecords.removeAll { $0.id == record.id }
+        save()
+    }
+
     func addPunchRecord(summary: String) {
         let trimmed = summary.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }

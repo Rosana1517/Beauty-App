@@ -35,8 +35,14 @@ enum AppRoute: Hashable, Codable {
 
 enum BeautyRoute: String, Hashable, Codable, CaseIterable, Identifiable {
     case skincare = "護膚管理"
+    case hairCare = "頭髮保養"
     case whitening = "美白計畫"
+    case faceLift = "面部拉提/瑜珈"
+    case hairstyleMatch = "髮型臉型適配"
+    case bodySkincare = "身體皮膚保養"
+    case productLibrary = "產品管理庫"
     case appointments = "美容預約"
+    case makeupInspiration = "妝容靈感"
 
     var id: String { rawValue }
 }
@@ -349,6 +355,21 @@ struct SkinRecord: Identifiable, Codable {
     var date: Date
     var skinType: String
     var concerns: [String]
+    var note: String
+}
+
+struct HairCareRecord: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var careType: String
+    var note: String
+}
+
+struct BodySkinRecord: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var area: String
+    var concern: String
     var note: String
 }
 
@@ -877,6 +898,8 @@ struct BeautyDiaryState: Codable {
     var pendingImportDraft: ResourceImportDraft?
     var resourceSyncQueue: [ResourceSyncQueueItem]
     var aiProviderSettings: AIProviderSettings?
+    var hairCareRecords: [HairCareRecord]
+    var bodySkinRecords: [BodySkinRecord]
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -898,6 +921,8 @@ struct BeautyDiaryState: Codable {
         case pendingImportDraft
         case resourceSyncQueue
         case aiProviderSettings
+        case hairCareRecords
+        case bodySkinRecords
     }
 
     init(
@@ -919,7 +944,9 @@ struct BeautyDiaryState: Codable {
         resourceImportHistory: [ResourceImportHistoryEntry],
         pendingImportDraft: ResourceImportDraft?,
         resourceSyncQueue: [ResourceSyncQueueItem],
-        aiProviderSettings: AIProviderSettings? = nil
+        aiProviderSettings: AIProviderSettings? = nil,
+        hairCareRecords: [HairCareRecord] = [],
+        bodySkinRecords: [BodySkinRecord] = []
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -940,6 +967,8 @@ struct BeautyDiaryState: Codable {
         self.pendingImportDraft = pendingImportDraft
         self.resourceSyncQueue = resourceSyncQueue
         self.aiProviderSettings = aiProviderSettings
+        self.hairCareRecords = hairCareRecords
+        self.bodySkinRecords = bodySkinRecords
     }
 
     init(from decoder: Decoder) throws {
@@ -963,6 +992,8 @@ struct BeautyDiaryState: Codable {
         pendingImportDraft = try container.decodeIfPresent(ResourceImportDraft.self, forKey: .pendingImportDraft)
         resourceSyncQueue = try container.decodeIfPresent([ResourceSyncQueueItem].self, forKey: .resourceSyncQueue) ?? []
         aiProviderSettings = try container.decodeIfPresent(AIProviderSettings.self, forKey: .aiProviderSettings)
+        hairCareRecords = try container.decodeIfPresent([HairCareRecord].self, forKey: .hairCareRecords) ?? []
+        bodySkinRecords = try container.decodeIfPresent([BodySkinRecord].self, forKey: .bodySkinRecords) ?? []
     }
 }
 
@@ -1020,6 +1051,8 @@ extension BeautyDiaryState {
         resourceFilter: .all,
         resourceImportHistory: [],
         pendingImportDraft: nil,
-        resourceSyncQueue: []
+        resourceSyncQueue: [],
+        hairCareRecords: [],
+        bodySkinRecords: []
     )
 }
