@@ -87,6 +87,15 @@ enum ProfileRoute: String, Hashable, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+enum AIAdviceTopic: String, Codable {
+    case skincare
+    case hair
+    case facialLift
+    case bodySkin
+    case diet
+    case makeup
+}
+
 enum ImportSourceType: String, CaseIterable, Codable, Identifiable {
     case xiaohongshu = "小紅書"
     case youtube = "YouTube"
@@ -920,6 +929,11 @@ struct BeautyDiaryState: Codable {
     var faceLiftActions: [FaceLiftAction]
     var faceLiftPunches: [FaceLiftPunchRecord]
     var faceLiftRatings: [FaceLiftRatingRecord]
+    var bodyProducts: [Product]
+    var hairProducts: [Product]
+    var hairAppointments: [Appointment]
+    var washFrequencyDays: Int
+    var careFrequencyDays: Int
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -946,6 +960,11 @@ struct BeautyDiaryState: Codable {
         case faceLiftActions
         case faceLiftPunches
         case faceLiftRatings
+        case bodyProducts
+        case hairProducts
+        case hairAppointments
+        case washFrequencyDays
+        case careFrequencyDays
     }
 
     init(
@@ -972,7 +991,12 @@ struct BeautyDiaryState: Codable {
         bodySkinRecords: [BodySkinRecord] = [],
         faceLiftActions: [FaceLiftAction] = [],
         faceLiftPunches: [FaceLiftPunchRecord] = [],
-        faceLiftRatings: [FaceLiftRatingRecord] = []
+        faceLiftRatings: [FaceLiftRatingRecord] = [],
+        bodyProducts: [Product] = [],
+        hairProducts: [Product] = [],
+        hairAppointments: [Appointment] = [],
+        washFrequencyDays: Int = 2,
+        careFrequencyDays: Int = 7
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -998,6 +1022,11 @@ struct BeautyDiaryState: Codable {
         self.faceLiftActions = faceLiftActions
         self.faceLiftPunches = faceLiftPunches
         self.faceLiftRatings = faceLiftRatings
+        self.bodyProducts = bodyProducts
+        self.hairProducts = hairProducts
+        self.hairAppointments = hairAppointments
+        self.washFrequencyDays = washFrequencyDays
+        self.careFrequencyDays = careFrequencyDays
     }
 
     init(from decoder: Decoder) throws {
@@ -1026,6 +1055,11 @@ struct BeautyDiaryState: Codable {
         faceLiftActions = try container.decodeIfPresent([FaceLiftAction].self, forKey: .faceLiftActions) ?? []
         faceLiftPunches = try container.decodeIfPresent([FaceLiftPunchRecord].self, forKey: .faceLiftPunches) ?? []
         faceLiftRatings = try container.decodeIfPresent([FaceLiftRatingRecord].self, forKey: .faceLiftRatings) ?? []
+        bodyProducts = try container.decodeIfPresent([Product].self, forKey: .bodyProducts) ?? []
+        hairProducts = try container.decodeIfPresent([Product].self, forKey: .hairProducts) ?? []
+        hairAppointments = try container.decodeIfPresent([Appointment].self, forKey: .hairAppointments) ?? []
+        washFrequencyDays = try container.decodeIfPresent(Int.self, forKey: .washFrequencyDays) ?? 2
+        careFrequencyDays = try container.decodeIfPresent(Int.self, forKey: .careFrequencyDays) ?? 7
     }
 }
 
@@ -1088,6 +1122,11 @@ extension BeautyDiaryState {
         bodySkinRecords: [],
         faceLiftActions: [],
         faceLiftPunches: [],
-        faceLiftRatings: []
+        faceLiftRatings: [],
+        bodyProducts: [],
+        hairProducts: [],
+        hairAppointments: [],
+        washFrequencyDays: 2,
+        careFrequencyDays: 7
     )
 }

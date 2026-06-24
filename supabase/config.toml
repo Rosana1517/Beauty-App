@@ -10,5 +10,5 @@ verify_jwt = true
 [functions.resource-media-cleanup]
 verify_jwt = true
 
-[functions.facial-improvement-advice]
+[functions.ai-advice]
 verify_jwt = true

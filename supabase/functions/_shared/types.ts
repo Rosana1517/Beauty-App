@@ -145,11 +145,14 @@ export interface RecommendationFunctionResponse {
   cards: ResourceRecommendationCard[];
 }
 
-export interface FacialAdviceRequest {
+export type AIAdviceTopic = "skincare" | "hair" | "facialLift" | "bodySkin" | "diet" | "makeup";
+
+export interface AIAdviceRequest {
+  topic: AIAdviceTopic;
   concerns: string[];
 }
 
-export interface FacialAdviceResponse {
+export interface AIAdviceResponse {
   suggestions: string[];
 }
 

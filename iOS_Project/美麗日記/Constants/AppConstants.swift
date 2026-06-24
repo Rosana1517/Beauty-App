@@ -23,7 +23,7 @@ enum AppRuntimeConfiguration {
     static let resourceReparseFunctionEnv = "SUPABASE_RESOURCE_REPARSE_FUNCTION"
     static let resourceRecommendationFunctionEnv = "SUPABASE_RESOURCE_RECOMMENDATION_FUNCTION"
     static let resourceMediaCleanupFunctionEnv = "SUPABASE_RESOURCE_MEDIA_CLEANUP_FUNCTION"
-    static let facialAdviceFunctionEnv = "SUPABASE_FACIAL_ADVICE_FUNCTION"
+    static let aiAdviceFunctionEnv = "SUPABASE_AI_ADVICE_FUNCTION"
     static let instagramAppIDEnv = "INSTAGRAM_APP_ID"
     static let instagramRedirectURIEnv = "INSTAGRAM_REDIRECT_URI"
     static let xiaohongshuClientIDEnv = "XIAOHONGSHU_CLIENT_ID"
@@ -85,8 +85,8 @@ enum AppRuntimeConfiguration {
         ProcessInfo.processInfo.environment[resourceMediaCleanupFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "resource-media-cleanup"
     }
 
-    static var facialAdviceFunction: String {
-        ProcessInfo.processInfo.environment[facialAdviceFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "facial-improvement-advice"
+    static var aiAdviceFunction: String {
+        ProcessInfo.processInfo.environment[aiAdviceFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "ai-advice"
     }
 
     static var instagramAppID: String {

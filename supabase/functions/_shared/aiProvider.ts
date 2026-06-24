@@ -1,4 +1,4 @@
-import type { AIAnalysisResult, ResourceCategory, ResourceImportDraft } from "./types.ts";
+import type { AIAdviceTopic, AIAnalysisResult, ResourceCategory, ResourceImportDraft } from "./types.ts";
 import { createAdminClient } from "./runtime.ts";
 
 interface AIProviderConfig {
@@ -99,15 +99,21 @@ export async function analyzeWithAI(draft: ResourceImportDraft, userID: string):
  * suggestions for these concerns"). Returns null when no provider is
  * configured or the call fails, so the caller can show a clear "please
  * set up an AI provider" message instead of fabricating fake suggestions.
+ *
+ * Shared by every "type your concern -> get AI suggestions" screen in the
+ * app (skincare/hair/face-lift/body-skin/diet/makeup) so each one doesn't
+ * need its own Edge Function - only the persona/framing in the prompt
+ * changes per topic.
  */
 export async function requestFreeformSuggestions(
+  topic: AIAdviceTopic,
   concerns: string[],
   userID: string,
 ): Promise<string[] | null> {
   const config = await resolveAIProviderConfig(userID);
   if (!config) return null;
 
-  const prompt = buildFacialAdvicePrompt(concerns);
+  const prompt = buildAdvicePrompt(topic, concerns);
   try {
     const rawText = config.provider === "openai"
       ? await callOpenAI(config, prompt)
@@ -119,14 +125,47 @@ export async function requestFreeformSuggestions(
   }
 }
 
-function buildFacialAdvicePrompt(concerns: string[]): string {
+const TOPIC_FRAMING: Record<AIAdviceTopic, { persona: string; askedFor: string; fallback: string }> = {
+  skincare: {
+    persona: "你是一個美容生活管理 App 的護膚顧問。",
+    askedFor: "請推薦適用的保養品成分與保養方式",
+    fallback: "使用者未提供具體問題，請給通用的護膚建議",
+  },
+  hair: {
+    persona: "你是一個美容生活管理 App 的頭髮/頭皮顧問。",
+    askedFor: "請給出洗護習慣、頭皮護理或養髮建議",
+    fallback: "使用者未提供具體問題，請給通用的頭髮養護建議",
+  },
+  facialLift: {
+    persona: "你是一個美容生活管理 App 的臉部保養顧問。",
+    askedFor: "請給出具體、可執行的改善建議（例如：臉部按摩手法、瑜珈動作、保養品成分、生活習慣調整）",
+    fallback: "使用者未提供具體問題，請給通用的臉部緊緻保養建議",
+  },
+  bodySkin: {
+    persona: "你是一個美容生活管理 App 的身體皮膚保養顧問。",
+    askedFor: "請推薦適用的產品成分與保養方式",
+    fallback: "使用者未提供具體問題，請給通用的身體皮膚保養建議",
+  },
+  diet: {
+    persona: "你是一個美容生活管理 App 的營養顧問。",
+    askedFor: "請依據今日飲食內容，給出營養補充建議",
+    fallback: "使用者未提供今日飲食記錄，請給通用的均衡飲食建議",
+  },
+  makeup: {
+    persona: "你是一個美容生活管理 App 的妝容造型顧問。",
+    askedFor: "請推薦適合的妝容風格、配色與技巧",
+    fallback: "使用者未提供場合或風格偏好，請給通用的妝容建議",
+  },
+};
+
+function buildAdvicePrompt(topic: AIAdviceTopic, concerns: string[]): string {
+  const framing = TOPIC_FRAMING[topic];
   return [
-    "你是一個美容生活管理 App 的臉部保養顧問。",
-    "使用者想改善以下臉部問題，請給出 4 到 6 個具體、可執行的改善建議",
-    "（例如：臉部按摩手法、瑜珈動作、保養品成分、生活習慣調整）。",
+    framing.persona,
+    `使用者輸入了以下需求，${framing.askedFor}，給出 4 到 6 個具體建議。`,
     "請只回覆一個 JSON 物件，不要有任何其他文字、不要用 markdown code block。",
     `JSON 格式：{"suggestions": string[]}`,
-    `想改善的問題：${concerns.join("、") || "（使用者未提供具體問題，請給通用的臉部緊緻保養建議）"}`,
+    `使用者輸入：${concerns.join("、") || `（${framing.fallback}）`}`,
   ].join("\n");
 }
 

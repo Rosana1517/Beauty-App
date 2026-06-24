@@ -475,20 +475,30 @@ struct SkincareManagementView: View {
     }
 
     private var adviceContent: some View {
-        CardView {
-            VStack(alignment: .leading, spacing: 14) {
-                Text("AI 建議")
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.text)
+        VStack(spacing: 18) {
+            AIAdviceSection(
+                topic: .skincare,
+                title: "AI 護膚建議",
+                subtitle: "輸入臉部皮膚問題，AI 推薦適用產品及保養方式",
+                commonConcerns: ["痘痘", "粉刺", "黑頭", "乾燥脫皮", "泛油", "泛紅", "暗沉", "毛孔粗大", "細紋", "色斑"],
+                buttonTitle: "獲取 AI 護膚建議"
+            )
 
-                ForEach(store.skincareAdvice, id: \.self) { advice in
-                    Text(advice)
-                        .font(.subheadline)
+            CardView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("本地快速建議")
+                        .font(.headline)
                         .foregroundStyle(AppTheme.text)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                        .background(AppTheme.primarySoft)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
+
+                    ForEach(store.skincareAdvice, id: \.self) { advice in
+                        Text(advice)
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.text)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(14)
+                            .background(AppTheme.primarySoft)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
                 }
             }
         }
@@ -537,77 +547,21 @@ struct WhiteningPlanView: View {
 
 struct FaceLiftYogaView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
-    @State private var selectedConcerns: Set<String> = []
-    @State private var customConcern = ""
-    @State private var customConcerns: [String] = []
     @State private var showAddAction = false
     @State private var showAddRating = false
-
-    private let commonConcerns = ["法令紋", "雙下巴", "臉頰鬆弛", "額頭紋", "魚尾紋", "嘴角下垂", "水腫", "膚色不均", "毛孔粗大", "V臉塑形"]
-
-    private var allConcerns: [String] {
-        Array(selectedConcerns) + customConcerns
-    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
                 titleRow(title: "面部拉提/瑜珈") {}
 
-                CardView {
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text("AI 臉部改善建議")
-                            .font(.headline)
-                            .foregroundStyle(AppTheme.text)
-
-                        Text("輸入想改善的臉部問題")
-                            .font(.caption)
-                            .foregroundStyle(AppTheme.subtext)
-
-                        WrapToggleChips(items: commonConcerns, selection: $selectedConcerns)
-
-                        HStack(spacing: 10) {
-                            ThemedTextField(title: "自訂問題…", text: $customConcern)
-                            Button("加入") {
-                                let trimmed = customConcern.trimmingCharacters(in: .whitespacesAndNewlines)
-                                guard !trimmed.isEmpty else { return }
-                                customConcerns.append(trimmed)
-                                customConcern = ""
-                            }
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(AppTheme.primary)
-                        }
-
-                        if !customConcerns.isEmpty {
-                            WrapToggleChips(items: customConcerns, selection: .constant(Set(customConcerns)))
-                        }
-
-                        PrimaryButton(title: store.isLoadingFacialAdvice ? "正在取得建議…" : "獲取 AI 推薦") {
-                            Task { await store.requestFacialAdvice(concerns: allConcerns) }
-                        }
-                        .disabled(store.isLoadingFacialAdvice)
-
-                        if let errorMessage = store.facialAdviceErrorMessage {
-                            Text(errorMessage)
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                        }
-
-                        if !store.facialAdviceSuggestions.isEmpty {
-                            VStack(alignment: .leading, spacing: 10) {
-                                ForEach(store.facialAdviceSuggestions, id: \.self) { suggestion in
-                                    Text("• \(suggestion)")
-                                        .font(.subheadline)
-                                        .foregroundStyle(AppTheme.text)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(12)
-                                        .background(AppTheme.primarySoft)
-                                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                                }
-                            }
-                        }
-                    }
-                }
+                AIAdviceSection(
+                    topic: .facialLift,
+                    title: "AI 臉部改善建議",
+                    subtitle: "輸入想改善的臉部問題",
+                    commonConcerns: ["法令紋", "雙下巴", "臉頰鬆弛", "額頭紋", "魚尾紋", "嘴角下垂", "水腫", "膚色不均", "毛孔粗大", "V臉塑形"],
+                    buttonTitle: "獲取 AI 推薦"
+                )
 
                 CardView {
                     VStack(alignment: .leading, spacing: 14) {
@@ -744,37 +698,156 @@ struct FaceLiftYogaView: View {
 struct HairCareView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var showAddProduct = false
+    @State private var showAddAppointment = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                titleRow(title: "頭髮保養", action: "記錄") {
-                    showAdd = true
+                titleRow(title: "頭髮保養") {}
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("洗護產品")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("+添加") { showAddProduct = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.hairProducts.isEmpty {
+                            EmptyStateView(title: "尚無產品", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.hairProducts) { product in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(product.name)
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(AppTheme.text)
+                                        Text(product.brand.isEmpty ? "未填寫品牌" : product.brand)
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteHairProduct(product)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 CardView {
-                    if store.state.hairCareRecords.isEmpty {
-                        EmptyStateView(title: "尚無護髮紀錄", subtitle: "記錄洗護週期、髮質檢測或療程預約。")
-                    } else {
-                        VStack(spacing: 12) {
-                            ForEach(store.state.hairCareRecords) { record in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(record.careType)
-                                        .font(.body.weight(.medium))
-                                        .foregroundStyle(AppTheme.text)
-                                    Text(record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .shortened) : record.note)
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.subtext)
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("洗護週期設定")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        frequencyRow(title: "洗髮頻率", days: store.state.washFrequencyDays) {
+                            store.adjustWashFrequency(by: $0)
+                        }
+                        frequencyRow(title: "護髮頻率", days: store.state.careFrequencyDays) {
+                            store.adjustCareFrequency(by: $0)
+                        }
+                    }
+                }
+
+                AIAdviceSection(
+                    topic: .hair,
+                    title: "AI 頭皮/養髮建議",
+                    subtitle: "輸入你想改善的頭髮或頭皮問題",
+                    commonConcerns: ["掉髮", "頭皮屑", "毛躁", "頭皮癢", "髮質乾燥", "出油", "分岔"],
+                    buttonTitle: "獲取建議"
+                )
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("髮質檢測記錄")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("+記錄") { showAdd = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.hairCareRecords.isEmpty {
+                            EmptyStateView(title: "暫無記錄", subtitle: "")
+                        } else {
+                            VStack(spacing: 12) {
+                                ForEach(store.state.hairCareRecords) { record in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(record.careType)
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(AppTheme.text)
+                                        Text(record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .shortened) : record.note)
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(14)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteHairCareRecord(record)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
                                 }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(14)
-                                .background(AppTheme.primarySoft)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteHairCareRecord(record)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("護髮療程預約")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("+預約") { showAddAppointment = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.hairAppointments.isEmpty {
+                            EmptyStateView(title: "暫無預約", subtitle: "")
+                        } else {
+                            VStack(spacing: 12) {
+                                ForEach(store.state.hairAppointments) { appointment in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("\(appointment.title) · \(appointment.storeName)")
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(AppTheme.text)
+                                        Text(appointment.date.formatted(date: .abbreviated, time: .shortened))
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(14)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteHairAppointment(appointment)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
                                     }
                                 }
                             }
@@ -786,18 +859,113 @@ struct HairCareView: View {
         }
         .background(AppTheme.background)
         .sheet(isPresented: $showAdd) { AddHairCareSheet() }
+        .sheet(isPresented: $showAddProduct) {
+            AddProductSheet(
+                onSave: { name, brand, category, notes in
+                    store.addHairProduct(name: name, brand: brand, category: category, notes: notes)
+                },
+                title: "新增洗護產品"
+            )
+        }
+        .sheet(isPresented: $showAddAppointment) {
+            AddAppointmentSheet(
+                onSave: { title, storeName, date, note in
+                    store.addHairAppointment(title: title, storeName: storeName, date: date, note: note)
+                },
+                sheetTitle: "新增護髮療程預約"
+            )
+        }
+    }
+
+    private func frequencyRow(title: String, days: Int, onAdjust: @escaping (Int) -> Void) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.text)
+            Spacer()
+            Button {
+                onAdjust(-1)
+            } label: {
+                Image(systemName: "minus.circle.fill")
+                    .foregroundStyle(AppTheme.primary)
+            }
+            Text("\(days)天/次")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.text)
+                .frame(minWidth: 56)
+            Button {
+                onAdjust(1)
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .foregroundStyle(AppTheme.primary)
+            }
+        }
+        .padding(12)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
 
 struct BodySkincareView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var showAddProduct = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
                 titleRow(title: "身體皮膚保養", action: "記錄") {
                     showAdd = true
+                }
+
+                AIAdviceSection(
+                    topic: .bodySkin,
+                    title: "AI 身體皮膚建議",
+                    subtitle: "輸入身體皮膚問題，獲取產品與保養建議",
+                    commonConcerns: ["乾燥脫皮", "粗糙暗沉", "背部痘痘", "手臂疹", "橘皮組織", "妊娠紋", "生長紋", "曬傷", "色素沉澱", "皮膚鬆弛"],
+                    buttonTitle: "獲取 AI 推薦"
+                )
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack {
+                            Text("身體保養品")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button("+添加") { showAddProduct = true }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                        }
+
+                        if store.state.bodyProducts.isEmpty {
+                            EmptyStateView(title: "暫無身體保養品", subtitle: "")
+                        } else {
+                            VStack(spacing: 10) {
+                                ForEach(store.state.bodyProducts) { product in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(product.name)
+                                            .font(.body.weight(.medium))
+                                            .foregroundStyle(AppTheme.text)
+                                        Text(product.brand.isEmpty ? "未填寫品牌" : product.brand)
+                                            .font(.caption)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .contextMenu {
+                                        Button(role: .destructive) {
+                                            store.deleteBodyProduct(product)
+                                        } label: {
+                                            Label("Delete", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 CardView {
@@ -834,6 +1002,14 @@ struct BodySkincareView: View {
         }
         .background(AppTheme.background)
         .sheet(isPresented: $showAdd) { AddBodySkinRecordSheet() }
+        .sheet(isPresented: $showAddProduct) {
+            AddProductSheet(
+                onSave: { name, brand, category, notes in
+                    store.addBodyProduct(name: name, brand: brand, category: category, notes: notes)
+                },
+                title: "新增身體保養品"
+            )
+        }
     }
 }
 
@@ -1942,15 +2118,25 @@ private struct AddProductSheet: View {
     @State private var category = ""
     @State private var notes = ""
 
+    /// nil defaults to the skincare product list (the original use of this
+    /// sheet); 身體保養品/洗護產品 pass their own store method so the same
+    /// form can add to a different list without duplicating the sheet.
+    var onSave: ((String, String, String, String) -> Void)?
+    var title: String = "新增保養品"
+
     var body: some View {
-        FormSheet(title: "新增保養品") {
+        FormSheet(title: title) {
             ThemedTextField(title: "產品名稱", text: $name)
             ThemedTextField(title: "品牌", text: $brand)
             ThemedTextField(title: "分類", text: $category)
             ThemedTextField(title: "備註", text: $notes)
 
             PrimaryButton(title: "保存") {
-                store.addProduct(name: name, brand: brand, category: category, notes: notes)
+                if let onSave {
+                    onSave(name, brand, category, notes)
+                } else {
+                    store.addProduct(name: name, brand: brand, category: category, notes: notes)
+                }
                 dismiss()
             }
         }
@@ -2088,15 +2274,24 @@ private struct AddAppointmentSheet: View {
     @State private var date = Date()
     @State private var note = ""
 
+    /// nil defaults to 美容預約's own list; 護髮療程預約 passes its own
+    /// store method so the same form can target a different list.
+    var onSave: ((String, String, Date, String) -> Void)?
+    var sheetTitle: String = "新增預約"
+
     var body: some View {
-        FormSheet(title: "新增預約") {
+        FormSheet(title: sheetTitle) {
             ThemedTextField(title: "服務名稱", text: $title)
             ThemedTextField(title: "店家名稱", text: $storeName)
             DatePicker("預約時間", selection: $date)
             ThemedTextField(title: "備註", text: $note)
 
             PrimaryButton(title: "保存") {
-                store.addAppointment(title: title, storeName: storeName, date: date, note: note)
+                if let onSave {
+                    onSave(title, storeName, date, note)
+                } else {
+                    store.addAppointment(title: title, storeName: storeName, date: date, note: note)
+                }
                 dismiss()
             }
         }
@@ -2655,6 +2850,86 @@ private struct HubCard: View {
 
                 Image(systemName: "chevron.right")
                     .foregroundStyle(AppTheme.subtext)
+            }
+        }
+    }
+}
+
+/// Reusable "type your concern -> get AI suggestions" card, shared by every
+/// screen with this pattern (護膚/頭髮/面部拉提/身體皮膚/飲食/妝容) so each
+/// one doesn't duplicate the chip-selector + custom-input + button + result
+/// list wiring.
+struct AIAdviceSection: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    let topic: AIAdviceTopic
+    let title: String
+    let subtitle: String
+    let commonConcerns: [String]
+    let buttonTitle: String
+
+    @State private var selectedConcerns: Set<String> = []
+    @State private var customConcern = ""
+    @State private var customConcerns: [String] = []
+
+    private var allConcerns: [String] {
+        Array(selectedConcerns) + customConcerns
+    }
+
+    var body: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subtext)
+
+                if !commonConcerns.isEmpty {
+                    WrapToggleChips(items: commonConcerns, selection: $selectedConcerns)
+                }
+
+                HStack(spacing: 10) {
+                    ThemedTextField(title: "自訂問題…", text: $customConcern)
+                    Button("加入") {
+                        let trimmed = customConcern.trimmingCharacters(in: .whitespacesAndNewlines)
+                        guard !trimmed.isEmpty else { return }
+                        customConcerns.append(trimmed)
+                        customConcern = ""
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.primary)
+                }
+
+                if !customConcerns.isEmpty {
+                    WrapToggleChips(items: customConcerns, selection: .constant(Set(customConcerns)))
+                }
+
+                PrimaryButton(title: store.isLoadingAdvice(for: topic) ? "正在取得建議…" : buttonTitle) {
+                    Task { await store.requestAIAdvice(topic: topic, concerns: allConcerns) }
+                }
+                .disabled(store.isLoadingAdvice(for: topic))
+
+                if let errorMessage = store.errorMessage(for: topic) {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                if !store.suggestions(for: topic).isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(store.suggestions(for: topic), id: \.self) { suggestion in
+                            Text("• \(suggestion)")
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.text)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                    }
+                }
             }
         }
     }

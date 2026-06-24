@@ -292,6 +292,58 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
+    func addBodyProduct(name: String, brand: String, category: String, notes: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.bodyProducts.append(Product(id: UUID(), name: trimmed, brand: brand, category: category, notes: notes))
+        save()
+    }
+
+    func deleteBodyProduct(_ product: Product) {
+        state.bodyProducts.removeAll { $0.id == product.id }
+        save()
+    }
+
+    func addHairProduct(name: String, brand: String, category: String, notes: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.hairProducts.append(Product(id: UUID(), name: trimmed, brand: brand, category: category, notes: notes))
+        save()
+    }
+
+    func deleteHairProduct(_ product: Product) {
+        state.hairProducts.removeAll { $0.id == product.id }
+        save()
+    }
+
+    func addHairAppointment(title: String, storeName: String, date: Date, note: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.hairAppointments.insert(
+            Appointment(id: UUID(), title: trimmed, storeName: storeName, date: date, note: note),
+            at: 0
+        )
+        save()
+    }
+
+    func deleteHairAppointment(_ appointment: Appointment) {
+        state.hairAppointments.removeAll { $0.id == appointment.id }
+        save()
+    }
+
+    func adjustWashFrequency(by delta: Int) {
+        state.washFrequencyDays = max(1, state.washFrequencyDays + delta)
+        save()
+    }
+
+    func adjustCareFrequency(by delta: Int) {
+        state.careFrequencyDays = max(1, state.careFrequencyDays + delta)
+        save()
+    }
+
     func addFaceLiftAction(name: String) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -336,27 +388,42 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
-    @Published private(set) var facialAdviceSuggestions: [String] = []
-    @Published private(set) var facialAdviceErrorMessage: String?
-    @Published private(set) var isLoadingFacialAdvice = false
+    /// Keyed by topic so independent "type your concern -> AI suggestions"
+    /// screens (skincare/hair/face-lift/body-skin/diet/makeup) don't clobber
+    /// each other's results when the user switches between them.
+    @Published private(set) var aiAdviceSuggestions: [AIAdviceTopic: [String]] = [:]
+    @Published private(set) var aiAdviceErrorMessage: [AIAdviceTopic: String] = [:]
+    @Published private(set) var loadingAIAdviceTopics: Set<AIAdviceTopic> = []
 
-    func requestFacialAdvice(concerns: [String]) async {
+    func suggestions(for topic: AIAdviceTopic) -> [String] {
+        aiAdviceSuggestions[topic] ?? []
+    }
+
+    func errorMessage(for topic: AIAdviceTopic) -> String? {
+        aiAdviceErrorMessage[topic]
+    }
+
+    func isLoadingAdvice(for topic: AIAdviceTopic) -> Bool {
+        loadingAIAdviceTopics.contains(topic)
+    }
+
+    func requestAIAdvice(topic: AIAdviceTopic, concerns: [String]) async {
         guard authSession != nil else {
-            facialAdviceErrorMessage = "請先登入雲端同步帳號，才能使用 AI 推薦功能。"
+            aiAdviceErrorMessage[topic] = "請先登入雲端同步帳號，才能使用 AI 推薦功能。"
             return
         }
 
-        isLoadingFacialAdvice = true
-        facialAdviceErrorMessage = nil
+        loadingAIAdviceTopics.insert(topic)
+        aiAdviceErrorMessage[topic] = nil
 
         do {
-            let suggestions = try await cloudSyncService.requestFacialImprovementAdvice(concerns: concerns)
-            facialAdviceSuggestions = suggestions
+            let suggestions = try await cloudSyncService.requestAIAdvice(topic: topic, concerns: concerns)
+            aiAdviceSuggestions[topic] = suggestions
         } catch {
-            facialAdviceErrorMessage = error.localizedDescription
+            aiAdviceErrorMessage[topic] = error.localizedDescription
         }
 
-        isLoadingFacialAdvice = false
+        loadingAIAdviceTopics.remove(topic)
     }
 
     func addPunchRecord(summary: String) {
