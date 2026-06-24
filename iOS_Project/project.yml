@@ -1,7 +1,7 @@
 name: BeautifulDiary
 
 options:
-  bundleIdPrefix: com.example
+  bundleIdPrefix: com.rosana1517
   deploymentTarget:
     iOS: "16.0"
   createIntermediateGroups: true
@@ -11,7 +11,7 @@ options:
 settings:
   base:
     PRODUCT_NAME: "美麗日記"
-    PRODUCT_BUNDLE_IDENTIFIER: com.example.beautifuldiary
+    PRODUCT_BUNDLE_IDENTIFIER: com.rosana1517.beautifuldiary
     SWIFT_VERSION: 5.10
     TARGETED_DEVICE_FAMILY: "1,2"
     SUPPORTS_MACCATALYST: NO
@@ -86,7 +86,7 @@ targets:
         # this, the UI test target's build product collides with the app's
         # own module output ("Multiple commands produce ... .swiftmodule").
         PRODUCT_NAME: BeautifulDiaryUITests
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.beautifuldiary.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.rosana1517.beautifuldiary.uitests
         GENERATE_INFOPLIST_FILE: YES
         CODE_SIGN_ENTITLEMENTS: ""
     dependencies:

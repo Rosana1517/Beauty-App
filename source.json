@@ -5,45 +5,16 @@
   "apps": [
     {
       "name": "美麗日記",
-      "bundleIdentifier": "com.example.beautifuldiary",
+      "bundleIdentifier": "com.rosana1517.beautifuldiary",
       "developerName": "Rosana1517",
-      "version": "1.0.4",
-      "versionDate": "2026-06-24T09:36:58Z",
-      "versionDescription": "Build #1.0.4",
-      "size": 606175,
+      "version": "1.0.0",
+      "versionDate": "2026-06-24T00:00:00Z",
+      "versionDescription": "Bundle identifier changed from the placeholder com.example.beautifuldiary (likely already registered to someone else's Apple ID, causing install failures) to com.rosana1517.beautifuldiary.",
+      "size": 0,
       "localizedDescription": "私人美麗日記 App，匯入小紅書/Instagram/YouTube 內容並用 AI 整理推薦。",
       "iconURL": "https://raw.githubusercontent.com/Rosana1517/Beauty-App/main/source_icon.png",
-      "downloadURL": "https://github.com/Rosana1517/Beauty-App/releases/download/v4/BeautifulDiary.ipa",
-      "versions": [
-        {
-          "version": "1.0.4",
-          "date": "2026-06-24T09:36:58Z",
-          "localizedDescription": "Build #1.0.4",
-          "downloadURL": "https://github.com/Rosana1517/Beauty-App/releases/download/v4/BeautifulDiary.ipa",
-          "size": 606175
-        },
-        {
-          "version": "1.0.3",
-          "date": "2026-06-24T09:34:44Z",
-          "localizedDescription": "Build #1.0.3",
-          "downloadURL": "https://github.com/Rosana1517/Beauty-App/releases/download/v3/BeautifulDiary.ipa",
-          "size": 609446
-        },
-        {
-          "version": "1.0.2",
-          "date": "2026-06-24T08:59:04Z",
-          "localizedDescription": "Build #1.0.2",
-          "downloadURL": "https://github.com/Rosana1517/Beauty-App/releases/download/v2/BeautifulDiary.ipa",
-          "size": 606175
-        },
-        {
-          "version": "1.0.1",
-          "date": "2026-06-24T08:44:48Z",
-          "localizedDescription": "Build #1.0.1",
-          "downloadURL": "https://github.com/Rosana1517/Beauty-App/releases/download/v1/BeautifulDiary.ipa",
-          "size": 606175
-        }
-      ]
+      "downloadURL": "",
+      "versions": []
     }
   ]
 }
