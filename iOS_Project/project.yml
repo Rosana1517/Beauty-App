@@ -46,7 +46,21 @@ targets:
         CODE_SIGN_ENTITLEMENTS: ""
     scheme:
       gatherCoverageData: false
-      testTargets: []
+      testTargets:
+        - BeautifulDiaryUITests
       environmentVariables:
         SUPABASE_URL: "https://iajbkfbpoaswitawdlpm.supabase.co"
         SUPABASE_ANON_KEY: "sb_publishable_Aerb53afbyeend77xwxcLg_snsNj2aB"
+
+  BeautifulDiaryUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: 美麗日記UITests
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGN_ENTITLEMENTS: ""
+    dependencies:
+      - target: BeautifulDiary

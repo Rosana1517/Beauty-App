@@ -821,6 +821,7 @@ struct ProfileView: View {
                     NavigationLink(value: route) {
                         HubCard(title: route.rawValue, subtitle: profileSubtitle(for: route), icon: profileIcon(for: route))
                     }
+                    .accessibilityIdentifier("profileLink_\(route.rawValue)")
                 }
             }
             .padding(20)
@@ -2422,6 +2423,7 @@ private struct PrimaryButton: View {
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(title)
     }
 }
 
@@ -2434,6 +2436,7 @@ private struct ThemedTextField: View {
             .padding(14)
             .background(AppTheme.primarySoft)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            .accessibilityIdentifier(title)
     }
 }
 
@@ -2446,6 +2449,7 @@ private struct ThemedSecureField: View {
             .padding(14)
             .background(AppTheme.primarySoft)
             .clipShape(RoundedRectangle(cornerRadius: 16))
+            .accessibilityIdentifier(title)
     }
 }
 
@@ -2562,6 +2566,7 @@ private func titleRow(title: String, action: String? = nil, onTap: @escaping () 
             .padding(.vertical, 10)
             .background(AppTheme.primary)
             .clipShape(Capsule())
+            .accessibilityIdentifier(action)
         }
     }
 }
