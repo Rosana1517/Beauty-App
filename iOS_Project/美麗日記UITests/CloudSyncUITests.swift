@@ -13,12 +13,15 @@ final class CloudSyncUITests: XCTestCase {
     }
 
     func testSignInReachesAuthenticatedAndSyncsResources() throws {
+        // xcodebuild test only forwards env vars into the XCTest runner
+        // process when they're prefixed TEST_RUNNER_ on the CLI/CI side -
+        // a plain `env:` block on the xcodebuild step is NOT visible here.
         let env = ProcessInfo.processInfo.environment
         guard
-            let email = env["CI_TEST_USER_EMAIL"], !email.isEmpty,
-            let password = env["CI_TEST_USER_PASSWORD"], !password.isEmpty
+            let email = env["TEST_RUNNER_CI_TEST_USER_EMAIL"], !email.isEmpty,
+            let password = env["TEST_RUNNER_CI_TEST_USER_PASSWORD"], !password.isEmpty
         else {
-            throw XCTSkip("CI_TEST_USER_EMAIL/CI_TEST_USER_PASSWORD not provided; skipping cloud sync test.")
+            throw XCTSkip("TEST_RUNNER_CI_TEST_USER_EMAIL/PASSWORD not provided; skipping cloud sync test.")
         }
 
         let app = XCUIApplication()

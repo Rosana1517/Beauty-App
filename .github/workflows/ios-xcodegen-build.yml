@@ -100,8 +100,13 @@ jobs:
       # ...instead of only asserting that the app launches without crashing.
       - name: Run UI tests
         env:
-          CI_TEST_USER_EMAIL: ${{ secrets.CI_TEST_USER_EMAIL }}
-          CI_TEST_USER_PASSWORD: ${{ secrets.CI_TEST_USER_PASSWORD }}
+          # TEST_RUNNER_ prefix is required for xcodebuild test to forward
+          # these into the XCUITest runner process - a plain env var here
+          # is invisible to the test target (confirmed by an earlier run
+          # where CloudSyncUITests always self-skipped despite the secrets
+          # being set).
+          TEST_RUNNER_CI_TEST_USER_EMAIL: ${{ secrets.CI_TEST_USER_EMAIL }}
+          TEST_RUNNER_CI_TEST_USER_PASSWORD: ${{ secrets.CI_TEST_USER_PASSWORD }}
         run: |
           mkdir -p artifacts
           xcodebuild test \
