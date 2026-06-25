@@ -549,6 +549,34 @@ final class BeautyDiaryStore: ObservableObject {
         return grouped.map { (symptom: $0.key, count: $0.value.count) }.sorted { $0.count > $1.count }
     }
 
+    func addMenstrualRecord(note: String) {
+        state.menstrualRecords.insert(MenstrualRecord(id: UUID(), date: Date(), note: note), at: 0)
+        save()
+    }
+
+    func deleteMenstrualRecord(_ record: MenstrualRecord) {
+        state.menstrualRecords.removeAll { $0.id == record.id }
+        save()
+    }
+
+    func addNourishmentRecipe(title: String, url: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.nourishmentRecipes.append(TutorialLink(id: UUID(), title: trimmed, url: url))
+        save()
+    }
+
+    func deleteNourishmentRecipe(_ link: TutorialLink) {
+        state.nourishmentRecipes.removeAll { $0.id == link.id }
+        save()
+    }
+
+    func setBodyConstitution(_ constitution: String) {
+        state.bodyConstitution = constitution
+        save()
+    }
+
     func addBodyAlbumPhoto(imageData: Data?, note: String) {
         guard let imageData else { return }
 

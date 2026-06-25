@@ -171,6 +171,11 @@ const TOPIC_FRAMING: Record<AIAdviceTopic, { persona: string; askedFor: string; 
     askedFor: "請依據消費概況，給出預算分配與節省建議",
     fallback: "使用者未提供消費數據，請給通用的理財建議",
   },
+  nourishment: {
+    persona: "你是一個美容生活管理 App 的中式養生內調顧問。",
+    askedFor: "請依據症狀與想改善的方向，給出茶飲、食療與體質調養建議",
+    fallback: "使用者未提供症狀或方向，請給通用的內調養生建議",
+  },
 };
 
 function buildAdvicePrompt(topic: AIAdviceTopic, concerns: string[]): string {

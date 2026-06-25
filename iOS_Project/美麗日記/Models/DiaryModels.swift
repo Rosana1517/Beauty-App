@@ -102,6 +102,7 @@ enum AIAdviceTopic: String, Codable {
     case exercise
     case wellness
     case finance
+    case nourishment
 }
 
 enum FinanceRoute: String, Hashable, CaseIterable, Identifiable {
@@ -593,6 +594,12 @@ struct SymptomRecord: Identifiable, Codable {
     var id: UUID
     var date: Date
     var symptom: String
+    var note: String
+}
+
+struct MenstrualRecord: Identifiable, Codable {
+    var id: UUID
+    var date: Date
     var note: String
 }
 
@@ -1182,6 +1189,9 @@ struct BeautyDiaryState: Codable {
     var wishes: [Wish]
     var shoppingItems: [ShoppingItem]
     var checklistCompletions: [ChecklistCompletionEntry]
+    var menstrualRecords: [MenstrualRecord]
+    var nourishmentRecipes: [TutorialLink]
+    var bodyConstitution: String?
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -1240,6 +1250,9 @@ struct BeautyDiaryState: Codable {
         case wishes
         case shoppingItems
         case checklistCompletions
+        case menstrualRecords
+        case nourishmentRecipes
+        case bodyConstitution
     }
 
     init(
@@ -1298,7 +1311,10 @@ struct BeautyDiaryState: Codable {
         beautyFundTransactions: [BeautyFundTransaction] = [],
         wishes: [Wish] = [],
         shoppingItems: [ShoppingItem] = [],
-        checklistCompletions: [ChecklistCompletionEntry] = []
+        checklistCompletions: [ChecklistCompletionEntry] = [],
+        menstrualRecords: [MenstrualRecord] = [],
+        nourishmentRecipes: [TutorialLink] = [],
+        bodyConstitution: String? = nil
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -1356,6 +1372,9 @@ struct BeautyDiaryState: Codable {
         self.wishes = wishes
         self.shoppingItems = shoppingItems
         self.checklistCompletions = checklistCompletions
+        self.menstrualRecords = menstrualRecords
+        self.nourishmentRecipes = nourishmentRecipes
+        self.bodyConstitution = bodyConstitution
     }
 
     init(from decoder: Decoder) throws {
@@ -1416,6 +1435,9 @@ struct BeautyDiaryState: Codable {
         wishes = try container.decodeIfPresent([Wish].self, forKey: .wishes) ?? []
         shoppingItems = try container.decodeIfPresent([ShoppingItem].self, forKey: .shoppingItems) ?? []
         checklistCompletions = try container.decodeIfPresent([ChecklistCompletionEntry].self, forKey: .checklistCompletions) ?? []
+        menstrualRecords = try container.decodeIfPresent([MenstrualRecord].self, forKey: .menstrualRecords) ?? []
+        nourishmentRecipes = try container.decodeIfPresent([TutorialLink].self, forKey: .nourishmentRecipes) ?? []
+        bodyConstitution = try container.decodeIfPresent(String.self, forKey: .bodyConstitution)
     }
 }
 
@@ -1516,6 +1538,9 @@ extension BeautyDiaryState {
         beautyFundTransactions: [],
         wishes: [],
         shoppingItems: [],
-        checklistCompletions: []
+        checklistCompletions: [],
+        menstrualRecords: [],
+        nourishmentRecipes: [],
+        bodyConstitution: nil
     )
 }
