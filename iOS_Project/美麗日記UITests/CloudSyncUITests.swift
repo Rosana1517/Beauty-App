@@ -48,17 +48,17 @@ final class CloudSyncUITests: XCTestCase {
         XCTAssertTrue(settingsLink.waitForExistence(timeout: 10))
         settingsLink.tap()
 
-        let emailField = app.textFields["Supabase email"]
+        let emailField = app.textFields["supabaseSync.emailField"]
         XCTAssertTrue(emailField.waitForExistence(timeout: 10), "Supabase sync card should be visible on the Personal Settings screen.")
         emailField.tap()
         emailField.typeText(email)
 
-        let passwordField = app.secureTextFields["Supabase password"]
+        let passwordField = app.secureTextFields["supabaseSync.passwordField"]
         XCTAssertTrue(passwordField.exists)
         passwordField.tap()
         passwordField.typeText(password)
 
-        let signInButton = app.buttons["Sign in and sync"]
+        let signInButton = app.buttons["supabaseSync.signInButton"]
         XCTAssertTrue(signInButton.exists)
         signInButton.tap()
 
@@ -67,10 +67,10 @@ final class CloudSyncUITests: XCTestCase {
         let statusValue = app.otherElements["supabaseSync.statusValue"]
         XCTAssertTrue(statusValue.waitForExistence(timeout: 5))
 
-        let reachedAuthenticated = NSPredicate(format: "value == %@", "Authenticated")
+        let reachedAuthenticated = NSPredicate(format: "value == %@", "已登入")
         let expectation = XCTNSPredicateExpectation(predicate: reachedAuthenticated, object: statusValue)
         let result = XCTWaiter().wait(for: [expectation], timeout: 30)
-        XCTAssertEqual(result, .completed, "Status should reach 'Authenticated' after a successful Supabase sign-in. Last seen value: \(statusValue.value ?? "nil")")
+        XCTAssertEqual(result, .completed, "Status should reach '已登入' after a successful Supabase sign-in. Last seen value: \(statusValue.value ?? "nil")")
 
         let screenshot = app.screenshot()
         let attachment = XCTAttachment(screenshot: screenshot)
@@ -80,14 +80,14 @@ final class CloudSyncUITests: XCTestCase {
 
         // Trigger an explicit sync so there's a concrete round trip (profile
         // upsert + resource fetch) beyond just the sign-in call itself.
-        let syncButton = app.buttons["Sync pending resources now"]
+        let syncButton = app.buttons["supabaseSync.syncButton"]
         XCTAssertTrue(syncButton.exists)
         syncButton.tap()
 
         let authMessage = app.staticTexts["supabaseSync.authMessage"]
-        let syncFinished = NSPredicate(format: "label CONTAINS %@", "Cloud sync finished")
+        let syncFinished = NSPredicate(format: "label CONTAINS %@", "雲端同步完成")
         let syncExpectation = XCTNSPredicateExpectation(predicate: syncFinished, object: authMessage)
         let syncResult = XCTWaiter().wait(for: [syncExpectation], timeout: 30)
-        XCTAssertEqual(syncResult, .completed, "Expected 'Cloud sync finished.' message after tapping Sync pending resources now. Last seen: \(authMessage.label)")
+        XCTAssertEqual(syncResult, .completed, "Expected '雲端同步完成' message after tapping sync button. Last seen: \(authMessage.label)")
     }
 }

@@ -84,33 +84,33 @@ final class ErrorHandlingUITests: XCTestCase {
         XCTAssertTrue(settingsLink.waitForExistence(timeout: 10))
         settingsLink.tap()
 
-        let emailField = app.textFields["Supabase email"]
+        let emailField = app.textFields["supabaseSync.emailField"]
         XCTAssertTrue(emailField.waitForExistence(timeout: 10))
         emailField.tap()
         emailField.typeText(email)
 
-        let passwordField = app.secureTextFields["Supabase password"]
+        let passwordField = app.secureTextFields["supabaseSync.passwordField"]
         XCTAssertTrue(passwordField.exists)
         passwordField.tap()
         passwordField.typeText("definitely-the-wrong-password-123!")
 
-        let signInButton = app.buttons["Sign in and sync"]
+        let signInButton = app.buttons["supabaseSync.signInButton"]
         XCTAssertTrue(signInButton.exists)
         signInButton.tap()
 
-        // Should land on an error message, not "Authenticated".
+        // Should land on an error message, not "已登入".
         let statusValue = app.otherElements["supabaseSync.statusValue"]
         XCTAssertTrue(statusValue.waitForExistence(timeout: 5))
 
-        let leftSigningIn = NSPredicate(format: "value != %@", "Authenticating")
+        let leftSigningIn = NSPredicate(format: "value != %@", "登入中")
         let expectation = XCTNSPredicateExpectation(predicate: leftSigningIn, object: statusValue)
         let result = XCTWaiter().wait(for: [expectation], timeout: 30)
         XCTAssertEqual(result, .completed, "Sign-in attempt should resolve (success or failure) within 30s, not hang indefinitely.")
 
         XCTAssertNotEqual(
             statusValue.value as? String,
-            "Authenticated",
-            "A deliberately wrong password should never reach the Authenticated state."
+            "已登入",
+            "A deliberately wrong password should never reach the 已登入 state."
         )
 
         let authMessage = app.staticTexts["supabaseSync.authMessage"]

@@ -3901,7 +3901,11 @@ struct PersonalSettingsView: View {
                 titleRow(title: "個人設定") {}
 
                 CardView {
-                    VStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("基本資料")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
                         ThemedTextField(title: "暱稱", text: $nickname)
                         ThemedTextField(title: "個人簡介", text: $signature)
                         ThemedTextField(title: "體態焦點", text: $bodyFocus)
@@ -3948,16 +3952,12 @@ struct PersonalSettingsView: View {
                     baseURL: $aiBaseURL,
                     model: $aiModel
                 )
+
+                SupabaseSyncSettingsCard(authEmail: $authEmail, authPassword: $authPassword)
             }
             .padding(20)
         }
         .background(AppTheme.background)
-        .safeAreaInset(edge: .bottom) {
-            SupabaseSyncSettingsCard(authEmail: $authEmail, authPassword: $authPassword)
-                .padding(.horizontal, 20)
-                .padding(.bottom, 12)
-                .background(AppTheme.background.opacity(0.001))
-        }
         .onAppear {
             nickname = store.state.profile.nickname
             signature = store.state.profile.signature
@@ -4150,6 +4150,11 @@ private struct AIProviderSettingsCard: View {
     }
 }
 
+/// This is the developer's own private login channel - signing in here
+/// with your own Supabase account is what makes the AI provider settings
+/// card above personal to you (stored RLS-scoped to your user ID) instead
+/// of falling back to the shared env-var key. Regular end users of this
+/// app never need to see or touch this card.
 private struct SupabaseSyncSettingsCard: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @Binding var authEmail: String
@@ -4158,16 +4163,20 @@ private struct SupabaseSyncSettingsCard: View {
     var body: some View {
         CardView {
             VStack(alignment: .leading, spacing: 12) {
-                Text("Supabase Cloud Sync")
+                Text("開發者登入（雲端同步）")
                     .font(.headline)
                     .foregroundStyle(AppTheme.text)
 
-                InfoRow(title: "Status", value: authStatusText)
+                Text("這是開發者專用的登入入口。登入後，上方的 AI 提供者設定會綁定到你的帳號並同步到雲端，一般使用者不需要也看不到這裡。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subtext)
+
+                InfoRow(title: "登入狀態", value: authStatusText)
                     .accessibilityElement(children: .ignore)
                     .accessibilityIdentifier("supabaseSync.statusValue")
                     .accessibilityValue(authStatusText)
-                InfoRow(title: "User", value: resolvedEmail)
-                InfoRow(title: "Sync User ID", value: resolvedSyncUserID)
+                InfoRow(title: "帳號", value: resolvedEmail)
+                InfoRow(title: "同步 ID", value: resolvedSyncUserID)
 
                 if let authMessage = store.authMessage, !authMessage.isEmpty {
                     Text(authMessage)
@@ -4180,33 +4189,51 @@ private struct SupabaseSyncSettingsCard: View {
                         .accessibilityIdentifier("supabaseSync.authMessage")
                 }
 
-                ThemedTextField(title: "Supabase email", text: $authEmail)
-                ThemedSecureField(title: "Supabase password", text: $authPassword)
+                ThemedTextField(title: "開發者帳號 Email", text: $authEmail)
+                    .accessibilityIdentifier("supabaseSync.emailField")
+                ThemedSecureField(title: "密碼", text: $authPassword)
+                    .accessibilityIdentifier("supabaseSync.passwordField")
 
-                PrimaryButton(title: "Sign in and sync") {
+                PrimaryButton(title: "登入並同步") {
                     Task {
                         await store.signInToSupabase(email: authEmail, password: authPassword)
                     }
                 }
+                .accessibilityIdentifier("supabaseSync.signInButton")
 
-                PrimaryButton(title: "Send magic link") {
+                Button {
                     Task {
                         await store.requestSupabaseMagicLink(email: authEmail)
                     }
+                } label: {
+                    Text("改用 Email 連結登入（免密碼）")
+                        .font(.subheadline)
+                        .foregroundStyle(AppTheme.primary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
                 }
+                .buttonStyle(.plain)
 
-                PrimaryButton(title: "Sync pending resources now") {
+                PrimaryButton(title: "立即同步資源") {
                     Task {
                         await store.syncCloudNow()
                     }
                 }
+                .accessibilityIdentifier("supabaseSync.syncButton")
 
                 if store.authSession != nil {
-                    PrimaryButton(title: "Sign out") {
+                    Button {
                         Task {
                             await store.signOutFromSupabase()
                         }
+                    } label: {
+                        Text("登出")
+                            .font(.subheadline)
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -4215,21 +4242,21 @@ private struct SupabaseSyncSettingsCard: View {
     private var authStatusText: String {
         switch store.authStatus {
         case .unavailable:
-            return "Unavailable"
+            return "目前無法使用"
         case .signedOut:
-            return "Signed out"
+            return "未登入"
         case .restoring:
-            return "Restoring session"
+            return "正在恢復登入狀態"
         case .authenticating:
-            return "Authenticating"
+            return "登入中"
         case .authenticated:
-            return "Authenticated"
+            return "已登入"
         }
     }
 
     private var resolvedEmail: String {
         let email = store.authSession?.email ?? ""
-        return email.isEmpty ? "Not signed in" : email
+        return email.isEmpty ? "尚未登入" : email
     }
 
     private var resolvedSyncUserID: String {
@@ -4239,7 +4266,7 @@ private struct SupabaseSyncSettingsCard: View {
         }
 
         let configured = AppRuntimeConfiguration.resourceSyncUserID
-        return configured.isEmpty ? "Unavailable" : configured
+        return configured.isEmpty ? "尚未設定" : configured
     }
 }
 

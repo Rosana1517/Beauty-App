@@ -1325,7 +1325,7 @@ final class BeautyDiaryStore: ObservableObject {
         guard AppRuntimeConfiguration.hasSupabaseConfig else {
             authStatus = .unavailable
             authSession = nil
-            authMessage = "Supabase is not configured."
+            authMessage = "Supabase 尚未設定。"
             return
         }
 
@@ -1348,7 +1348,7 @@ final class BeautyDiaryStore: ObservableObject {
     func signInToSupabase(email: String, password: String) async {
         guard AppRuntimeConfiguration.hasSupabaseConfig else {
             authStatus = .unavailable
-            authMessage = "Supabase is not configured."
+            authMessage = "Supabase 尚未設定。"
             return
         }
 
@@ -1359,7 +1359,7 @@ final class BeautyDiaryStore: ObservableObject {
             let session = try await authService.signIn(email: email, password: password)
             authSession = session
             authStatus = .authenticated
-            authMessage = "Signed in. Cloud sync is ready."
+            authMessage = "登入成功，雲端同步已就緒。"
             await reconcileCurrentUserProfileWithCloud()
             await fetchAIProviderSettingsFromCloud()
             await refreshCloudResources()
@@ -1382,7 +1382,7 @@ final class BeautyDiaryStore: ObservableObject {
             let session = try await authService.completeMagicLinkSignIn(from: url)
             authSession = session
             authStatus = .authenticated
-            authMessage = "Magic link sign-in completed."
+            authMessage = "已透過 Email 連結完成登入。"
             await reconcileCurrentUserProfileWithCloud()
             await fetchAIProviderSettingsFromCloud()
             await refreshCloudResources()
@@ -1397,7 +1397,7 @@ final class BeautyDiaryStore: ObservableObject {
     func requestSupabaseMagicLink(email: String) async {
         guard AppRuntimeConfiguration.hasSupabaseConfig else {
             authStatus = .unavailable
-            authMessage = "Supabase is not configured."
+            authMessage = "Supabase 尚未設定。"
             return
         }
 
@@ -1407,7 +1407,7 @@ final class BeautyDiaryStore: ObservableObject {
         do {
             try await authService.requestMagicLink(email: email)
             authStatus = authSession == nil ? .signedOut : .authenticated
-            authMessage = "Magic link sent. Check your email to finish sign-in."
+            authMessage = "登入連結已寄出，請至信箱完成登入。"
         } catch {
             authStatus = authSession == nil ? .signedOut : .authenticated
             authMessage = error.localizedDescription
@@ -1427,7 +1427,7 @@ final class BeautyDiaryStore: ObservableObject {
 
     func syncCloudNow() async {
         guard authSession != nil else {
-            authMessage = "Sign in to Supabase before syncing."
+            authMessage = "請先登入 Supabase 才能同步。"
             return
         }
 
@@ -1435,7 +1435,7 @@ final class BeautyDiaryStore: ObservableObject {
         await reconcileCurrentUserProfileWithCloud()
         await syncPendingResources(respectBackoff: false)
         await refreshCloudResources()
-        authMessage = "Cloud sync finished."
+        authMessage = "雲端同步完成。"
     }
 
     func applyBackendRecommendationsIfNeeded(for item: ResourceItem) async {
@@ -1485,7 +1485,7 @@ final class BeautyDiaryStore: ObservableObject {
                 ? try await notificationScheduler.requestAuthorizationIfNeeded()
                 : true
             guard isAuthorized else {
-                authMessage = "Notifications are disabled. Enable them in Settings to receive reminders."
+                authMessage = "通知權限已關閉，請至「設定」開啟才能收到提醒。"
                 return
             }
             try await notificationScheduler.scheduleDailyReminder(
@@ -1551,19 +1551,19 @@ final class BeautyDiaryStore: ObservableObject {
         save()
 
         guard let session = authSession else {
-            authMessage = "Sign in to Supabase to sync your AI provider key across devices."
+            authMessage = "登入 Supabase 後，AI 設定才能同步到其他裝置。"
             return
         }
 
         do {
             try await cloudSyncService.upsertAIProviderSettings(session: session, settings: settings)
-            authMessage = "AI provider settings saved."
+            authMessage = "AI 提供者設定已儲存。"
         } catch {
             if allowRetry, await recoverSessionIfNeeded(after: error) {
                 await saveAIProviderSettings(settings, allowRetry: false)
                 return
             }
-            authMessage = "Saved locally, but cloud sync failed: \(error.localizedDescription)"
+            authMessage = "已儲存在本機，但雲端同步失敗：\(error.localizedDescription)"
         }
     }
 
@@ -1584,7 +1584,7 @@ final class BeautyDiaryStore: ObservableObject {
                 await clearAIProviderSettings(allowRetry: false)
                 return
             }
-            authMessage = "Removed locally, but cloud delete failed: \(error.localizedDescription)"
+            authMessage = "已從本機移除，但雲端刪除失敗：\(error.localizedDescription)"
         }
     }
 
@@ -1616,13 +1616,13 @@ final class BeautyDiaryStore: ObservableObject {
         guard let restoredSession else {
             authSession = nil
             authStatus = .signedOut
-            authMessage = "Supabase session expired. Please sign in again."
+            authMessage = "登入已過期，請重新登入。"
             return false
         }
 
         authSession = restoredSession
         authStatus = .authenticated
-        authMessage = "Supabase session refreshed. Retrying sync."
+        authMessage = "登入狀態已更新，正在重新同步。"
         return true
     }
 
