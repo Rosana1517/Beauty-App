@@ -4167,7 +4167,7 @@ private struct SupabaseSyncSettingsCard: View {
                     .font(.headline)
                     .foregroundStyle(AppTheme.text)
 
-                Text("這是開發者專用的登入入口。登入後，上方的 AI 提供者設定會綁定到你的帳號並同步到雲端，一般使用者不需要也看不到這裡。")
+                Text("這是開發者專用的登入入口。如果還沒有帳號，先按「註冊新帳號」建立一個；登入後，上方的 AI 提供者設定會綁定到你的帳號並同步到雲端，一般使用者不需要也看不到這裡。")
                     .font(.caption)
                     .foregroundStyle(AppTheme.subtext)
 
@@ -4194,12 +4194,30 @@ private struct SupabaseSyncSettingsCard: View {
                 ThemedSecureField(title: "密碼", text: $authPassword)
                     .accessibilityIdentifier("supabaseSync.passwordField")
 
-                PrimaryButton(title: "登入並同步") {
-                    Task {
-                        await store.signInToSupabase(email: authEmail, password: authPassword)
+                HStack(spacing: 10) {
+                    PrimaryButton(title: "登入並同步") {
+                        Task {
+                            await store.signInToSupabase(email: authEmail, password: authPassword)
+                        }
                     }
+                    .accessibilityIdentifier("supabaseSync.signInButton")
+
+                    Button {
+                        Task {
+                            await store.signUpToSupabase(email: authEmail, password: authPassword)
+                        }
+                    } label: {
+                        Text("註冊新帳號")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(AppTheme.primarySoft)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("supabaseSync.signUpButton")
                 }
-                .accessibilityIdentifier("supabaseSync.signInButton")
 
                 Button {
                     Task {

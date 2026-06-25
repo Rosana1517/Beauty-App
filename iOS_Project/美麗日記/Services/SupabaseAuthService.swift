@@ -28,19 +28,25 @@ enum SupabaseAuthError: LocalizedError {
     case invalidResponse
     case missingSession
     case serverMessage(String)
+    case unexpectedStatus(Int, String)
 
     var errorDescription: String? {
         switch self {
         case .unavailable:
-            return "Supabase auth is not configured."
+            return "尚未設定 Supabase，無法登入。"
         case .invalidCredentials:
-            return "The email or password is incorrect."
+            return "帳號或密碼不正確。"
         case .invalidResponse:
-            return "Supabase returned an invalid auth response."
+            return "Supabase 回傳了無法解析的回應。"
         case .missingSession:
-            return "No active session is available."
+            return "沒有可用的登入狀態。"
         case .serverMessage(let message):
             return message
+        case .unexpectedStatus(let code, let body):
+            let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmedBody.isEmpty
+                ? "Supabase 回應了非預期的狀態碼 \(code)。"
+                : "Supabase 回應了非預期的狀態碼 \(code)：\(trimmedBody)"
         }
     }
 }
@@ -48,6 +54,7 @@ enum SupabaseAuthError: LocalizedError {
 protocol SupabaseAuthServiceProtocol {
     func restoreSession() async -> SupabaseAuthSession?
     func currentSession() -> SupabaseAuthSession?
+    func signUp(email: String, password: String) async throws -> SupabaseAuthSession?
     func signIn(email: String, password: String) async throws -> SupabaseAuthSession
     func requestMagicLink(email: String) async throws
     func completeMagicLinkSignIn(from url: URL) async throws -> SupabaseAuthSession
@@ -82,6 +89,7 @@ enum SupabaseSessionStore {
 struct NoopSupabaseAuthService: SupabaseAuthServiceProtocol {
     func restoreSession() async -> SupabaseAuthSession? { nil }
     func currentSession() -> SupabaseAuthSession? { nil }
+    func signUp(email: String, password: String) async throws -> SupabaseAuthSession? { throw SupabaseAuthError.unavailable }
     func signIn(email: String, password: String) async throws -> SupabaseAuthSession { throw SupabaseAuthError.unavailable }
     func requestMagicLink(email: String) async throws { throw SupabaseAuthError.unavailable }
     func completeMagicLinkSignIn(from url: URL) async throws -> SupabaseAuthSession { throw SupabaseAuthError.unavailable }
@@ -127,6 +135,38 @@ struct SupabaseEmailAuthService: SupabaseAuthServiceProtocol {
             SupabaseSessionStore.clear()
             return nil
         }
+    }
+
+    /// Creates a brand-new Supabase Auth user. Returns the session directly
+    /// when the project has "auto confirm" enabled; returns nil when email
+    /// confirmation is required first (the account exists, but there's no
+    /// session yet until the user clicks the confirmation link).
+    func signUp(email: String, password: String) async throws -> SupabaseAuthSession? {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedPassword = password.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedEmail.isEmpty, !trimmedPassword.isEmpty else {
+            throw SupabaseAuthError.invalidCredentials
+        }
+
+        let signUpEncoder = JSONEncoder()
+        signUpEncoder.keyEncodingStrategy = .convertToSnakeCase
+        let bodyData = try signUpEncoder.encode(PasswordSignInRequest(email: trimmedEmail, password: trimmedPassword))
+
+        let data = try await performRawRequest(
+            path: "/auth/v1/signup",
+            method: "POST",
+            queryItems: [],
+            bodyData: bodyData,
+            authorized: false
+        )
+
+        guard let response = try? JSONDecoder.supabaseDecoder.decode(SupabaseTokenResponse.self, from: data) else {
+            return nil
+        }
+
+        let session = response.session
+        SupabaseSessionStore.save(session)
+        return session
     }
 
     func signIn(email: String, password: String) async throws -> SupabaseAuthSession {
@@ -366,6 +406,30 @@ struct SupabaseEmailAuthService: SupabaseAuthServiceProtocol {
         accessTokenOverride: String? = nil,
         responseType: Response.Type
     ) async throws -> Response {
+        let data = try await performRawRequest(
+            path: path,
+            method: method,
+            queryItems: queryItems,
+            bodyData: bodyData,
+            authorized: authorized,
+            accessTokenOverride: accessTokenOverride
+        )
+
+        if Response.self == EmptySupabaseResponse.self, data.isEmpty {
+            return EmptySupabaseResponse() as! Response
+        }
+
+        return try JSONDecoder.supabaseDecoder.decode(responseType, from: data.isEmpty ? Data("{}".utf8) : data)
+    }
+
+    private func performRawRequest(
+        path: String,
+        method: String,
+        queryItems: [URLQueryItem],
+        bodyData: Data?,
+        authorized: Bool,
+        accessTokenOverride: String? = nil
+    ) async throws -> Data {
         guard var components = URLComponents(string: baseURL) else {
             throw URLError(.badURL)
         }
@@ -399,30 +463,33 @@ struct SupabaseEmailAuthService: SupabaseAuthServiceProtocol {
         }
 
         guard (200...299).contains(httpResponse.statusCode) else {
+            // GoTrue's error body shape varies by version/endpoint ("message",
+            // "msg", or "error_description"/"error") - try all of them before
+            // falling back to a generic message, so real causes (wrong
+            // password, email provider disabled, signups disabled, etc.)
+            // actually surface to the user instead of a bare NSURLError.
+            if let resolvedMessage = decodeSupabaseErrorMessage(from: data) {
+                throw SupabaseAuthError.serverMessage(resolvedMessage)
+            }
+
             if httpResponse.statusCode == 400 || httpResponse.statusCode == 401 {
-                if let authError = try? JSONDecoder().decode(SupabaseErrorResponse.self, from: data),
-                   !authError.message.isEmpty {
-                    throw SupabaseAuthError.serverMessage(authError.message)
-                }
                 throw SupabaseAuthError.invalidCredentials
             }
 
-            if let authError = try? JSONDecoder().decode(SupabaseErrorResponse.self, from: data),
-               !authError.message.isEmpty {
-                throw SupabaseAuthError.serverMessage(authError.message)
-            }
-
-            throw URLError(.badServerResponse)
+            let rawBody = String(data: data, encoding: .utf8) ?? ""
+            throw SupabaseAuthError.unexpectedStatus(httpResponse.statusCode, rawBody)
         }
 
-        if Response.self == EmptySupabaseResponse.self, data.isEmpty {
-            return EmptySupabaseResponse() as! Response
-        }
+        return data
+    }
+}
 
+private extension JSONDecoder {
+    static var supabaseDecoder: JSONDecoder {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(responseType, from: data.isEmpty ? Data("{}".utf8) : data)
+        return decoder
     }
 }
 
@@ -507,7 +574,27 @@ private struct SupabaseAuthUser: Decodable {
 }
 
 private struct SupabaseErrorResponse: Decodable {
-    let message: String
+    let message: String?
+    let msg: String?
+    let error: String?
+    let errorDescription: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case message
+        case msg
+        case error
+        case errorDescription = "error_description"
+    }
+}
+
+private func decodeSupabaseErrorMessage(from data: Data) -> String? {
+    guard let parsed = try? JSONDecoder().decode(SupabaseErrorResponse.self, from: data) else {
+        return nil
+    }
+
+    let candidate = parsed.errorDescription ?? parsed.message ?? parsed.msg ?? parsed.error
+    guard let candidate, !candidate.isEmpty else { return nil }
+    return candidate
 }
 
 private struct EmptySupabaseResponse: Decodable {}

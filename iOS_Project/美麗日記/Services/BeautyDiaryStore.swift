@@ -1345,6 +1345,36 @@ final class BeautyDiaryStore: ObservableObject {
         await syncPendingResources()
     }
 
+    func signUpToSupabase(email: String, password: String) async {
+        guard AppRuntimeConfiguration.hasSupabaseConfig else {
+            authStatus = .unavailable
+            authMessage = "Supabase 尚未設定。"
+            return
+        }
+
+        authStatus = .authenticating
+        authMessage = nil
+
+        do {
+            let session = try await authService.signUp(email: email, password: password)
+            if let session {
+                authSession = session
+                authStatus = .authenticated
+                authMessage = "註冊成功，已自動登入。"
+                await reconcileCurrentUserProfileWithCloud()
+                await fetchAIProviderSettingsFromCloud()
+                await refreshCloudResources()
+                await syncPendingResources()
+            } else {
+                authStatus = .signedOut
+                authMessage = "帳號已建立，請至信箱完成驗證後再登入。"
+            }
+        } catch {
+            authStatus = .signedOut
+            authMessage = error.localizedDescription
+        }
+    }
+
     func signInToSupabase(email: String, password: String) async {
         guard AppRuntimeConfiguration.hasSupabaseConfig else {
             authStatus = .unavailable
