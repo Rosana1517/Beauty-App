@@ -515,15 +515,21 @@ enum SupabaseRESTError: LocalizedError {
     case unauthorized
     case serverMessage(String)
     case invalidResponse
+    case unexpectedStatus(Int, String)
 
     var errorDescription: String? {
         switch self {
         case .unauthorized:
-            return "Supabase session expired. Please refresh your session and retry."
+            return "Supabase 登入已過期，請重新登入後再試一次。"
         case .serverMessage(let message):
             return message
         case .invalidResponse:
-            return "Supabase returned an invalid response."
+            return "Supabase 回傳了無法解析的回應。"
+        case .unexpectedStatus(let code, let body):
+            let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmedBody.isEmpty
+                ? "Supabase 回應了非預期的狀態碼 \(code)。"
+                : "Supabase 回應了非預期的狀態碼 \(code)：\(trimmedBody)"
         }
     }
 }
@@ -713,22 +719,27 @@ private struct SupabaseRESTClient {
             return SupabaseRESTError.unauthorized
         }
 
+        // Edge Functions (e.g. ai-advice) return {"error": "..."}, while
+        // PostgREST table errors return {"message": "...", "hint": "..."} -
+        // check all of them before falling back to a generic status code, so
+        // e.g. "No AI provider configured" actually reaches the user instead
+        // of a bare NSURLError.
         if let error = try? JSONDecoder().decode(SupabaseRESTErrorResponse.self, from: data) {
-            if let message = error.message, !message.isEmpty {
-                return SupabaseRESTError.serverMessage(message)
-            }
-            if let hint = error.hint, !hint.isEmpty {
-                return SupabaseRESTError.serverMessage(hint)
+            let resolved = error.message ?? error.error ?? error.hint
+            if let resolved, !resolved.isEmpty {
+                return SupabaseRESTError.serverMessage(resolved)
             }
         }
 
-        return URLError(.badServerResponse)
+        let rawBody = String(data: data, encoding: .utf8) ?? ""
+        return SupabaseRESTError.unexpectedStatus(statusCode, rawBody)
     }
 }
 
 private struct SupabaseRESTErrorResponse: Decodable {
     let message: String?
     let hint: String?
+    let error: String?
 }
 
 private struct AuthorizedImportRequest: Encodable {

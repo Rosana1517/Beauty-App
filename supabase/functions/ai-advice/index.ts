@@ -21,7 +21,7 @@ Deno.serve(async (req) => {
     const suggestions = await requestFreeformSuggestions(topic, concerns, userID);
     if (!suggestions) {
       return jsonResponse(
-        { error: "No AI provider configured. Set one up in 設定 > AI 提供者設定 first." },
+        { error: "尚未設定 AI 提供者，請先到「個人設定」的「AI 解析設定」填入 OpenAI 或 Anthropic 的 API Key。" },
         422,
       );
     }
