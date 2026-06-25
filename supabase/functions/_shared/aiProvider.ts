@@ -105,11 +105,17 @@ export async function analyzeWithAI(draft: ResourceImportDraft, userID: string):
  * need its own Edge Function - only the persona/framing in the prompt
  * changes per topic.
  */
+export interface FreeformAdviceResult {
+  suggestions: string[];
+  routineSteps: string[];
+  products: string[];
+}
+
 export async function requestFreeformSuggestions(
   topic: AIAdviceTopic,
   concerns: string[],
   userID: string,
-): Promise<string[] | null> {
+): Promise<FreeformAdviceResult | null> {
   const config = await resolveAIProviderConfig(userID);
   if (!config) return null;
 
@@ -118,7 +124,7 @@ export async function requestFreeformSuggestions(
     const rawText = config.provider === "openai"
       ? await callOpenAI(config, prompt)
       : await callAnthropic(config, prompt);
-    return parseSuggestionsResponse(rawText);
+    return parseSuggestionsResponse(rawText, topic);
   } catch (error) {
     console.error("AI provider call failed for freeform suggestions.", error);
     return null;
@@ -180,16 +186,29 @@ const TOPIC_FRAMING: Record<AIAdviceTopic, { persona: string; askedFor: string; 
 
 function buildAdvicePrompt(topic: AIAdviceTopic, concerns: string[]): string {
   const framing = TOPIC_FRAMING[topic];
-  return [
+  const lines = [
     framing.persona,
     `使用者輸入了以下需求，${framing.askedFor}，給出 4 到 6 個具體建議。`,
-    "請只回覆一個 JSON 物件，不要有任何其他文字、不要用 markdown code block。",
-    `JSON 格式：{"suggestions": string[]}`,
-    `使用者輸入：${concerns.join("、") || `（${framing.fallback}）`}`,
-  ].join("\n");
+  ];
+
+  if (topic === "skincare") {
+    lines.push(
+      "另外，請額外整理出可以直接加入使用者「護膚流程」的具體步驟，以及可以加入「保養品清單」的具體產品建議（包含成分/類型，不需要是真實品牌）。",
+      "請只回覆一個 JSON 物件，不要有任何其他文字、不要用 markdown code block。",
+      `JSON 格式：{"suggestions": string[], "routineSteps": string[](2到4個), "products": string[](2到4個)}`,
+    );
+  } else {
+    lines.push(
+      "請只回覆一個 JSON 物件，不要有任何其他文字、不要用 markdown code block。",
+      `JSON 格式：{"suggestions": string[]}`,
+    );
+  }
+
+  lines.push(`使用者輸入：${concerns.join("、") || `（${framing.fallback}）`}`);
+  return lines.join("\n");
 }
 
-function parseSuggestionsResponse(rawText: string): string[] {
+function parseSuggestionsResponse(rawText: string, topic: AIAdviceTopic): FreeformAdviceResult {
   const jsonText = extractJSONObject(rawText);
   const parsed = JSON.parse(jsonText);
   const suggestions = Array.isArray(parsed.suggestions)
@@ -200,7 +219,14 @@ function parseSuggestionsResponse(rawText: string): string[] {
     throw new Error("AI response did not include any suggestions.");
   }
 
-  return suggestions;
+  const routineSteps = topic === "skincare" && Array.isArray(parsed.routineSteps)
+    ? parsed.routineSteps.filter((item: unknown) => typeof item === "string" && item.trim()).slice(0, 4)
+    : [];
+  const products = topic === "skincare" && Array.isArray(parsed.products)
+    ? parsed.products.filter((item: unknown) => typeof item === "string" && item.trim()).slice(0, 4)
+    : [];
+
+  return { suggestions, routineSteps, products };
 }
 
 function buildPrompt(draft: ResourceImportDraft): string {
@@ -270,6 +296,132 @@ async function callAnthropic(config: AIProviderConfig, prompt: string): Promise<
   const content = data?.content?.[0]?.text;
   if (typeof content !== "string") {
     throw new Error("Anthropic response missing content text.");
+  }
+  return content;
+}
+
+export interface ProductLookupResult {
+  name: string;
+  brand: string;
+  category: string;
+  notes: string;
+}
+
+/**
+ * Identifies a skincare/haircare product from a name and/or a photo, so
+ * 新增保養品 doesn't require typing in brand/category/notes by hand.
+ * Photo lookups use a vision-capable model (OpenAI gpt-4o-mini and recent
+ * Claude models both support image input); name-only lookups are a plain
+ * text best-effort guess.
+ */
+export async function requestProductLookup(
+  name: string | undefined,
+  imageBase64: string | undefined,
+  userID: string,
+): Promise<ProductLookupResult | null> {
+  const config = await resolveAIProviderConfig(userID);
+  if (!config) return null;
+
+  const instructions = [
+    "你是一個美容產品辨識助手。",
+    imageBase64
+      ? "請辨識照片中的美容/保養/洗護產品，盡量判斷品牌、產品名稱、分類（如：精華液、乳液、洗面乳、洗髮精等）與成分/用途備註。"
+      : `請根據產品名稱「${name ?? ""}」推測這個產品的品牌、分類與成分/用途備註，盡量符合真實市售產品；如果不確定真實品牌，類別與備註仍要給出合理的推測。`,
+    "請只回覆一個 JSON 物件，不要有任何其他文字、不要用 markdown code block。",
+    `JSON 格式：{"name": string, "brand": string, "category": string, "notes": string}`,
+    name && imageBase64 ? `使用者輸入的名稱：${name}` : "",
+  ].filter(Boolean).join("\n");
+
+  try {
+    const rawText = imageBase64
+      ? config.provider === "openai"
+        ? await callOpenAIVision(config, instructions, imageBase64)
+        : await callAnthropicVision(config, instructions, imageBase64)
+      : config.provider === "openai"
+        ? await callOpenAI(config, instructions)
+        : await callAnthropic(config, instructions);
+
+    const jsonText = extractJSONObject(rawText);
+    const parsed = JSON.parse(jsonText);
+    const resultName = typeof parsed.name === "string" ? parsed.name.trim() : "";
+    if (!resultName) return null;
+
+    return {
+      name: resultName,
+      brand: typeof parsed.brand === "string" ? parsed.brand.trim() : "",
+      category: typeof parsed.category === "string" ? parsed.category.trim() : "",
+      notes: typeof parsed.notes === "string" ? parsed.notes.trim() : "",
+    };
+  } catch (error) {
+    console.error("AI provider call failed for product lookup.", error);
+    return null;
+  }
+}
+
+async function callOpenAIVision(config: AIProviderConfig, prompt: string, imageBase64: string): Promise<string> {
+  const response = await fetch(`${config.baseURL}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify({
+      model: config.model,
+      temperature: 0.3,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: "You only respond with strict JSON matching the requested schema." },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            { type: "image_url", image_url: { url: `data:image/jpeg;base64,${imageBase64}` } },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`OpenAI vision request failed: ${response.status} ${await response.text()}`);
+  }
+  const data = await response.json();
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content !== "string") {
+    throw new Error("OpenAI vision response missing message content.");
+  }
+  return content;
+}
+
+async function callAnthropicVision(config: AIProviderConfig, prompt: string, imageBase64: string): Promise<string> {
+  const response = await fetch(`${config.baseURL}/messages`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": config.apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: config.model,
+      max_tokens: 1024,
+      temperature: 0.3,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } },
+            { type: "text", text: `${prompt}\n\n只回覆 JSON，不要加任何說明文字或 markdown code block。` },
+          ],
+        },
+      ],
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`Anthropic vision request failed: ${response.status} ${await response.text()}`);
+  }
+  const data = await response.json();
+  const content = data?.content?.[0]?.text;
+  if (typeof content !== "string") {
+    throw new Error("Anthropic vision response missing content text.");
   }
   return content;
 }

@@ -89,6 +89,12 @@ enum AppRuntimeConfiguration {
         ProcessInfo.processInfo.environment[aiAdviceFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "ai-advice"
     }
 
+    static let productLookupFunctionEnv = "SUPABASE_PRODUCT_LOOKUP_FUNCTION"
+
+    static var productLookupFunction: String {
+        ProcessInfo.processInfo.environment[productLookupFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "product-lookup"
+    }
+
     static var instagramAppID: String {
         ProcessInfo.processInfo.environment[instagramAppIDEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }

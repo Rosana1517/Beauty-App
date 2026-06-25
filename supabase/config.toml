@@ -12,3 +12,6 @@ verify_jwt = true
 
 [functions.ai-advice]
 verify_jwt = true
+
+[functions.product-lookup]
+verify_jwt = true

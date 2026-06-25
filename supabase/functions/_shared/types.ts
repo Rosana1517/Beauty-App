@@ -154,6 +154,8 @@ export interface AIAdviceRequest {
 
 export interface AIAdviceResponse {
   suggestions: string[];
+  routineSteps?: string[];
+  products?: string[];
 }
 
 export interface SupabaseQueueJobResponse {

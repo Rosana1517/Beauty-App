@@ -467,7 +467,13 @@ struct SkincareManagementView: View {
                 title: "AI 護膚建議",
                 subtitle: "輸入臉部皮膚問題，AI 推薦適用產品及保養方式",
                 commonConcerns: ["痘痘", "粉刺", "黑頭", "乾燥脫皮", "泛油", "泛紅", "暗沉", "毛孔粗大", "細紋", "色斑"],
-                buttonTitle: "獲取 AI 護膚建議"
+                buttonTitle: "獲取 AI 護膚建議",
+                onAddRoutineStep: { step in
+                    store.addRoutineStep(period: .morning, name: step)
+                },
+                onAddProduct: { product in
+                    store.addProduct(name: product, brand: "AI 推薦", category: "AI建議", notes: product)
+                }
             )
 
             CardView {
@@ -4569,6 +4575,8 @@ private struct AddProductSheet: View {
     @State private var brand = ""
     @State private var category = ""
     @State private var notes = ""
+    @State private var photoItem: PhotosPickerItem?
+    @State private var photoData: Data?
 
     /// nil defaults to the skincare product list (the original use of this
     /// sheet); 身體保養品/洗護產品 pass their own store method so the same
@@ -4578,6 +4586,66 @@ private struct AddProductSheet: View {
 
     var body: some View {
         FormSheet(title: title) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("AI 自動辨識（選填）")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.text)
+                Text("拍照或輸入名稱，AI 幫你自動填入品牌、分類與備註。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subtext)
+
+                if let photoData, let uiImage = UIImage(data: photoData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 140)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                HStack(spacing: 10) {
+                    PhotosPicker(selection: $photoItem, matching: .images) {
+                        Text("拍照辨識")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(AppTheme.primarySoft)
+                            .clipShape(Capsule())
+                    }
+
+                    Button {
+                        Task { await runLookup(usePhoto: false) }
+                    } label: {
+                        Text("依名稱查詢")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(AppTheme.primarySoft)
+                            .clipShape(Capsule())
+                    }
+                }
+
+                if store.isLookingUpProduct {
+                    Text("AI 辨識中…")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.subtext)
+                }
+
+                if let error = store.productLookupError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+            }
+            .onChange(of: photoItem) { newItem in
+                Task {
+                    guard let newItem, let data = try? await newItem.loadTransferable(type: Data.self) else { return }
+                    photoData = data
+                    await runLookup(usePhoto: true)
+                }
+            }
+
             ThemedTextField(title: "產品名稱", text: $name)
             ThemedTextField(title: "品牌", text: $brand)
             ThemedTextField(title: "分類", text: $category)
@@ -4592,6 +4660,22 @@ private struct AddProductSheet: View {
                 dismiss()
             }
         }
+    }
+
+    private func runLookup(usePhoto: Bool) async {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard usePhoto || !trimmedName.isEmpty else { return }
+
+        let result = await store.requestProductLookup(
+            name: trimmedName.isEmpty ? nil : trimmedName,
+            imageData: usePhoto ? photoData : nil
+        )
+        guard let result else { return }
+
+        if name.isEmpty { name = result.name }
+        if brand.isEmpty { brand = result.brand }
+        if category.isEmpty { category = result.category }
+        if notes.isEmpty { notes = result.notes }
     }
 }
 
@@ -5693,10 +5777,14 @@ struct AIAdviceSection: View {
     let subtitle: String
     let commonConcerns: [String]
     let buttonTitle: String
+    var onAddRoutineStep: ((String) -> Void)? = nil
+    var onAddProduct: ((String) -> Void)? = nil
 
     @State private var selectedConcerns: Set<String> = []
     @State private var customConcern = ""
     @State private var customConcerns: [String] = []
+    @State private var addedRoutineSteps: Set<String> = []
+    @State private var addedProducts: Set<String> = []
 
     private var allConcerns: [String] {
         Array(selectedConcerns) + customConcerns
@@ -5757,8 +5845,63 @@ struct AIAdviceSection: View {
                         }
                     }
                 }
+
+                if let onAddRoutineStep, !store.recommendedRoutineSteps(for: topic).isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("建議加入護膚流程")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.text)
+
+                        ForEach(store.recommendedRoutineSteps(for: topic), id: \.self) { step in
+                            recommendationRow(
+                                text: step,
+                                added: addedRoutineSteps.contains(step),
+                                actionTitle: "加入護膚流程"
+                            ) {
+                                onAddRoutineStep(step)
+                                addedRoutineSteps.insert(step)
+                            }
+                        }
+                    }
+                }
+
+                if let onAddProduct, !store.recommendedProducts(for: topic).isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("建議加入保養品清單")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.text)
+
+                        ForEach(store.recommendedProducts(for: topic), id: \.self) { product in
+                            recommendationRow(
+                                text: product,
+                                added: addedProducts.contains(product),
+                                actionTitle: "加入保養品"
+                            ) {
+                                onAddProduct(product)
+                                addedProducts.insert(product)
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+
+    private func recommendationRow(text: String, added: Bool, actionTitle: String, action: @escaping () -> Void) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Text("• \(text)")
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.text)
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Button(added ? "已加入" : actionTitle, action: action)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(added ? AppTheme.subtext : AppTheme.primary)
+                .disabled(added)
+        }
+        .padding(12)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
 

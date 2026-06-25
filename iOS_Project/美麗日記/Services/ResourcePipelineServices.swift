@@ -10,6 +10,7 @@ struct PipelineRuntimeConfiguration {
     let resourceRecommendationFunction: String
     let resourceMediaCleanupFunction: String
     let aiAdviceFunction: String
+    let productLookupFunction: String
     let instagramAppID: String
     let instagramRedirectURI: String
     let xiaohongshuClientID: String
@@ -26,6 +27,7 @@ struct PipelineRuntimeConfiguration {
             resourceRecommendationFunction: AppRuntimeConfiguration.resourceRecommendationFunction,
             resourceMediaCleanupFunction: AppRuntimeConfiguration.resourceMediaCleanupFunction,
             aiAdviceFunction: AppRuntimeConfiguration.aiAdviceFunction,
+            productLookupFunction: AppRuntimeConfiguration.productLookupFunction,
             instagramAppID: AppRuntimeConfiguration.instagramAppID,
             instagramRedirectURI: AppRuntimeConfiguration.instagramRedirectURI,
             xiaohongshuClientID: AppRuntimeConfiguration.xiaohongshuClientID,
@@ -58,7 +60,8 @@ protocol CloudResourceSyncService {
     func enqueueReparse(for item: ResourceItem, reason: String) async throws -> ResourceSyncQueueItem
     func enqueueMediaCleanup(for item: ResourceItem) async throws -> ResourceSyncQueueItem
     func requestRecommendations(for item: ResourceItem) async throws -> [ResourceRecommendationCard]
-    func requestAIAdvice(topic: AIAdviceTopic, concerns: [String]) async throws -> [String]
+    func requestAIAdvice(topic: AIAdviceTopic, concerns: [String]) async throws -> AIAdviceResult
+    func requestProductLookup(name: String?, imageData: Data?) async throws -> ProductLookupResult?
     func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws
     func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings?
     func deleteAIProviderSettings(session: SupabaseAuthSession) async throws
@@ -67,6 +70,19 @@ protocol CloudResourceSyncService {
 struct CloudSyncResult {
     let remoteRecordID: String
     let syncedAt: Date
+}
+
+struct AIAdviceResult {
+    let suggestions: [String]
+    let routineSteps: [String]
+    let products: [String]
+}
+
+struct ProductLookupResult {
+    let name: String
+    let brand: String
+    let category: String
+    let notes: String
 }
 
 struct PlatformImportResult {
@@ -326,8 +342,12 @@ struct NoopCloudResourceSyncService: CloudResourceSyncService {
         []
     }
 
-    func requestAIAdvice(topic: AIAdviceTopic, concerns: [String]) async throws -> [String] {
-        []
+    func requestAIAdvice(topic: AIAdviceTopic, concerns: [String]) async throws -> AIAdviceResult {
+        AIAdviceResult(suggestions: [], routineSteps: [], products: [])
+    }
+
+    func requestProductLookup(name: String?, imageData: Data?) async throws -> ProductLookupResult? {
+        nil
     }
 
     func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws {}
@@ -445,13 +465,32 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
         return response.cards
     }
 
-    func requestAIAdvice(topic: AIAdviceTopic, concerns: [String]) async throws -> [String] {
+    func requestAIAdvice(topic: AIAdviceTopic, concerns: [String]) async throws -> AIAdviceResult {
         let response: AIAdviceFunctionResponse = try await client.invokeFunction(
             named: configuration.aiAdviceFunction,
             payload: AIAdviceFunctionRequest(topic: topic.rawValue, concerns: concerns),
             responseType: AIAdviceFunctionResponse.self
         )
-        return response.suggestions
+        return AIAdviceResult(
+            suggestions: response.suggestions,
+            routineSteps: response.routineSteps ?? [],
+            products: response.products ?? []
+        )
+    }
+
+    func requestProductLookup(name: String?, imageData: Data?) async throws -> ProductLookupResult? {
+        let response: ProductLookupFunctionResponse = try await client.invokeFunction(
+            named: configuration.productLookupFunction,
+            payload: ProductLookupFunctionRequest(name: name, imageBase64: imageData?.base64EncodedString()),
+            responseType: ProductLookupFunctionResponse.self
+        )
+        guard !response.name.isEmpty else { return nil }
+        return ProductLookupResult(
+            name: response.name,
+            brand: response.brand ?? "",
+            category: response.category ?? "",
+            notes: response.notes ?? ""
+        )
     }
 
     /// Stored per-user (RLS-scoped to `session.userID`) so each signed-in
@@ -780,6 +819,20 @@ private struct AIAdviceFunctionRequest: Encodable {
 
 private struct AIAdviceFunctionResponse: Decodable {
     let suggestions: [String]
+    let routineSteps: [String]?
+    let products: [String]?
+}
+
+private struct ProductLookupFunctionRequest: Encodable {
+    let name: String?
+    let imageBase64: String?
+}
+
+private struct ProductLookupFunctionResponse: Decodable {
+    let name: String
+    let brand: String?
+    let category: String?
+    let notes: String?
 }
 
 private struct SupabaseQueueJobResponse: Decodable {

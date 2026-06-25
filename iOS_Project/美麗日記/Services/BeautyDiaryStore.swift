@@ -848,11 +848,23 @@ final class BeautyDiaryStore: ObservableObject {
     /// screens (skincare/hair/face-lift/body-skin/diet/makeup) don't clobber
     /// each other's results when the user switches between them.
     @Published private(set) var aiAdviceSuggestions: [AIAdviceTopic: [String]] = [:]
+    @Published private(set) var aiAdviceRoutineSteps: [AIAdviceTopic: [String]] = [:]
+    @Published private(set) var aiAdviceProducts: [AIAdviceTopic: [String]] = [:]
     @Published private(set) var aiAdviceErrorMessage: [AIAdviceTopic: String] = [:]
     @Published private(set) var loadingAIAdviceTopics: Set<AIAdviceTopic> = []
+    @Published var productLookupError: String?
+    @Published private(set) var isLookingUpProduct = false
 
     func suggestions(for topic: AIAdviceTopic) -> [String] {
         aiAdviceSuggestions[topic] ?? []
+    }
+
+    func recommendedRoutineSteps(for topic: AIAdviceTopic) -> [String] {
+        aiAdviceRoutineSteps[topic] ?? []
+    }
+
+    func recommendedProducts(for topic: AIAdviceTopic) -> [String] {
+        aiAdviceProducts[topic] ?? []
     }
 
     func errorMessage(for topic: AIAdviceTopic) -> String? {
@@ -873,13 +885,40 @@ final class BeautyDiaryStore: ObservableObject {
         aiAdviceErrorMessage[topic] = nil
 
         do {
-            let suggestions = try await cloudSyncService.requestAIAdvice(topic: topic, concerns: concerns)
-            aiAdviceSuggestions[topic] = suggestions
+            let result = try await cloudSyncService.requestAIAdvice(topic: topic, concerns: concerns)
+            aiAdviceSuggestions[topic] = result.suggestions
+            aiAdviceRoutineSteps[topic] = result.routineSteps
+            aiAdviceProducts[topic] = result.products
         } catch {
             aiAdviceErrorMessage[topic] = error.localizedDescription
         }
 
         loadingAIAdviceTopics.remove(topic)
+    }
+
+    /// Looks up product info from a name and/or a photo via AI, so 新增保養品
+    /// doesn't require the user to type in brand/category/notes by hand.
+    func requestProductLookup(name: String?, imageData: Data?) async -> ProductLookupResult? {
+        guard authSession != nil else {
+            productLookupError = "請先登入雲端同步帳號，才能使用 AI 產品辨識功能。"
+            return nil
+        }
+
+        isLookingUpProduct = true
+        productLookupError = nil
+
+        defer { isLookingUpProduct = false }
+
+        do {
+            guard let result = try await cloudSyncService.requestProductLookup(name: name, imageData: imageData) else {
+                productLookupError = "AI 無法辨識這個產品，請手動輸入。"
+                return nil
+            }
+            return result
+        } catch {
+            productLookupError = error.localizedDescription
+            return nil
+        }
     }
 
     func addPunchRecord(summary: String) {

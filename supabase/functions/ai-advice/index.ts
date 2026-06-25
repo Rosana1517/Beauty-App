@@ -18,15 +18,19 @@ Deno.serve(async (req) => {
       : [];
     const topic: AIAdviceTopic = VALID_TOPICS.includes(payload?.topic) ? payload.topic : "skincare";
 
-    const suggestions = await requestFreeformSuggestions(topic, concerns, userID);
-    if (!suggestions) {
+    const result = await requestFreeformSuggestions(topic, concerns, userID);
+    if (!result) {
       return jsonResponse(
         { error: "尚未設定 AI 提供者，請先到「個人設定」的「AI 解析設定」填入 OpenAI 或 Anthropic 的 API Key。" },
         422,
       );
     }
 
-    const response: AIAdviceResponse = { suggestions };
+    const response: AIAdviceResponse = {
+      suggestions: result.suggestions,
+      routineSteps: result.routineSteps.length > 0 ? result.routineSteps : undefined,
+      products: result.products.length > 0 ? result.products : undefined,
+    };
     return jsonResponse(response);
   } catch (error) {
     return jsonResponse(
