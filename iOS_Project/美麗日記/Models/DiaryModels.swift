@@ -325,6 +325,48 @@ struct UserProfileRecord: Codable, Equatable {
     var skincareFocus: String
     var themeName: String
     var notificationTime: String
+    var morningReminderTime: String
+    var enabledModules: Set<String>
+
+    init(
+        nickname: String,
+        streakDays: Int,
+        signature: String,
+        bodyFocus: String,
+        skincareFocus: String,
+        themeName: String,
+        notificationTime: String,
+        morningReminderTime: String = "08:00",
+        enabledModules: Set<String> = ["變美", "體態", "成長", "財務", "情緒"]
+    ) {
+        self.nickname = nickname
+        self.streakDays = streakDays
+        self.signature = signature
+        self.bodyFocus = bodyFocus
+        self.skincareFocus = skincareFocus
+        self.themeName = themeName
+        self.notificationTime = notificationTime
+        self.morningReminderTime = morningReminderTime
+        self.enabledModules = enabledModules
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case nickname, streakDays, signature, bodyFocus, skincareFocus, themeName, notificationTime
+        case morningReminderTime, enabledModules
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        nickname = try container.decode(String.self, forKey: .nickname)
+        streakDays = try container.decode(Int.self, forKey: .streakDays)
+        signature = try container.decode(String.self, forKey: .signature)
+        bodyFocus = try container.decode(String.self, forKey: .bodyFocus)
+        skincareFocus = try container.decode(String.self, forKey: .skincareFocus)
+        themeName = try container.decode(String.self, forKey: .themeName)
+        notificationTime = try container.decode(String.self, forKey: .notificationTime)
+        morningReminderTime = try container.decodeIfPresent(String.self, forKey: .morningReminderTime) ?? "08:00"
+        enabledModules = try container.decodeIfPresent(Set<String>.self, forKey: .enabledModules) ?? ["變美", "體態", "成長", "財務", "情緒"]
+    }
 }
 
 enum AIProviderKind: String, Codable, CaseIterable, Identifiable, Hashable {

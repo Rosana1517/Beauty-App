@@ -3765,16 +3765,82 @@ struct PersonalSettingsView: View {
 struct CustomizationView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
 
+    private let themes = [("玫瑰金", Color(red: 0.79, green: 0.55, blue: 0.48)), ("珊瑚粉", Color(red: 0.95, green: 0.6, blue: 0.6)), ("薰衣草", Color(red: 0.7, green: 0.6, blue: 0.9)), ("薄荷綠", Color(red: 0.55, green: 0.8, blue: 0.7))]
+    private let modules = ["變美", "體態", "成長", "財務", "情緒"]
+
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
                 titleRow(title: "客製化") {}
 
                 CardView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        InfoRow(title: "主題配色", value: store.state.profile.themeName)
-                        InfoRow(title: "通知時間", value: store.state.profile.notificationTime)
-                        InfoRow(title: "體態模組", value: store.state.profile.bodyFocus)
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("模組開關")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        ForEach(modules, id: \.self) { module in
+                            HStack {
+                                Text(module)
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.text)
+                                Spacer()
+                                Toggle("", isOn: Binding(
+                                    get: { store.state.profile.enabledModules.contains(module) },
+                                    set: { _ in store.toggleModule(module) }
+                                ))
+                                .labelsHidden()
+                                .tint(AppTheme.primary)
+                            }
+                            .padding(12)
+                            .background(AppTheme.primarySoft)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("主題配色")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        HStack(spacing: 14) {
+                            ForEach(themes, id: \.0) { theme in
+                                Button {
+                                    store.setThemeName(theme.0)
+                                } label: {
+                                    VStack(spacing: 6) {
+                                        Circle()
+                                            .fill(theme.1)
+                                            .frame(width: 44, height: 44)
+                                            .overlay(
+                                                Circle()
+                                                    .stroke(AppTheme.text, lineWidth: store.state.profile.themeName == theme.0 ? 2 : 0)
+                                                    .padding(-3)
+                                            )
+                                        Text(theme.0)
+                                            .font(.caption2)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("通知時間")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        reminderRow(title: "早晨提醒", time: store.state.profile.morningReminderTime) {
+                            store.setMorningReminderTime($0)
+                        }
+                        reminderRow(title: "晚間提醒", time: store.state.profile.notificationTime) {
+                            store.setEveningReminderTime($0)
+                        }
                     }
                 }
             }
@@ -3782,6 +3848,23 @@ struct CustomizationView: View {
         }
         .background(AppTheme.background)
     }
+
+    private func reminderRow(title: String, time: String, onChange: @escaping (String) -> Void) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(AppTheme.text)
+            Spacer()
+            Picker("", selection: Binding(get: { time }, set: onChange)) {
+                ForEach(Self.timeOptions, id: \.self) { Text($0).tag($0) }
+            }
+        }
+        .padding(12)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private static let timeOptions: [String] = (0..<24).map { String(format: "%02d:00", $0) }
 }
 
 /// Lets each signed-in user bring their own AI provider (OpenAI/Anthropic
@@ -3950,31 +4033,73 @@ private struct SupabaseSyncSettingsCard: View {
 struct AchievementsView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
 
+    private let streakMilestones = [(3, "🌱"), (7, "🌿"), (14, "🌳"), (30, "🏆"), (60, "💎"), (100, "👑")]
+
+    private var milestoneAchievements: [(title: String, detail: String, unlocked: Bool)] {
+        [
+            ("初次打卡", "完成第一次打卡", !store.state.punchRecords.isEmpty || store.weeklyCompletionRate.completed > 0),
+            ("目標啟程", "創建第一個目標", !store.state.wishes.isEmpty || !store.state.trainingSchedule.isEmpty),
+            ("週度堅持", "連續打卡 7 天", store.state.profile.streakDays >= 7),
+            ("月度達人", "連續打卡 30 天", store.state.profile.streakDays >= 30)
+        ]
+    }
+
+    private var specialAchievements: [(title: String, detail: String, unlocked: Bool)] {
+        [
+            ("美麗啟航", "使用全部分頁", store.hasUsedBeautyModule && store.hasUsedBodyModule && store.hasUsedGrowthModule),
+            ("知識積累", "記錄 10 次以上", store.knowledgeRecordCount >= 10),
+            ("財務管家", "記帳超過 5 筆", store.state.transactions.count >= 5),
+            ("完美主義", "一天全部打卡", store.hasPerfectChecklistDay)
+        ]
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
                 titleRow(title: "成就徽章") {}
 
                 CardView {
-                    VStack(spacing: 12) {
-                        ForEach(store.state.achievements) { badge in
-                            HStack(spacing: 12) {
-                                Image(systemName: badge.unlocked ? "medal.fill" : "medal")
-                                    .foregroundStyle(badge.unlocked ? AppTheme.primary : AppTheme.subtext)
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("連續打卡")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(badge.title)
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                            ForEach(streakMilestones, id: \.0) { milestone in
+                                let unlocked = store.state.profile.streakDays >= milestone.0
+                                VStack(spacing: 4) {
+                                    Text(milestone.1)
+                                        .font(.title2)
+                                        .opacity(unlocked ? 1 : 0.35)
+                                    Text("\(milestone.0)天")
+                                        .font(.subheadline.weight(.semibold))
                                         .foregroundStyle(AppTheme.text)
-                                    Text(badge.detail)
-                                        .font(.caption)
+                                    Text(unlocked ? "已達成" : "還差\(milestone.0 - store.state.profile.streakDays)天")
+                                        .font(.caption2)
                                         .foregroundStyle(AppTheme.subtext)
                                 }
-
-                                Spacer()
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
                             }
-                            .padding(14)
-                            .background(AppTheme.primarySoft)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
+                    }
+                }
+
+                achievementGroup(title: "里程碑達成", items: milestoneAchievements)
+                achievementGroup(title: "特殊成就", items: specialAchievements)
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("統計總覽")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        HStack(spacing: 12) {
+                            statBlock(title: "連續打卡", value: "\(store.state.profile.streakDays)天")
+                            statBlock(title: "知識記錄", value: "\(store.knowledgeRecordCount)次")
+                            statBlock(title: "財務記錄", value: "\(store.state.transactions.count)筆")
                         }
                     }
                 }
@@ -3983,41 +4108,152 @@ struct AchievementsView: View {
         }
         .background(AppTheme.background)
     }
+
+    private func achievementGroup(title: String, items: [(title: String, detail: String, unlocked: Bool)]) -> some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                    ForEach(items, id: \.title) { item in
+                        VStack(spacing: 6) {
+                            Image(systemName: item.unlocked ? "star.fill" : "lock.fill")
+                                .foregroundStyle(item.unlocked ? Color.white : AppTheme.subtext)
+                            Text(item.title)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(item.unlocked ? Color.white : AppTheme.text)
+                            Text(item.detail)
+                                .font(.caption2)
+                                .foregroundStyle(item.unlocked ? Color.white.opacity(0.85) : AppTheme.subtext)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(item.unlocked ? AppTheme.primary : AppTheme.primarySoft)
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                }
+            }
+        }
+    }
+
+    private func statBlock(title: String, value: String) -> some View {
+        VStack(spacing: 6) {
+            Text(value)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(AppTheme.primary)
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(AppTheme.subtext)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
 }
 
 struct DataExportView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var exportPreview = ""
+    @State private var showClearConfirm = false
+
+    private var storageRows: [(label: String, count: Int)] {
+        [
+            ("打卡記錄", store.state.punchRecords.count),
+            ("體態數據", store.state.bodyMetricRecords.count),
+            ("飲食記錄", store.state.mealRecords.count),
+            ("茶飲記錄", 0),
+            ("食譜", store.state.favoriteRecipes.count),
+            ("食材", 0),
+            ("書籍", store.state.bookRecords.count),
+            ("課程", store.state.courses.count),
+            ("筆記", store.state.knowledgeNotes.count),
+            ("影音", store.state.videoLearningRecords.count),
+            ("財務記錄", store.state.transactions.count),
+            ("目標", store.state.wishes.count)
+        ]
+    }
 
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                titleRow(title: "數據匯出") {}
+                titleRow(title: "資源庫與數據匯出") {}
 
                 CardView {
-                    VStack(spacing: 12) {
-                        ForEach(ExportFormat.allCases) { format in
-                            PrimaryButton(title: "建立 \(format.rawValue) 匯出預覽") {
-                                exportPreview = store.createExport(format: format)
-                            }
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("數據匯出")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+                        Text("將所有本地數據匯出為JSON文件備份")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.subtext)
+
+                        PrimaryButton(title: "匯出數據") {
+                            exportPreview = store.createExport(format: .json)
+                        }
+
+                        if !exportPreview.isEmpty {
+                            Text(exportPreview)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.subtext)
                         }
                     }
                 }
 
                 CardView {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("匯出預覽")
+                        Text("清除數據")
                             .font(.headline)
                             .foregroundStyle(AppTheme.text)
-                        Text(exportPreview.isEmpty ? "尚未建立匯出預覽" : exportPreview)
-                            .font(.subheadline)
+                        Text("清除所有本地存儲的數據，此操作不可恢復")
+                            .font(.caption)
                             .foregroundStyle(AppTheme.subtext)
+
+                        Button("清除所有數據") {
+                            showClearConfirm = true
+                        }
+                        .font(.headline)
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.red.opacity(0.1))
+                        .clipShape(Capsule())
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("存儲空間")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        ForEach(storageRows, id: \.label) { row in
+                            HStack {
+                                Text(row.label)
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.text)
+                                Spacer()
+                                Text("\(row.count) 條記錄")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                        }
                     }
                 }
             }
             .padding(20)
         }
         .background(AppTheme.background)
+        .alert("確定要清除所有數據嗎？", isPresented: $showClearConfirm) {
+            Button("取消", role: .cancel) {}
+            Button("清除", role: .destructive) {
+                store.clearAllLocalData()
+            }
+        } message: {
+            Text("此操作不可恢復。")
+        }
     }
 }
 

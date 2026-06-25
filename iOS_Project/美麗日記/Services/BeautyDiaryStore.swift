@@ -1014,6 +1014,59 @@ final class BeautyDiaryStore: ObservableObject {
         await scheduleDailyReminderIfPossible(requestPermission: true)
     }
 
+    func setThemeName(_ name: String) {
+        state.profile.themeName = name
+        save()
+    }
+
+    func setMorningReminderTime(_ time: String) {
+        state.profile.morningReminderTime = time
+        save()
+    }
+
+    func setEveningReminderTime(_ time: String) {
+        state.profile.notificationTime = time
+        save()
+    }
+
+    func toggleModule(_ module: String) {
+        if state.profile.enabledModules.contains(module) {
+            state.profile.enabledModules.remove(module)
+        } else {
+            state.profile.enabledModules.insert(module)
+        }
+        save()
+    }
+
+    func clearAllLocalData() {
+        state = .seed
+        save()
+    }
+
+    var hasPerfectChecklistDay: Bool {
+        guard !state.checklistItems.isEmpty else { return false }
+        let grouped = Dictionary(grouping: state.checklistCompletions) { Calendar.current.startOfDay(for: $0.date) }
+        return grouped.values.contains { dayEntries in
+            Set(dayEntries.map(\.itemID)).count >= state.checklistItems.count
+        }
+    }
+
+    var hasUsedBeautyModule: Bool {
+        !state.skinRecords.isEmpty || !state.hairCareRecords.isEmpty || !state.faceLiftActions.isEmpty || !state.bodySkinRecords.isEmpty
+    }
+
+    var hasUsedBodyModule: Bool {
+        !state.bodyMetricRecords.isEmpty || !state.exercisePunches.isEmpty || !state.mealRecords.isEmpty
+    }
+
+    var hasUsedGrowthModule: Bool {
+        !state.bookRecords.isEmpty || !state.courses.isEmpty || !state.knowledgeNotes.isEmpty
+    }
+
+    var knowledgeRecordCount: Int {
+        state.knowledgeNotes.count + state.courses.count + state.bookRecords.count + state.videoLearningRecords.count
+    }
+
     func createExport(format: ExportFormat) -> String {
         let summary = format == .json
             ? "本地 JSON 匯出預覽：包含護膚、體態、成長與資源摘要。"
