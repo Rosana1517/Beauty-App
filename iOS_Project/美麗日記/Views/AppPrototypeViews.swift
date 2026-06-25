@@ -4,6 +4,7 @@ import UIKit
 
 struct HomeView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var showCustomize = false
 
     var body: some View {
         ScrollView {
@@ -20,45 +21,52 @@ struct HomeView: View {
                 CardView {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
-                            Text("今日完成度")
+                            Text("本週完成率")
                                 .font(.headline)
                                 .foregroundStyle(AppTheme.text)
                             Spacer()
-                            Text("\(Int(store.progressValue * 100))%")
+                            Text("\(weeklyPercent)%")
                                 .font(.headline)
                                 .foregroundStyle(AppTheme.primary)
                         }
 
-                        ProgressView(value: store.progressValue)
+                        ProgressView(value: Double(store.weeklyCompletionRate.completed), total: Double(max(1, store.weeklyCompletionRate.total)))
                             .tint(AppTheme.primary)
 
-                        Text("今日待完成 \(store.progressText)")
+                        Text("本週已打卡 \(store.weeklyCompletionRate.completed)/\(store.weeklyCompletionRate.total) 項")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.subtext)
                     }
                 }
 
-                sectionTitle("日常清單")
+                HStack {
+                    sectionTitle("今日待辦打卡")
+                    Spacer()
+                    Button("自定義") { showCustomize = true }
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.primary)
+                }
+
                 VStack(spacing: 12) {
                     ForEach(store.state.checklistItems) { item in
+                        let completedToday = store.isChecklistItemCompletedToday(item)
                         Button {
                             store.toggleChecklist(item)
                         } label: {
                             HStack(spacing: 14) {
-                                Image(systemName: item.isCompleted ? "checkmark.square.fill" : "square")
+                                Image(systemName: completedToday ? "checkmark.circle.fill" : "circle")
                                     .font(.title3)
-                                    .foregroundStyle(item.isCompleted ? AppTheme.primary : AppTheme.subtext)
+                                    .foregroundStyle(completedToday ? AppTheme.primary : AppTheme.subtext)
 
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(item.title)
-                                        .font(.body.weight(.medium))
-                                        .foregroundStyle(AppTheme.text)
-                                    Text(item.category)
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.subtext)
-                                }
+                                Text(item.title)
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(AppTheme.text)
 
                                 Spacer()
+
+                                Text(item.category)
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.subtext)
                             }
                             .padding(16)
                             .background(AppTheme.card)
@@ -68,40 +76,10 @@ struct HomeView: View {
                         .shadow(color: AppTheme.shadow, radius: 10, y: 5)
                     }
                 }
-
-                sectionTitle("快速入口")
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
-                    NavigationLink {
-                        SkincareManagementView()
-                    } label: {
-                        QuickLinkCard(title: "護膚管理", subtitle: "步驟、保養品、膚況追蹤", systemImage: "sparkles")
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        BodyMetricsView()
-                    } label: {
-                        QuickLinkCard(title: "體態紀錄", subtitle: "體重體脂與飲食回顧", systemImage: "figure.walk")
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        ReadingTrackerView()
-                    } label: {
-                        QuickLinkCard(title: "閱讀追蹤", subtitle: "書單與外部連結收藏", systemImage: "book")
-                    }
-                    .buttonStyle(.plain)
-
-                    NavigationLink {
-                        ResourceLibraryView()
-                    } label: {
-                        QuickLinkCard(title: "資源庫", subtitle: "匯入內容與 AI 推薦", systemImage: "folder")
-                    }
-                    .buttonStyle(.plain)
-                }
             }
             .padding(20)
         }
+        .sheet(isPresented: $showCustomize) { CustomizeChecklistSheet() }
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
@@ -111,6 +89,12 @@ struct HomeView: View {
         Text(title)
             .font(.headline)
             .foregroundStyle(AppTheme.text)
+    }
+
+    private var weeklyPercent: Int {
+        let rate = store.weeklyCompletionRate
+        guard rate.total > 0 else { return 0 }
+        return Int(Double(rate.completed) / Double(rate.total) * 100)
     }
 }
 
@@ -4257,6 +4241,54 @@ private struct AddBeforeAfterPhotoSheet: View {
     }
 }
 
+private struct CustomizeChecklistSheet: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var newTitle = ""
+    @State private var newCategory = "變美"
+
+    private let categories = ["變美", "體態", "成長"]
+
+    var body: some View {
+        FormSheet(title: "自訂打卡項目") {
+            HStack(spacing: 10) {
+                ThemedTextField(title: "添加打卡項目", text: $newTitle)
+                Picker("分類", selection: $newCategory) {
+                    ForEach(categories, id: \.self) { Text($0).tag($0) }
+                }
+                Button("添加") {
+                    store.addCustomChecklistItem(title: newTitle, category: newCategory)
+                    newTitle = ""
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.primary)
+            }
+
+            VStack(spacing: 10) {
+                ForEach(store.state.checklistItems) { item in
+                    HStack {
+                        Text(item.title)
+                            .font(.subheadline)
+                            .foregroundStyle(AppTheme.text)
+                        Spacer()
+                        Text(item.category)
+                            .font(.caption2)
+                            .foregroundStyle(AppTheme.subtext)
+                        Button {
+                            store.deleteChecklistItem(item)
+                        } label: {
+                            Image(systemName: "trash")
+                                .foregroundStyle(.red)
+                        }
+                    }
+                    .padding(10)
+                    .background(AppTheme.primarySoft)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+        }
+    }
+}
+
 private struct AddTransactionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
@@ -5085,29 +5117,6 @@ private struct FormSheet<Content: View>: View {
             .background(AppTheme.background)
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
-        }
-    }
-}
-
-private struct QuickLinkCard: View {
-    let title: String
-    let subtitle: String
-    let systemImage: String
-
-    var body: some View {
-        CardView {
-            VStack(alignment: .leading, spacing: 12) {
-                Image(systemName: systemImage)
-                    .font(.title2)
-                    .foregroundStyle(AppTheme.primary)
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(AppTheme.text)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(AppTheme.subtext)
-            }
-            .frame(maxWidth: .infinity, minHeight: 118, alignment: .leading)
         }
     }
 }

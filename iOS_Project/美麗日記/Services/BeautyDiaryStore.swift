@@ -142,16 +142,35 @@ final class BeautyDiaryStore: ObservableObject {
     }
 
     var progressText: String {
-        "\(completedChecklistCount)/\(state.checklistItems.count)"
+        "\(completedChecklistCountToday)/\(state.checklistItems.count)"
     }
 
     var progressValue: Double {
         guard !state.checklistItems.isEmpty else { return 0 }
-        return Double(completedChecklistCount) / Double(state.checklistItems.count)
+        return Double(completedChecklistCountToday) / Double(state.checklistItems.count)
     }
 
-    var completedChecklistCount: Int {
-        state.checklistItems.filter(\.isCompleted).count
+    var completedChecklistCountToday: Int {
+        state.checklistItems.filter { isChecklistItemCompletedToday($0) }.count
+    }
+
+    func isChecklistItemCompletedToday(_ item: ChecklistItem) -> Bool {
+        state.checklistCompletions.contains { $0.itemID == item.id && Calendar.current.isDateInToday($0.date) }
+    }
+
+    /// "本週完成率": of the items that have ever been checked off this week
+    /// at least once, relative to the full checklist - matches the
+    /// reference design's "本週已打卡 X/Y 項" framing (distinct from
+    /// today's daily completion ratio above).
+    var weeklyCompletionRate: (completed: Int, total: Int) {
+        let calendar = Calendar.current
+        let now = Date()
+        let completedItemIDs = Set(
+            state.checklistCompletions
+                .filter { calendar.isDate($0.date, equalTo: now, toGranularity: .weekOfYear) }
+                .map(\.itemID)
+        )
+        return (completedItemIDs.count, state.checklistItems.count)
     }
 
     var skincareAdvice: [String] {
@@ -178,8 +197,25 @@ final class BeautyDiaryStore: ObservableObject {
     }
 
     func toggleChecklist(_ item: ChecklistItem) {
-        guard let index = state.checklistItems.firstIndex(where: { $0.id == item.id }) else { return }
-        state.checklistItems[index].isCompleted.toggle()
+        if isChecklistItemCompletedToday(item) {
+            state.checklistCompletions.removeAll { $0.itemID == item.id && Calendar.current.isDateInToday($0.date) }
+        } else {
+            state.checklistCompletions.append(ChecklistCompletionEntry(id: UUID(), itemID: item.id, date: Date()))
+        }
+        save()
+    }
+
+    func addCustomChecklistItem(title: String, category: String) {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        state.checklistItems.append(ChecklistItem(id: UUID(), title: trimmed, category: category))
+        save()
+    }
+
+    func deleteChecklistItem(_ item: ChecklistItem) {
+        state.checklistItems.removeAll { $0.id == item.id }
+        state.checklistCompletions.removeAll { $0.itemID == item.id }
         save()
     }
 

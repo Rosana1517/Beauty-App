@@ -363,7 +363,12 @@ struct ChecklistItem: Identifiable, Codable {
     var id: UUID
     var title: String
     var category: String
-    var isCompleted: Bool
+}
+
+struct ChecklistCompletionEntry: Identifiable, Codable {
+    var id: UUID
+    var itemID: UUID
+    var date: Date
 }
 
 struct RoutineStep: Identifiable, Codable {
@@ -1134,6 +1139,7 @@ struct BeautyDiaryState: Codable {
     var beautyFundTransactions: [BeautyFundTransaction]
     var wishes: [Wish]
     var shoppingItems: [ShoppingItem]
+    var checklistCompletions: [ChecklistCompletionEntry]
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -1191,6 +1197,7 @@ struct BeautyDiaryState: Codable {
         case beautyFundTransactions
         case wishes
         case shoppingItems
+        case checklistCompletions
     }
 
     init(
@@ -1248,7 +1255,8 @@ struct BeautyDiaryState: Codable {
         budgetCategories: [BudgetCategory] = [],
         beautyFundTransactions: [BeautyFundTransaction] = [],
         wishes: [Wish] = [],
-        shoppingItems: [ShoppingItem] = []
+        shoppingItems: [ShoppingItem] = [],
+        checklistCompletions: [ChecklistCompletionEntry] = []
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -1305,6 +1313,7 @@ struct BeautyDiaryState: Codable {
         self.beautyFundTransactions = beautyFundTransactions
         self.wishes = wishes
         self.shoppingItems = shoppingItems
+        self.checklistCompletions = checklistCompletions
     }
 
     init(from decoder: Decoder) throws {
@@ -1364,6 +1373,7 @@ struct BeautyDiaryState: Codable {
         beautyFundTransactions = try container.decodeIfPresent([BeautyFundTransaction].self, forKey: .beautyFundTransactions) ?? []
         wishes = try container.decodeIfPresent([Wish].self, forKey: .wishes) ?? []
         shoppingItems = try container.decodeIfPresent([ShoppingItem].self, forKey: .shoppingItems) ?? []
+        checklistCompletions = try container.decodeIfPresent([ChecklistCompletionEntry].self, forKey: .checklistCompletions) ?? []
     }
 }
 
@@ -1379,10 +1389,16 @@ extension BeautyDiaryState {
             notificationTime: "21:00"
         ),
         checklistItems: [
-            ChecklistItem(id: UUID(), title: "晨間護膚", category: "變美", isCompleted: false),
-            ChecklistItem(id: UUID(), title: "體態紀錄", category: "體態", isCompleted: false),
-            ChecklistItem(id: UUID(), title: "閱讀打卡", category: "成長", isCompleted: false),
-            ChecklistItem(id: UUID(), title: "飲食回顧", category: "體態", isCompleted: false)
+            ChecklistItem(id: UUID(), title: "護膚打卡", category: "變美"),
+            ChecklistItem(id: UUID(), title: "頭髮保養", category: "變美"),
+            ChecklistItem(id: UUID(), title: "美白計畫", category: "變美"),
+            ChecklistItem(id: UUID(), title: "面部拉提/瑜珈", category: "變美"),
+            ChecklistItem(id: UUID(), title: "運動打卡", category: "體態"),
+            ChecklistItem(id: UUID(), title: "養生茶飲", category: "體態"),
+            ChecklistItem(id: UUID(), title: "飲食記錄", category: "體態"),
+            ChecklistItem(id: UUID(), title: "健康狀況", category: "體態"),
+            ChecklistItem(id: UUID(), title: "閱讀打卡", category: "成長"),
+            ChecklistItem(id: UUID(), title: "情緒記錄", category: "成長")
         ],
         routine: SkincareRoutine(
             steps: [
@@ -1457,6 +1473,7 @@ extension BeautyDiaryState {
         budgetCategories: [],
         beautyFundTransactions: [],
         wishes: [],
-        shoppingItems: []
+        shoppingItems: [],
+        checklistCompletions: []
     )
 }
