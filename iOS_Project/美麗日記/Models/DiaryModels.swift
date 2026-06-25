@@ -71,8 +71,13 @@ enum BodyRoute: String, Hashable, Codable, CaseIterable, Identifiable {
 
 enum GrowthRoute: String, Hashable, Codable, CaseIterable, Identifiable {
     case reading = "閱讀追蹤"
-    case notes = "成長筆記"
-    case plan = "本週成長"
+    case courses = "課程學習"
+    case notes = "知識筆記"
+    case videos = "影音學習"
+    case dailyQuote = "每日金句"
+    case moodTracking = "情緒追蹤"
+    case finance = "財務總覽"
+    case goals = "目標管理"
 
     var id: String { rawValue }
 }
@@ -96,6 +101,19 @@ enum AIAdviceTopic: String, Codable {
     case makeup
     case exercise
     case wellness
+    case finance
+}
+
+enum FinanceRoute: String, Hashable, CaseIterable, Identifiable {
+    case ledger = "快速記帳"
+    case budget = "預算儀表板"
+    case aiAdvice = "AI預算建議"
+    case spendingAnalysis = "消費分析"
+    case beautyFund = "變美基金"
+    case shoppingList = "購物清單"
+    case financialHealth = "財務健康評估"
+
+    var id: String { rawValue }
 }
 
 enum WellnessSection: String, CaseIterable, Identifiable, Hashable {
@@ -410,6 +428,100 @@ struct BeforeAfterPhotoPair: Identifiable, Codable {
     var date: Date
     var beforeImageData: Data?
     var afterImageData: Data?
+    var note: String
+}
+
+enum TransactionType: String, Codable {
+    case income = "收入"
+    case expense = "支出"
+}
+
+struct Transaction: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var type: TransactionType
+    var amount: Double
+    var category: String
+    var account: String
+    var note: String
+}
+
+struct BudgetCategory: Identifiable, Codable {
+    var id: UUID
+    var category: String
+    var amount: Double
+}
+
+enum BeautyFundTransactionType: String, Codable {
+    case deposit = "存入"
+    case withdrawal = "支出"
+}
+
+struct BeautyFundTransaction: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var type: BeautyFundTransactionType
+    var amount: Double
+}
+
+struct Wish: Identifiable, Codable {
+    var id: UUID
+    var name: String
+    var targetAmount: Double
+}
+
+struct ShoppingItem: Identifiable, Codable {
+    var id: UUID
+    var name: String
+    var estimatedPrice: Double
+    var isPurchased: Bool
+}
+
+struct Course: Identifiable, Codable {
+    var id: UUID
+    var title: String
+    var platform: String
+    var url: String
+    var progressPercent: Int
+}
+
+struct KnowledgeNote: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var title: String
+    var content: String
+    var tags: [String]
+}
+
+struct VideoLearningRecord: Identifiable, Codable {
+    var id: UUID
+    var title: String
+    var contentType: String
+    var platform: String
+    var url: String
+    var watched: Bool
+}
+
+struct SelfAffirmation: Identifiable, Codable {
+    var id: UUID
+    var text: String
+}
+
+struct VisionBoardItem: Identifiable, Codable {
+    var id: UUID
+    var text: String
+}
+
+struct GratitudeEntry: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var text: String
+}
+
+struct MoodEntry: Identifiable, Codable {
+    var id: UUID
+    var date: Date
+    var mood: String
     var note: String
 }
 
@@ -1010,6 +1122,18 @@ struct BeautyDiaryState: Codable {
     var trainingSchedule: [TrainingScheduleItem]
     var symptomRecords: [SymptomRecord]
     var bodyAlbumPhotos: [BodyAlbumPhoto]
+    var courses: [Course]
+    var knowledgeNotes: [KnowledgeNote]
+    var videoLearningRecords: [VideoLearningRecord]
+    var selfAffirmations: [SelfAffirmation]
+    var visionBoardItems: [VisionBoardItem]
+    var gratitudeEntries: [GratitudeEntry]
+    var moodEntries: [MoodEntry]
+    var transactions: [Transaction]
+    var budgetCategories: [BudgetCategory]
+    var beautyFundTransactions: [BeautyFundTransaction]
+    var wishes: [Wish]
+    var shoppingItems: [ShoppingItem]
 
     private enum CodingKeys: String, CodingKey {
         case profile
@@ -1055,6 +1179,18 @@ struct BeautyDiaryState: Codable {
         case trainingSchedule
         case symptomRecords
         case bodyAlbumPhotos
+        case courses
+        case knowledgeNotes
+        case videoLearningRecords
+        case selfAffirmations
+        case visionBoardItems
+        case gratitudeEntries
+        case moodEntries
+        case transactions
+        case budgetCategories
+        case beautyFundTransactions
+        case wishes
+        case shoppingItems
     }
 
     init(
@@ -1100,7 +1236,19 @@ struct BeautyDiaryState: Codable {
         targetBodyFat: Double? = nil,
         trainingSchedule: [TrainingScheduleItem] = [],
         symptomRecords: [SymptomRecord] = [],
-        bodyAlbumPhotos: [BodyAlbumPhoto] = []
+        bodyAlbumPhotos: [BodyAlbumPhoto] = [],
+        courses: [Course] = [],
+        knowledgeNotes: [KnowledgeNote] = [],
+        videoLearningRecords: [VideoLearningRecord] = [],
+        selfAffirmations: [SelfAffirmation] = [],
+        visionBoardItems: [VisionBoardItem] = [],
+        gratitudeEntries: [GratitudeEntry] = [],
+        moodEntries: [MoodEntry] = [],
+        transactions: [Transaction] = [],
+        budgetCategories: [BudgetCategory] = [],
+        beautyFundTransactions: [BeautyFundTransaction] = [],
+        wishes: [Wish] = [],
+        shoppingItems: [ShoppingItem] = []
     ) {
         self.profile = profile
         self.checklistItems = checklistItems
@@ -1145,6 +1293,18 @@ struct BeautyDiaryState: Codable {
         self.trainingSchedule = trainingSchedule
         self.symptomRecords = symptomRecords
         self.bodyAlbumPhotos = bodyAlbumPhotos
+        self.courses = courses
+        self.knowledgeNotes = knowledgeNotes
+        self.videoLearningRecords = videoLearningRecords
+        self.selfAffirmations = selfAffirmations
+        self.visionBoardItems = visionBoardItems
+        self.gratitudeEntries = gratitudeEntries
+        self.moodEntries = moodEntries
+        self.transactions = transactions
+        self.budgetCategories = budgetCategories
+        self.beautyFundTransactions = beautyFundTransactions
+        self.wishes = wishes
+        self.shoppingItems = shoppingItems
     }
 
     init(from decoder: Decoder) throws {
@@ -1192,6 +1352,18 @@ struct BeautyDiaryState: Codable {
         trainingSchedule = try container.decodeIfPresent([TrainingScheduleItem].self, forKey: .trainingSchedule) ?? []
         symptomRecords = try container.decodeIfPresent([SymptomRecord].self, forKey: .symptomRecords) ?? []
         bodyAlbumPhotos = try container.decodeIfPresent([BodyAlbumPhoto].self, forKey: .bodyAlbumPhotos) ?? []
+        courses = try container.decodeIfPresent([Course].self, forKey: .courses) ?? []
+        knowledgeNotes = try container.decodeIfPresent([KnowledgeNote].self, forKey: .knowledgeNotes) ?? []
+        videoLearningRecords = try container.decodeIfPresent([VideoLearningRecord].self, forKey: .videoLearningRecords) ?? []
+        selfAffirmations = try container.decodeIfPresent([SelfAffirmation].self, forKey: .selfAffirmations) ?? []
+        visionBoardItems = try container.decodeIfPresent([VisionBoardItem].self, forKey: .visionBoardItems) ?? []
+        gratitudeEntries = try container.decodeIfPresent([GratitudeEntry].self, forKey: .gratitudeEntries) ?? []
+        moodEntries = try container.decodeIfPresent([MoodEntry].self, forKey: .moodEntries) ?? []
+        transactions = try container.decodeIfPresent([Transaction].self, forKey: .transactions) ?? []
+        budgetCategories = try container.decodeIfPresent([BudgetCategory].self, forKey: .budgetCategories) ?? []
+        beautyFundTransactions = try container.decodeIfPresent([BeautyFundTransaction].self, forKey: .beautyFundTransactions) ?? []
+        wishes = try container.decodeIfPresent([Wish].self, forKey: .wishes) ?? []
+        shoppingItems = try container.decodeIfPresent([ShoppingItem].self, forKey: .shoppingItems) ?? []
     }
 }
 
@@ -1273,6 +1445,18 @@ extension BeautyDiaryState {
         targetBodyFat: nil,
         trainingSchedule: [],
         symptomRecords: [],
-        bodyAlbumPhotos: []
+        bodyAlbumPhotos: [],
+        courses: [],
+        knowledgeNotes: [],
+        videoLearningRecords: [],
+        selfAffirmations: [],
+        visionBoardItems: [],
+        gratitudeEntries: [],
+        moodEntries: [],
+        transactions: [],
+        budgetCategories: [],
+        beautyFundTransactions: [],
+        wishes: [],
+        shoppingItems: []
     )
 }

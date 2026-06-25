@@ -145,7 +145,7 @@ export interface RecommendationFunctionResponse {
   cards: ResourceRecommendationCard[];
 }
 
-export type AIAdviceTopic = "skincare" | "hair" | "facialLift" | "bodySkin" | "diet" | "makeup" | "exercise" | "wellness";
+export type AIAdviceTopic = "skincare" | "hair" | "facialLift" | "bodySkin" | "diet" | "makeup" | "exercise" | "wellness" | "finance";
 
 export interface AIAdviceRequest {
   topic: AIAdviceTopic;
