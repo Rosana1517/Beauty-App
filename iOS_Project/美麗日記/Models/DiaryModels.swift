@@ -51,9 +51,9 @@ enum SkincareSection: String, CaseIterable, Codable, Identifiable {
     case steps = "護膚步驟"
     case products = "保養品"
     case tracking = "膚質追蹤"
+    case advice = "AI建議"
     case tutorials = "教程連結"
     case history = "打卡歷史"
-    case advice = "AI建議"
 
     var id: String { rawValue }
 }
