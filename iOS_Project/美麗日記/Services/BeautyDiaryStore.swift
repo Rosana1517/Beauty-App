@@ -921,6 +921,97 @@ final class BeautyDiaryStore: ObservableObject {
         }
     }
 
+    // MARK: - 區域目標與彙整建議
+
+    func setAreaGoal(_ area: String, goal: String) {
+        state.areaGoals[area] = goal.trimmingCharacters(in: .whitespacesAndNewlines)
+        save()
+    }
+
+    func areaGoal(_ area: String) -> String {
+        state.areaGoals[area] ?? ""
+    }
+
+    /// 依區域彙整近期記錄成摘要句，供本地顯示與 AI 建議的輸入
+    func areaRecordsDigest(_ area: String) -> [String] {
+        var digest: [String] = []
+        switch area {
+        case "變美":
+            if let latest = state.skinRecords.first {
+                digest.append("最近膚況：\(latest.skinType)，困擾 \(latest.concerns.joined(separator: "、"))")
+            }
+            digest.append("護膚打卡 \(state.punchRecords.count) 次、膚況紀錄 \(state.skinRecords.count) 筆")
+            if !state.whiteningProductUsages.isEmpty {
+                digest.append("美白產品使用 \(state.whiteningProductUsages.count) 次")
+            }
+            if let shape = state.faceShape, !shape.isEmpty {
+                digest.append("臉型：\(shape)")
+            }
+        case "體態":
+            let metrics = state.bodyMetricRecords
+            if let latest = metrics.first {
+                digest.append("目前體重 \(latest.weight)kg、體脂 \(latest.bodyFat)%")
+            }
+            if metrics.count >= 2, let latest = metrics.first, let oldest = metrics.last {
+                let delta = latest.weight - oldest.weight
+                digest.append(String(format: "累計體重變化 %+.1fkg（共 %d 筆記錄）", delta, metrics.count))
+            }
+            let totalMinutes = state.exercisePunches.reduce(0) { $0 + $1.durationMinutes }
+            if !state.exercisePunches.isEmpty {
+                digest.append("運動打卡 \(state.exercisePunches.count) 次，共 \(totalMinutes) 分鐘")
+            }
+            if !state.mealRecords.isEmpty {
+                digest.append("飲食記錄 \(state.mealRecords.count) 筆")
+            }
+        case "成長":
+            if !state.courses.isEmpty {
+                let avg = state.courses.reduce(0) { $0 + $1.progressPercent } / max(state.courses.count, 1)
+                digest.append("課程 \(state.courses.count) 門，平均進度 \(avg)%")
+            }
+            if !state.bookRecords.isEmpty {
+                digest.append("閱讀書目 \(state.bookRecords.count) 本")
+            }
+            if !state.knowledgeNotes.isEmpty {
+                digest.append("知識筆記 \(state.knowledgeNotes.count) 篇")
+            }
+            if let mood = state.moodEntries.first {
+                digest.append("最近心情：\(mood.mood)")
+            }
+        case "財務":
+            let expenses = state.transactions.filter { $0.type == .expense }
+            let income = state.transactions.filter { $0.type == .income }
+            let totalExpense = expenses.reduce(0.0) { $0 + $1.amount }
+            let totalIncome = income.reduce(0.0) { $0 + $1.amount }
+            digest.append(String(format: "累計支出 %.0f、收入 %.0f（%d 筆交易）", totalExpense, totalIncome, state.transactions.count))
+            if !state.budgetCategories.isEmpty {
+                let totalBudget = state.budgetCategories.reduce(0.0) { $0 + $1.amount }
+                digest.append(String(format: "預算共 %.0f，分 %d 類", totalBudget, state.budgetCategories.count))
+            }
+            if !state.wishes.isEmpty {
+                digest.append("儲蓄願望 \(state.wishes.count) 項")
+            }
+        default:
+            break
+        }
+        if digest.isEmpty {
+            digest.append("此區域還沒有任何記錄，先從新增第一筆開始。")
+        }
+        return digest
+    }
+
+    /// 通用記錄編輯：以 id 比對後整筆替換，適用於所有 state 內的記錄陣列
+    func replaceRecord<T: Identifiable>(_ item: T, in keyPath: WritableKeyPath<BeautyDiaryState, [T]>) {
+        guard let index = state[keyPath: keyPath].firstIndex(where: { $0.id == item.id }) else { return }
+        state[keyPath: keyPath][index] = item
+        save()
+    }
+
+    /// 通用記錄刪除
+    func removeRecord<T: Identifiable>(_ item: T, from keyPath: WritableKeyPath<BeautyDiaryState, [T]>) {
+        state[keyPath: keyPath].removeAll { $0.id == item.id }
+        save()
+    }
+
     func addPunchRecord(summary: String) {
         let trimmed = summary.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
@@ -974,7 +1065,7 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
-    func addMealRecord(type: String, summary: String, note: String) {
+    func addMealRecord(type: String, summary: String, note: String, calories: Int? = nil, photoData: Data? = nil) {
         let trimmed = summary.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
 
@@ -984,11 +1075,20 @@ final class BeautyDiaryStore: ObservableObject {
                 date: Date(),
                 mealType: type,
                 summary: trimmed,
-                note: note
+                note: note,
+                calories: calories ?? CalorieEstimator.estimate(from: trimmed),
+                photoData: photoData
             ),
             at: 0
         )
         save()
+    }
+
+    /// 今日各餐與總熱量
+    func todayCalorieSummary() -> (meals: [MealRecord], total: Int) {
+        let todays = state.mealRecords.filter { Calendar.current.isDateInToday($0.date) }
+        let total = todays.compactMap(\.calories).reduce(0, +)
+        return (todays, total)
     }
 
     func deleteMealRecord(_ record: MealRecord) {

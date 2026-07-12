@@ -1,10 +1,12 @@
 import SwiftUI
 import PhotosUI
 import UIKit
+import WebKit
 
 struct HomeView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showCustomize = false
+    @State private var editingChecklistItem: ChecklistItem?
 
     var body: some View {
         ScrollView {
@@ -74,12 +76,29 @@ struct HomeView: View {
                         }
                         .buttonStyle(.plain)
                         .shadow(color: AppTheme.shadow, radius: 10, y: 5)
+                        .recordActions(onEdit: { editingChecklistItem = item }) {
+                            store.deleteChecklistItem(item)
+                        }
                     }
                 }
             }
             .padding(20)
         }
         .sheet(isPresented: $showCustomize) { CustomizeChecklistSheet() }
+        .sheet(item: $editingChecklistItem) { item in
+            FieldsEditSheet(
+                title: "編輯打卡項目",
+                fieldLabels: ["名稱", "分類"],
+                values: [item.title, item.category],
+                showsDate: false,
+                date: .now
+            ) { values, _ in
+                var updated = item
+                updated.title = values[0]
+                updated.category = values[1]
+                store.replaceRecord(updated, in: \.checklistItems)
+            }
+        }
         .background(AppTheme.background)
         .navigationBarBackButtonHidden()
         .toolbar(.hidden, for: .navigationBar)
@@ -103,6 +122,8 @@ struct BeautyRootView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header(title: "變美", subtitle: "建立你的護膚與美容管理流程")
+
+                GoalAdviceCard(area: "變美", topic: .skincare)
 
                 ForEach(BeautyRoute.allCases) { route in
                     NavigationLink(value: route) {
@@ -193,6 +214,10 @@ struct SkincareManagementView: View {
     @State private var showAddStep = false
     @State private var showSkinRecord = false
     @State private var showPunch = false
+    @State private var editingPunch: PunchRecord?
+    @State private var editingSkinRecord: SkinRecord?
+    @State private var editingTutorialLink: TutorialLink?
+    @State private var editingProduct: Product?
 
     private let concerns = ["清潔", "乾燥", "泛紅", "毛孔", "粉刺", "暗沉", "敏感", "痘痘"]
 
@@ -244,10 +269,52 @@ struct SkincareManagementView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingProduct) { record in
+            FieldsEditSheet(
+                title: "編輯保養品",
+                fieldLabels: ["名稱", "品牌", "分類", "備註"],
+                values: [record.name, record.brand, record.category, record.notes],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.name = values[0]
+                updated.brand = values[1]
+                updated.category = values[2]
+                updated.notes = values[3]
+
+                store.replaceRecord(updated, in: \.products)
+            }
+        }
         .sheet(isPresented: $showAddProduct) { AddProductSheet() }
         .sheet(isPresented: $showAddStep) { AddStepSheet() }
         .sheet(isPresented: $showSkinRecord) { AddSkinRecordSheet(concerns: concerns) }
         .sheet(isPresented: $showPunch) { AddPunchSheet() }
+        .sheet(item: $editingPunch) { record in
+            EditPunchSheet(record: record)
+        }
+        .sheet(item: $editingSkinRecord) { record in
+            TypeNoteEditSheet(
+                title: "編輯膚況紀錄",
+                typeLabel: "膚質類型",
+                typeOptions: ["乾性", "油性", "混合", "敏感", "中性"],
+                typeValue: record.skinType,
+                note: record.note
+            ) { newType, newNote in
+                var updated = record
+                updated.skinType = newType
+                updated.note = newNote
+                store.replaceRecord(updated, in: \.skinRecords)
+            }
+        }
+        .sheet(item: $editingTutorialLink) { link in
+            TitleURLEditSheet(title: "編輯教程連結", itemTitle: link.title, url: link.url) { newTitle, newURL in
+                var updated = link
+                updated.title = newTitle
+                updated.url = newURL
+                store.replaceRecord(updated, in: \.tutorialLinks)
+            }
+        }
     }
 
     private var sectionActionTitle: String? {
@@ -351,12 +418,8 @@ struct SkincareManagementView: View {
                         .padding(14)
                         .background(AppTheme.primarySoft)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                store.deleteProduct(product)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                        .recordActions(onEdit: { editingProduct = product }) {
+                            store.deleteProduct(product)
                         }
                     }
                 }
@@ -388,12 +451,8 @@ struct SkincareManagementView: View {
                         .padding(14)
                         .background(AppTheme.primarySoft)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                store.deleteSkinRecord(record)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
+                        .recordActions(onEdit: { editingSkinRecord = record }) {
+                            store.deleteSkinRecord(record)
                         }
                     }
                 } else {
@@ -427,6 +486,9 @@ struct SkincareManagementView: View {
                     .padding(14)
                     .background(AppTheme.primarySoft)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .recordActions(onEdit: { editingTutorialLink = link }) {
+                        store.removeRecord(link, from: \.tutorialLinks)
+                    }
                 }
             }
         }
@@ -454,6 +516,18 @@ struct SkincareManagementView: View {
                         .padding(14)
                         .background(AppTheme.primarySoft)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .contextMenu {
+                            Button {
+                                editingPunch = record
+                            } label: {
+                                Label("編輯", systemImage: "pencil")
+                            }
+                            Button(role: .destructive) {
+                                store.removeRecord(record, from: \.punchRecords)
+                            } label: {
+                                Label("刪除", systemImage: "trash")
+                            }
+                        }
                     }
                 }
             }
@@ -502,6 +576,8 @@ struct WhiteningPlanView: View {
     @State private var showAddUsage = false
     @State private var showAddShade = false
     @State private var showAddPhoto = false
+    @State private var editingWhiteningUsage: WhiteningProductUsage?
+    @State private var editingShadeRecord: ShadeTrackingRecord?
 
     var body: some View {
         ScrollView {
@@ -519,7 +595,8 @@ struct WhiteningPlanView: View {
                                 ForEach(store.state.whiteningProductUsages) { record in
                                     planRow(
                                         title: record.productName,
-                                        subtitle: record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .omitted) : record.note
+                                        subtitle: record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .omitted) : record.note,
+                                        onEdit: { editingWhiteningUsage = record }
                                     ) { store.deleteWhiteningProductUsage(record) }
                                 }
                             }
@@ -538,7 +615,8 @@ struct WhiteningPlanView: View {
                                 ForEach(store.state.shadeTrackingRecords) { record in
                                     planRow(
                                         title: record.shadeName,
-                                        subtitle: record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .omitted) : record.note
+                                        subtitle: record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .omitted) : record.note,
+                                        onEdit: { editingShadeRecord = record }
                                     ) { store.deleteShadeTrackingRecord(record) }
                                 }
                             }
@@ -566,12 +644,8 @@ struct WhiteningPlanView: View {
                                     .padding(10)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteBeforeAfterPhoto(pair)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions {
+                                        store.deleteBeforeAfterPhoto(pair)
                                     }
                                 }
                             }
@@ -582,6 +656,36 @@ struct WhiteningPlanView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingWhiteningUsage) { record in
+            FieldsEditSheet(
+                title: "編輯美白產品使用",
+                fieldLabels: ["產品名稱", "備註"],
+                values: [record.productName, record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.productName = values[0]
+                updated.note = values[1]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.whiteningProductUsages)
+            }
+        }
+        .sheet(item: $editingShadeRecord) { record in
+            FieldsEditSheet(
+                title: "編輯色號追蹤",
+                fieldLabels: ["色號", "備註"],
+                values: [record.shadeName, record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.shadeName = values[0]
+                updated.note = values[1]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.shadeTrackingRecords)
+            }
+        }
         .sheet(isPresented: $showAddUsage) { AddWhiteningProductUsageSheet() }
         .sheet(isPresented: $showAddShade) { AddShadeTrackingSheet() }
         .sheet(isPresented: $showAddPhoto) { AddBeforeAfterPhotoSheet() }
@@ -599,7 +703,7 @@ struct WhiteningPlanView: View {
         }
     }
 
-    private func planRow(title: String, subtitle: String, onDelete: @escaping () -> Void) -> some View {
+    private func planRow(title: String, subtitle: String, onEdit: (() -> Void)? = nil, onDelete: @escaping () -> Void) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(.body.weight(.medium))
@@ -612,11 +716,7 @@ struct WhiteningPlanView: View {
         .padding(12)
         .background(AppTheme.primarySoft)
         .clipShape(RoundedRectangle(cornerRadius: 14))
-        .contextMenu {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
-        }
+        .recordActions(onEdit: onEdit, onDelete: onDelete)
     }
 
     @ViewBuilder
@@ -644,6 +744,7 @@ struct FaceLiftYogaView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAddAction = false
     @State private var showAddRating = false
+    @State private var editingFaceLiftRating: FaceLiftRatingRecord?
 
     var body: some View {
         ScrollView {
@@ -756,12 +857,8 @@ struct FaceLiftYogaView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteFaceLiftRating(rating)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingFaceLiftRating = rating }) {
+                                        store.deleteFaceLiftRating(rating)
                                     }
                                 }
                             }
@@ -772,6 +869,21 @@ struct FaceLiftYogaView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingFaceLiftRating) { record in
+            FieldsEditSheet(
+                title: "編輯效果評分",
+                fieldLabels: ["評分(1-5)", "備註"],
+                values: [String(record.score), record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.score = min(5, max(1, Int(values[0]) ?? updated.score))
+                updated.note = values[1]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.faceLiftRatings)
+            }
+        }
         .sheet(isPresented: $showAddAction) { AddFaceLiftActionSheet() }
         .sheet(isPresented: $showAddRating) { AddFaceLiftRatingSheet() }
     }
@@ -795,6 +907,9 @@ struct HairCareView: View {
     @State private var showAdd = false
     @State private var showAddProduct = false
     @State private var showAddAppointment = false
+    @State private var editingHairProduct: Product?
+    @State private var editingHairCareRecord: HairCareRecord?
+    @State private var editingHairAppointment: Appointment?
 
     var body: some View {
         ScrollView {
@@ -830,12 +945,8 @@ struct HairCareView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteHairProduct(product)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingHairProduct = product }) {
+                                        store.deleteHairProduct(product)
                                     }
                                 }
                             }
@@ -895,12 +1006,8 @@ struct HairCareView: View {
                                     .padding(14)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteHairCareRecord(record)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingHairCareRecord = record }) {
+                                        store.deleteHairCareRecord(record)
                                     }
                                 }
                             }
@@ -937,12 +1044,8 @@ struct HairCareView: View {
                                     .padding(14)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteHairAppointment(appointment)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingHairAppointment = appointment }) {
+                                        store.deleteHairAppointment(appointment)
                                     }
                                 }
                             }
@@ -953,6 +1056,54 @@ struct HairCareView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingHairProduct) { record in
+            FieldsEditSheet(
+                title: "編輯護髮產品",
+                fieldLabels: ["名稱", "品牌", "分類", "備註"],
+                values: [record.name, record.brand, record.category, record.notes],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.name = values[0]
+                updated.brand = values[1]
+                updated.category = values[2]
+                updated.notes = values[3]
+
+                store.replaceRecord(updated, in: \.hairProducts)
+            }
+        }
+        .sheet(item: $editingHairCareRecord) { record in
+            FieldsEditSheet(
+                title: "編輯護理記錄",
+                fieldLabels: ["護理類型", "備註"],
+                values: [record.careType, record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.careType = values[0]
+                updated.note = values[1]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.hairCareRecords)
+            }
+        }
+        .sheet(item: $editingHairAppointment) { record in
+            FieldsEditSheet(
+                title: "編輯預約",
+                fieldLabels: ["標題", "店家", "備註"],
+                values: [record.title, record.storeName, record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.title = values[0]
+                updated.storeName = values[1]
+                updated.note = values[2]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.hairAppointments)
+            }
+        }
         .sheet(isPresented: $showAdd) { AddHairCareSheet() }
         .sheet(isPresented: $showAddProduct) {
             AddProductSheet(
@@ -1005,6 +1156,8 @@ struct BodySkincareView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
     @State private var showAddProduct = false
+    @State private var editingBodyProduct: Product?
+    @State private var editingBodySkinRecord: BodySkinRecord?
 
     var body: some View {
         ScrollView {
@@ -1050,12 +1203,8 @@ struct BodySkincareView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteBodyProduct(product)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingBodyProduct = product }) {
+                                        store.deleteBodyProduct(product)
                                     }
                                 }
                             }
@@ -1081,12 +1230,8 @@ struct BodySkincareView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteBodySkinRecord(record)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingBodySkinRecord = record }) {
+                                    store.deleteBodySkinRecord(record)
                                 }
                             }
                         }
@@ -1096,6 +1241,39 @@ struct BodySkincareView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingBodyProduct) { record in
+            FieldsEditSheet(
+                title: "編輯身體保養品",
+                fieldLabels: ["名稱", "品牌", "分類", "備註"],
+                values: [record.name, record.brand, record.category, record.notes],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.name = values[0]
+                updated.brand = values[1]
+                updated.category = values[2]
+                updated.notes = values[3]
+
+                store.replaceRecord(updated, in: \.bodyProducts)
+            }
+        }
+        .sheet(item: $editingBodySkinRecord) { record in
+            FieldsEditSheet(
+                title: "編輯身體肌膚紀錄",
+                fieldLabels: ["部位", "困擾", "備註"],
+                values: [record.area, record.concern, record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.area = values[0]
+                updated.concern = values[1]
+                updated.note = values[2]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.bodySkinRecords)
+            }
+        }
         .sheet(isPresented: $showAdd) { AddBodySkinRecordSheet() }
         .sheet(isPresented: $showAddProduct) {
             AddProductSheet(
@@ -1207,6 +1385,11 @@ struct ProductLibraryView: View {
 struct HairstyleMatchView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAddHairstyle = false
+    @State private var editingSavedHairstyle: TutorialLink?
+    @State private var facePhotoItem: PhotosPickerItem?
+    @State private var showCamera = false
+    @State private var detecting = false
+    @State private var detectionMessage: String?
 
     private let faceShapes = ["圓臉", "長臉", "方臉", "心形臉", "鵜蛋臉", "菱形臉"]
 
@@ -1221,6 +1404,47 @@ struct HairstyleMatchView: View {
                             .font(.headline)
                             .foregroundStyle(AppTheme.text)
 
+                        HStack(spacing: 10) {
+                            Button {
+                                showCamera = true
+                            } label: {
+                                Label("拍照偵測", systemImage: "camera.fill")
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(AppTheme.primary)
+                                    .foregroundStyle(Color.white)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+
+                            PhotosPicker(selection: $facePhotoItem, matching: .images) {
+                                Label("相簿選照", systemImage: "photo.on.rectangle")
+                                    .font(.subheadline.weight(.semibold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 10)
+                                    .background(AppTheme.primarySoft)
+                                    .foregroundStyle(AppTheme.primary)
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                        }
+
+                        if detecting {
+                            HStack(spacing: 8) {
+                                ProgressView()
+                                Text("正在偵測臉型…")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                        } else if let detectionMessage {
+                            Text(detectionMessage)
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.subtext)
+                        }
+
+                        Text("或手動選擇：")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.subtext)
+
                         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                             ForEach(faceShapes, id: \.self) { shape in
                                 Button {
@@ -1234,6 +1458,32 @@ struct HairstyleMatchView: View {
                                         .foregroundStyle(store.state.faceShape == shape ? Color.white : AppTheme.text)
                                         .clipShape(RoundedRectangle(cornerRadius: 12))
                                 }
+                            }
+                        }
+                    }
+                }
+
+                if let currentShape = store.state.faceShape, !currentShape.isEmpty,
+                   let recommendations = HairstyleRecommendation.byFaceShape[currentShape] {
+                    CardView {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("適合「\(currentShape)」的髮型")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+
+                            ForEach(recommendations, id: \.style) { item in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(item.style)
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(AppTheme.text)
+                                    Text(item.reason)
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
                             }
                         }
                     }
@@ -1271,12 +1521,8 @@ struct HairstyleMatchView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteSavedHairstyle(hairstyle)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingSavedHairstyle = hairstyle }) {
+                                        store.deleteSavedHairstyle(hairstyle)
                                     }
                                 }
                             }
@@ -1287,10 +1533,100 @@ struct HairstyleMatchView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingSavedHairstyle) { record in
+            FieldsEditSheet(
+                title: "編輯髮型收藏",
+                fieldLabels: ["標題", "連結URL"],
+                values: [record.title, record.url],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.title = values[0]
+                updated.url = values[1]
+
+                store.replaceRecord(updated, in: \.savedHairstyles)
+            }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { image in
+                if let image {
+                    runFaceDetection(on: image)
+                }
+            }
+            .ignoresSafeArea()
+        }
+        .onChange(of: facePhotoItem) { item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    runFaceDetection(on: image)
+                } else {
+                    detectionMessage = "無法讀取照片，請重新選擇。"
+                }
+                facePhotoItem = nil
+            }
+        }
         .sheet(isPresented: $showAddHairstyle) {
             AddLinkSheet(sheetTitle: "添加髮型", titleFieldLabel: "髮型名稱") { title, url in
                 store.addSavedHairstyle(title: title, url: url)
             }
+        }
+    }
+
+    private func runFaceDetection(on image: UIImage) {
+        detecting = true
+        detectionMessage = nil
+        FaceShapeDetector.detect(from: image) { result in
+            detecting = false
+            switch result {
+            case .success(let detection):
+                store.setFaceShape(detection.shape)
+                detectionMessage = "偵測結果：\(detection.shape)（\(detection.confidenceNote)）。照片僅在本機分析，不會上傳或保存。"
+            case .failure(let error):
+                detectionMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+/// 相機拍照元件（照片僅回傳記憶體，不寫入相簿）
+struct CameraPicker: UIViewControllerRepresentable {
+    @Environment(\.dismiss) private var dismiss
+    let onCapture: (UIImage?) -> Void
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        if UIImagePickerController.isSourceTypeAvailable(.camera) {
+            picker.sourceType = .camera
+            picker.cameraDevice = .front
+        }
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    final class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        private let parent: CameraPicker
+
+        init(_ parent: CameraPicker) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
+            parent.onCapture(info[.originalImage] as? UIImage)
+            parent.dismiss()
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            parent.onCapture(nil)
+            parent.dismiss()
         }
     }
 }
@@ -1298,6 +1634,7 @@ struct HairstyleMatchView: View {
 struct MakeupInspirationView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAddInspiration = false
+    @State private var editingMakeupInspiration: TutorialLink?
 
     var body: some View {
         ScrollView {
@@ -1344,12 +1681,8 @@ struct MakeupInspirationView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteMakeupInspiration(inspiration)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingMakeupInspiration = inspiration }) {
+                                        store.deleteMakeupInspiration(inspiration)
                                     }
                                 }
                             }
@@ -1360,6 +1693,21 @@ struct MakeupInspirationView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingMakeupInspiration) { record in
+            FieldsEditSheet(
+                title: "編輯妝容靈感",
+                fieldLabels: ["標題", "連結URL"],
+                values: [record.title, record.url],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.title = values[0]
+                updated.url = values[1]
+
+                store.replaceRecord(updated, in: \.makeupInspirations)
+            }
+        }
         .sheet(isPresented: $showAddInspiration) {
             AddLinkSheet(sheetTitle: "添加妝容靈感", titleFieldLabel: "妝容名稱") { title, url in
                 store.addMakeupInspiration(title: title, url: url)
@@ -1371,6 +1719,7 @@ struct MakeupInspirationView: View {
 struct BeautyAppointmentsView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var editingAppointment: Appointment?
 
     var body: some View {
         ScrollView {
@@ -1402,12 +1751,8 @@ struct BeautyAppointmentsView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteAppointment(item)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingAppointment = item }) {
+                                    store.deleteAppointment(item)
                                 }
                             }
                         }
@@ -1417,6 +1762,22 @@ struct BeautyAppointmentsView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingAppointment) { record in
+            FieldsEditSheet(
+                title: "編輯預約",
+                fieldLabels: ["標題", "店家", "備註"],
+                values: [record.title, record.storeName, record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.title = values[0]
+                updated.storeName = values[1]
+                updated.note = values[2]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.appointments)
+            }
+        }
         .sheet(isPresented: $showAdd) { AddAppointmentSheet() }
     }
 }
@@ -1426,6 +1787,8 @@ struct BodyRootView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header(title: "體態", subtitle: "管理你的健康計畫、追蹤歷史記錄")
+
+                GoalAdviceCard(area: "體態", topic: .exercise)
 
                 ForEach(BodyRoute.allCases) { route in
                     NavigationLink(value: route) {
@@ -1496,6 +1859,8 @@ struct ExercisePunchView: View {
     @State private var selectedCategory: String?
     @State private var durationText = ""
     @State private var showAddExercise = false
+    @State private var editingCustomExercise: CustomExercise?
+    @State private var editingExercisePunch: ExercisePunchRecord?
 
     private let categories = ["有氧", "力量", "瑜珈", "HIIT", "拉伸", "核心"]
 
@@ -1576,12 +1941,8 @@ struct ExercisePunchView: View {
                                         .padding(12)
                                         .background(AppTheme.primarySoft)
                                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                                        .contextMenu {
-                                            Button(role: .destructive) {
-                                                store.deleteCustomExercise(exercise)
-                                            } label: {
-                                                Label("Delete", systemImage: "trash")
-                                            }
+                                        .recordActions(onEdit: { editingCustomExercise = exercise }) {
+                                            store.deleteCustomExercise(exercise)
                                         }
                                 }
                             }
@@ -1631,12 +1992,8 @@ struct ExercisePunchView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteExercisePunch(record)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingExercisePunch = record }) {
+                                        store.deleteExercisePunch(record)
                                     }
                                 }
                             }
@@ -1647,6 +2004,35 @@ struct ExercisePunchView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingCustomExercise) { record in
+            FieldsEditSheet(
+                title: "編輯自訂運動",
+                fieldLabels: ["名稱"],
+                values: [record.name],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.name = values[0]
+
+                store.replaceRecord(updated, in: \.customExercises)
+            }
+        }
+        .sheet(item: $editingExercisePunch) { record in
+            FieldsEditSheet(
+                title: "編輯運動打卡",
+                fieldLabels: ["類型", "時長(分鐘)"],
+                values: [record.category, String(record.durationMinutes)],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.category = values[0]
+                updated.durationMinutes = Int(values[1]) ?? updated.durationMinutes
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.exercisePunches)
+            }
+        }
         .sheet(isPresented: $showAddExercise) {
             AddLinkSheet(sheetTitle: "新增自訂運動", titleFieldLabel: "運動名稱") { name, _ in
                 store.addCustomExercise(name: name)
@@ -1660,6 +2046,7 @@ struct ShapingPlanView: View {
     @State private var weightText = ""
     @State private var bodyFatText = ""
     @State private var showAddSchedule = false
+    @State private var editingTrainingItem: TrainingScheduleItem?
 
     var body: some View {
         ScrollView {
@@ -1711,12 +2098,8 @@ struct ShapingPlanView: View {
                                         .padding(12)
                                         .background(AppTheme.primarySoft)
                                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                                        .contextMenu {
-                                            Button(role: .destructive) {
-                                                store.deleteTrainingScheduleItem(item)
-                                            } label: {
-                                                Label("Delete", systemImage: "trash")
-                                            }
+                                        .recordActions(onEdit: { editingTrainingItem = item }) {
+                                            store.deleteTrainingScheduleItem(item)
                                         }
                                 }
                             }
@@ -1741,6 +2124,20 @@ struct ShapingPlanView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingTrainingItem) { record in
+            FieldsEditSheet(
+                title: "編輯訓練項目",
+                fieldLabels: ["名稱"],
+                values: [record.name],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.name = values[0]
+
+                store.replaceRecord(updated, in: \.trainingSchedule)
+            }
+        }
         .sheet(isPresented: $showAddSchedule) {
             AddLinkSheet(sheetTitle: "新增訓練課表", titleFieldLabel: "課表名稱") { name, _ in
                 store.addTrainingScheduleItem(name: name)
@@ -1791,6 +2188,9 @@ struct WellnessView: View {
     @State private var showAddMenstrual = false
     @State private var showAddNourishmentRecipe = false
     @State private var selectedTeaCategory: String?
+    @State private var editingNourishmentRecipe: TutorialLink?
+    @State private var editingMenstrualRecord: MenstrualRecord?
+    @State private var editingSymptomRecord: SymptomRecord?
 
     private let teaCategories = ["養身", "豐胸", "瘦身", "美白", "助眠"]
     private let teaRecipeLibrary: [String: [String]] = [
@@ -1824,6 +2224,50 @@ struct WellnessView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingNourishmentRecipe) { record in
+            FieldsEditSheet(
+                title: "編輯食譜連結",
+                fieldLabels: ["標題", "連結URL"],
+                values: [record.title, record.url],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.title = values[0]
+                updated.url = values[1]
+
+                store.replaceRecord(updated, in: \.nourishmentRecipes)
+            }
+        }
+        .sheet(item: $editingMenstrualRecord) { record in
+            FieldsEditSheet(
+                title: "編輯生理記錄",
+                fieldLabels: ["備註"],
+                values: [record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.note = values[0]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.menstrualRecords)
+            }
+        }
+        .sheet(item: $editingSymptomRecord) { record in
+            FieldsEditSheet(
+                title: "編輯症狀記錄",
+                fieldLabels: ["症狀", "備註"],
+                values: [record.symptom, record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.symptom = values[0]
+                updated.note = values[1]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.symptomRecords)
+            }
+        }
         .sheet(isPresented: $showAddSymptom) { AddSymptomSheet() }
         .sheet(isPresented: $showAddMenstrual) { AddMenstrualRecordSheet() }
         .sheet(isPresented: $showAddNourishmentRecipe) { AddNourishmentRecipeSheet() }
@@ -1941,12 +2385,8 @@ struct WellnessView: View {
                             .padding(12)
                             .background(AppTheme.primarySoft)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .contextMenu {
-                                Button(role: .destructive) {
-                                    store.deleteNourishmentRecipe(link)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
+                            .recordActions(onEdit: { editingNourishmentRecipe = link }) {
+                                store.deleteNourishmentRecipe(link)
                             }
                         }
                     }
@@ -1982,12 +2422,8 @@ struct WellnessView: View {
                                 .padding(12)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteMenstrualRecord(record)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingMenstrualRecord = record }) {
+                                    store.deleteMenstrualRecord(record)
                                 }
                             }
                         }
@@ -2058,12 +2494,8 @@ struct WellnessView: View {
                                 .padding(12)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteSymptomRecord(record)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingSymptomRecord = record }) {
+                                    store.deleteSymptomRecord(record)
                                 }
                             }
                         }
@@ -2179,6 +2611,7 @@ struct BodyAlbumView: View {
 struct BodyMetricsView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var editingBodyMetric: BodyMetricRecord?
 
     var body: some View {
         ScrollView {
@@ -2204,12 +2637,8 @@ struct BodyMetricsView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteBodyMetric(record)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingBodyMetric = record }) {
+                                    store.deleteBodyMetric(record)
                                 }
                             }
                         }
@@ -2221,6 +2650,22 @@ struct BodyMetricsView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingBodyMetric) { record in
+            FieldsEditSheet(
+                title: "編輯體重體脂",
+                fieldLabels: ["體重(kg)", "體脂(%)", "備註"],
+                values: [String(record.weight), String(record.bodyFat), record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.weight = Double(values[0]) ?? updated.weight
+                updated.bodyFat = Double(values[1]) ?? updated.bodyFat
+                updated.note = values[2]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.bodyMetricRecords)
+            }
+        }
         .sheet(isPresented: $showAdd) { AddBodyMetricSheet() }
     }
 }
@@ -2229,11 +2674,23 @@ struct MealRecordsView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
     @State private var showAddRecipe = false
+    @State private var editingFavoriteRecipe: TutorialLink?
+    @State private var editingMeal: MealRecord?
 
     private var todaysMealSummaries: [String] {
-        store.state.mealRecords
-            .filter { Calendar.current.isDateInToday($0.date) }
-            .map { "\($0.mealType): \($0.summary)" }
+        let summary = store.todayCalorieSummary()
+        var lines = summary.meals.map { meal -> String in
+            let calorieText = meal.calories.map { "約 \($0) 大卡" } ?? "熱量未知"
+            return "\(meal.mealType): \(meal.summary)（\(calorieText)）"
+        }
+        if summary.total > 0 {
+            lines.append("今日總熱量約 \(summary.total) 大卡")
+        }
+        let goal = store.areaGoal("體態")
+        if !goal.isEmpty {
+            lines.append("我的體態目標：\(goal)")
+        }
+        return lines
     }
 
     var body: some View {
@@ -2244,28 +2701,70 @@ struct MealRecordsView: View {
                 }
 
                 CardView {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("今日熱量攝取")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+                        let summary = store.todayCalorieSummary()
+                        if summary.meals.isEmpty {
+                            Text("今天還沒有記錄，新增餐點後自動統計熱量。")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.subtext)
+                        } else {
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text("\(summary.total)")
+                                    .font(.system(size: 34, weight: .bold))
+                                    .foregroundStyle(AppTheme.primary)
+                                Text("大卡（\(summary.meals.count) 餐）")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                            if summary.meals.contains(where: { $0.calories == nil }) {
+                                Text("部分餐點未有熱量，總數僅供參考；長按餐點可補填。")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                CardView {
                     if store.state.mealRecords.isEmpty {
                         EmptyStateView(title: "尚無飲食記錄", subtitle: "寫下今天的餐點與飲食心得。")
                     } else {
                         VStack(spacing: 12) {
                             ForEach(store.state.mealRecords) { meal in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("\(meal.mealType) · \(meal.summary)")
-                                        .foregroundStyle(AppTheme.text)
-                                    Text(meal.note.isEmpty ? meal.date.formatted(date: .abbreviated, time: .shortened) : meal.note)
-                                        .font(.caption)
-                                        .foregroundStyle(AppTheme.subtext)
+                                HStack(spacing: 10) {
+                                    if let data = meal.photoData, let image = UIImage(data: data) {
+                                        Image(uiImage: image)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 52, height: 52)
+                                            .clipShape(RoundedRectangle(cornerRadius: 10))
+                                    }
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("\(meal.mealType) · \(meal.summary)")
+                                            .foregroundStyle(AppTheme.text)
+                                        HStack(spacing: 6) {
+                                            if let calories = meal.calories {
+                                                Text("\(calories) 大卡")
+                                                    .font(.caption.weight(.semibold))
+                                                    .foregroundStyle(AppTheme.primary)
+                                            }
+                                            Text(meal.note.isEmpty ? meal.date.formatted(date: .abbreviated, time: .shortened) : meal.note)
+                                                .font(.caption)
+                                                .foregroundStyle(AppTheme.subtext)
+                                        }
+                                    }
+                                    Spacer()
                                 }
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteMealRecord(meal)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingMeal = meal }) {
+                                    store.deleteMealRecord(meal)
                                 }
                             }
                         }
@@ -2274,14 +2773,14 @@ struct MealRecordsView: View {
 
                 CardView {
                     VStack(alignment: .leading, spacing: 14) {
-                        Text("AI 營養建議")
+                        Text("AI 飲食建議")
                             .font(.headline)
                             .foregroundStyle(AppTheme.text)
-                        Text("根據今日飲食，獲取營養補充建議")
+                        Text("依今日餐點、熱量攝取與體態目標，生成後續飲食建議")
                             .font(.caption)
                             .foregroundStyle(AppTheme.subtext)
 
-                        PrimaryButton(title: store.isLoadingAdvice(for: .diet) ? "正在分析…" : "分析今日營養") {
+                        PrimaryButton(title: store.isLoadingAdvice(for: .diet) ? "正在分析…" : "分析熱量並建議後續飲食") {
                             Task { await store.requestAIAdvice(topic: .diet, concerns: todaysMealSummaries) }
                         }
                         .disabled(store.isLoadingAdvice(for: .diet))
@@ -2340,12 +2839,8 @@ struct MealRecordsView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteFavoriteRecipe(recipe)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingFavoriteRecipe = recipe }) {
+                                        store.deleteFavoriteRecipe(recipe)
                                     }
                                 }
                             }
@@ -2356,6 +2851,38 @@ struct MealRecordsView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingMeal) { meal in
+            FieldsEditSheet(
+                title: "編輯飲食記錄",
+                fieldLabels: ["餐別", "餐點內容", "備註", "熱量（大卡）"],
+                values: [meal.mealType, meal.summary, meal.note, meal.calories.map(String.init) ?? ""],
+                showsDate: true,
+                date: meal.date
+            ) { values, newDate in
+                var updated = meal
+                updated.mealType = values[0]
+                updated.summary = values[1]
+                updated.note = values[2]
+                updated.calories = Int(values[3]) ?? CalorieEstimator.estimate(from: values[1])
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.mealRecords)
+            }
+        }
+        .sheet(item: $editingFavoriteRecipe) { record in
+            FieldsEditSheet(
+                title: "編輯收藏食譜",
+                fieldLabels: ["標題", "連結URL"],
+                values: [record.title, record.url],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.title = values[0]
+                updated.url = values[1]
+
+                store.replaceRecord(updated, in: \.favoriteRecipes)
+            }
+        }
         .sheet(isPresented: $showAdd) { AddMealSheet() }
         .sheet(isPresented: $showAddRecipe) {
             AddLinkSheet(sheetTitle: "添加食譜", titleFieldLabel: "食譜名稱") { title, url in
@@ -2370,6 +2897,8 @@ struct GrowthRootView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header(title: "成長", subtitle: "閱讀、輸入與每週整理放在同一個節奏裡")
+
+                GoalAdviceCard(area: "成長", topic: .wellness)
 
                 ForEach(GrowthRoute.allCases) { route in
                     NavigationLink(value: route) {
@@ -2450,6 +2979,7 @@ struct GrowthRootView: View {
 struct ReadingTrackerView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var editingBookRecord: BookRecord?
 
     var body: some View {
         ScrollView {
@@ -2482,12 +3012,8 @@ struct ReadingTrackerView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteBook(book)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingBookRecord = book }) {
+                                    store.deleteBook(book)
                                 }
                             }
                         }
@@ -2497,6 +3023,23 @@ struct ReadingTrackerView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingBookRecord) { record in
+            FieldsEditSheet(
+                title: "編輯書籍",
+                fieldLabels: ["書名", "作者", "連結", "筆記"],
+                values: [record.title, record.author, record.link, record.note],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.title = values[0]
+                updated.author = values[1]
+                updated.link = values[2]
+                updated.note = values[3]
+
+                store.replaceRecord(updated, in: \.bookRecords)
+            }
+        }
         .sheet(isPresented: $showAdd) { AddBookSheet() }
     }
 }
@@ -2504,6 +3047,8 @@ struct ReadingTrackerView: View {
 struct CourseTrackerView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var playingCourse: Course?
+    @State private var editingCourse: Course?
 
     var body: some View {
         ScrollView {
@@ -2539,17 +3084,29 @@ struct CourseTrackerView: View {
                                         }
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(AppTheme.primary)
+
+                                        if CourseVideoLink.youtubeID(from: course.url) != nil {
+                                            Button {
+                                                playingCourse = course
+                                            } label: {
+                                                Label("觀看", systemImage: "play.circle.fill")
+                                            }
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(AppTheme.primary)
+                                        } else if let external = CourseVideoLink.externalURL(from: course.url) {
+                                            Link(destination: external) {
+                                                Label("開啟連結", systemImage: "safari")
+                                            }
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(AppTheme.primary)
+                                        }
                                     }
                                 }
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteCourse(course)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingCourse = course }) {
+                                    store.deleteCourse(course)
                                 }
                             }
                         }
@@ -2560,12 +3117,138 @@ struct CourseTrackerView: View {
         }
         .background(AppTheme.background)
         .sheet(isPresented: $showAdd) { AddCourseSheet() }
+        .sheet(item: $playingCourse) { course in
+            CoursePlayerSheet(course: course)
+        }
+        .sheet(item: $editingCourse) { course in
+            FieldsEditSheet(
+                title: "編輯課程",
+                fieldLabels: ["課程名稱", "平台", "連結URL"],
+                values: [course.title, course.platform, course.url],
+                showsDate: false,
+                date: .now
+            ) { values, _ in
+                var updated = course
+                updated.title = values[0]
+                updated.platform = values[1]
+                updated.url = values[2]
+                store.replaceRecord(updated, in: \.courses)
+            }
+        }
+    }
+}
+
+enum CourseVideoLink {
+    static func youtubeID(from urlString: String) -> String? {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed), let host = url.host?.lowercased() else { return nil }
+
+        if host.contains("youtu.be") {
+            let id = url.pathComponents.dropFirst().first ?? ""
+            return id.isEmpty ? nil : id
+        }
+        guard host.contains("youtube.com") else { return nil }
+
+        if let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems,
+           let value = queryItems.first(where: { $0.name == "v" })?.value,
+           !value.isEmpty {
+            return value
+        }
+        let path = url.pathComponents
+        if let index = path.firstIndex(where: { $0 == "shorts" || $0 == "embed" || $0 == "live" }),
+           index + 1 < path.count {
+            return path[index + 1]
+        }
+        return nil
+    }
+
+    static func externalURL(from urlString: String) -> URL? {
+        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let url = URL(string: trimmed),
+              let host = url.host?.lowercased(),
+              url.scheme == "https" || url.scheme == "http" else { return nil }
+        // 小紅書在台灣被封鎖，開了只會看到錯誤頁
+        if host.contains("xiaohongshu.com") || host.contains("xhslink.com") { return nil }
+        return url
+    }
+}
+
+private struct CoursePlayerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    let course: Course
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                if let videoID = CourseVideoLink.youtubeID(from: course.url) {
+                    YouTubeEmbedView(videoID: videoID)
+                        .aspectRatio(16 / 9, contentMode: .fit)
+                        .background(Color.black)
+                } else {
+                    EmptyStateView(title: "無法解析影片連結", subtitle: course.url)
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(course.title)
+                        .font(.headline)
+                        .foregroundStyle(AppTheme.text)
+                    ProgressView(value: Double(course.progressPercent), total: 100)
+                        .tint(AppTheme.primary)
+                    HStack {
+                        Text("進度 \(course.progressPercent)%")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.subtext)
+                        Spacer()
+                        Button("+10%") {
+                            store.updateCourseProgress(course, progressPercent: course.progressPercent + 10)
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(AppTheme.primary)
+                    }
+                }
+                .padding(20)
+
+                Spacer()
+            }
+            .background(AppTheme.background)
+            .navigationTitle("課程觀看")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+private struct YouTubeEmbedView: UIViewRepresentable {
+    let videoID: String
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.allowsInlineMediaPlayback = true
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.scrollView.isScrollEnabled = false
+        webView.isOpaque = false
+        webView.backgroundColor = .black
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        guard let url = URL(string: "https://www.youtube.com/embed/\(videoID)?playsinline=1&rel=0") else { return }
+        if webView.url != url {
+            webView.load(URLRequest(url: url))
+        }
     }
 }
 
 struct KnowledgeNotesView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var editingNote: KnowledgeNote?
     @State private var tagFilter = "全部"
 
     private var allTags: [String] {
@@ -2626,12 +3309,8 @@ struct KnowledgeNotesView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteKnowledgeNote(note)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingNote = note }) {
+                                    store.deleteKnowledgeNote(note)
                                 }
                             }
                         }
@@ -2642,12 +3321,28 @@ struct KnowledgeNotesView: View {
         }
         .background(AppTheme.background)
         .sheet(isPresented: $showAdd) { AddKnowledgeNoteSheet() }
+        .sheet(item: $editingNote) { note in
+            FieldsEditSheet(
+                title: "編輯筆記",
+                fieldLabels: ["標題", "重點摘錄", "標籤（逗號分隔）"],
+                values: [note.title, note.content, note.tags.joined(separator: ",")],
+                showsDate: false,
+                date: .now
+            ) { values, _ in
+                var updated = note
+                updated.title = values[0]
+                updated.content = values[1]
+                updated.tags = values[2].split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+                store.replaceRecord(updated, in: \.knowledgeNotes)
+            }
+        }
     }
 }
 
 struct VideoLearningView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var editingVideoRecord: VideoLearningRecord?
 
     var body: some View {
         ScrollView {
@@ -2683,12 +3378,8 @@ struct VideoLearningView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteVideoLearningRecord(record)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingVideoRecord = record }) {
+                                    store.deleteVideoLearningRecord(record)
                                 }
                             }
                         }
@@ -2698,6 +3389,22 @@ struct VideoLearningView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingVideoRecord) { record in
+            FieldsEditSheet(
+                title: "編輯影片學習",
+                fieldLabels: ["標題", "平台", "連結URL"],
+                values: [record.title, record.platform, record.url],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.title = values[0]
+                updated.platform = values[1]
+                updated.url = values[2]
+
+                store.replaceRecord(updated, in: \.videoLearningRecords)
+            }
+        }
         .sheet(isPresented: $showAdd) { AddVideoLearningSheet() }
     }
 }
@@ -2708,6 +3415,9 @@ struct DailyQuoteView: View {
     @State private var showAddAffirmation = false
     @State private var showAddVision = false
     @State private var showAddGratitude = false
+    @State private var editingAffirmation: SelfAffirmation?
+    @State private var editingVisionItem: VisionBoardItem?
+    @State private var editingGratitude: GratitudeEntry?
 
     static let quotes = [
         "成為自己的太陽，無需借誰的光",
@@ -2762,12 +3472,8 @@ struct DailyQuoteView: View {
                                         .padding(12)
                                         .background(AppTheme.primarySoft)
                                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                                        .contextMenu {
-                                            Button(role: .destructive) {
-                                                store.deleteSelfAffirmation(item)
-                                            } label: {
-                                                Label("Delete", systemImage: "trash")
-                                            }
+                                        .recordActions(onEdit: { editingAffirmation = item }) {
+                                            store.deleteSelfAffirmation(item)
                                         }
                                 }
                             }
@@ -2799,12 +3505,8 @@ struct DailyQuoteView: View {
                                         .padding(12)
                                         .background(AppTheme.primarySoft)
                                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                                        .contextMenu {
-                                            Button(role: .destructive) {
-                                                store.deleteVisionBoardItem(item)
-                                            } label: {
-                                                Label("Delete", systemImage: "trash")
-                                            }
+                                        .recordActions(onEdit: { editingVisionItem = item }) {
+                                            store.deleteVisionBoardItem(item)
                                         }
                                 }
                             }
@@ -2841,12 +3543,8 @@ struct DailyQuoteView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteGratitudeEntry(entry)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingGratitude = entry }) {
+                                        store.deleteGratitudeEntry(entry)
                                     }
                                 }
                             }
@@ -2857,6 +3555,48 @@ struct DailyQuoteView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingAffirmation) { record in
+            FieldsEditSheet(
+                title: "編輯自我肯定",
+                fieldLabels: ["內容"],
+                values: [record.text],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.text = values[0]
+
+                store.replaceRecord(updated, in: \.selfAffirmations)
+            }
+        }
+        .sheet(item: $editingVisionItem) { record in
+            FieldsEditSheet(
+                title: "編輯願景板",
+                fieldLabels: ["內容"],
+                values: [record.text],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.text = values[0]
+
+                store.replaceRecord(updated, in: \.visionBoardItems)
+            }
+        }
+        .sheet(item: $editingGratitude) { record in
+            FieldsEditSheet(
+                title: "編輯感恩記錄",
+                fieldLabels: ["內容"],
+                values: [record.text],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.text = values[0]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.gratitudeEntries)
+            }
+        }
         .sheet(isPresented: $showAddAffirmation) {
             AddLinkSheet(sheetTitle: "添加自我肯定", titleFieldLabel: "我值得被愛…") { text, _ in
                 store.addSelfAffirmation(text: text)
@@ -2879,6 +3619,7 @@ struct MoodTrackingView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var selectedMood: String?
     @State private var note = ""
+    @State private var editingMoodEntry: MoodEntry?
 
     private let moods = [("😊", "開心"), ("😌", "平靜"), ("😔", "低落"), ("😫", "煩躁"), ("🥺", "疲憊")]
 
@@ -2967,12 +3708,8 @@ struct MoodTrackingView: View {
                                     .padding(10)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteMoodEntry(entry)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingMoodEntry = entry }) {
+                                        store.deleteMoodEntry(entry)
                                     }
                                 }
                             }
@@ -2983,6 +3720,21 @@ struct MoodTrackingView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingMoodEntry) { record in
+            FieldsEditSheet(
+                title: "編輯心情記錄",
+                fieldLabels: ["心情", "備註"],
+                values: [record.mood, record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.mood = values[0]
+                updated.note = values[1]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.moodEntries)
+            }
+        }
     }
 }
 
@@ -2991,6 +3743,8 @@ struct FinanceRootView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 header(title: "財務總覽", subtitle: "記帳、預算、消費分析、變美基金、購物清單")
+
+                GoalAdviceCard(area: "財務", topic: .finance)
 
                 ForEach(FinanceRoute.allCases) { route in
                     NavigationLink(value: route) {
@@ -3049,6 +3803,7 @@ struct FinanceRootView: View {
 struct LedgerView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var editingTransaction: Transaction?
 
     var body: some View {
         ScrollView {
@@ -3102,12 +3857,8 @@ struct LedgerView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteTransaction(transaction)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingTransaction = transaction }) {
+                                        store.deleteTransaction(transaction)
                                     }
                                 }
                             }
@@ -3118,6 +3869,23 @@ struct LedgerView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingTransaction) { record in
+            FieldsEditSheet(
+                title: "編輯交易",
+                fieldLabels: ["金額", "分類", "帳戶", "備註"],
+                values: [String(record.amount), record.category, record.account, record.note],
+                showsDate: true,
+                date: record.date
+            ) { values, newDate in
+                var updated = record
+                updated.amount = Double(values[0]) ?? updated.amount
+                updated.category = values[1]
+                updated.account = values[2]
+                updated.note = values[3]
+                updated.date = newDate
+                store.replaceRecord(updated, in: \.transactions)
+            }
+        }
         .sheet(isPresented: $showAdd) { AddTransactionSheet() }
     }
 
@@ -3140,6 +3908,7 @@ struct LedgerView: View {
 struct BudgetDashboardView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showSetBudget = false
+    @State private var editingBudget: BudgetCategory?
 
     var body: some View {
         ScrollView {
@@ -3184,6 +3953,9 @@ struct BudgetDashboardView: View {
                                 .padding(12)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
+                                .recordActions(onEdit: { editingBudget = budget }) {
+                                    store.removeRecord(budget, from: \.budgetCategories)
+                                }
                             }
                         }
                     }
@@ -3193,6 +3965,20 @@ struct BudgetDashboardView: View {
         }
         .background(AppTheme.background)
         .sheet(isPresented: $showSetBudget) { SetBudgetSheet() }
+        .sheet(item: $editingBudget) { budget in
+            FieldsEditSheet(
+                title: "編輯預算",
+                fieldLabels: ["分類", "金額"],
+                values: [budget.category, String(Int(budget.amount))],
+                showsDate: false,
+                date: .now
+            ) { values, _ in
+                var updated = budget
+                updated.category = values[0]
+                updated.amount = Double(values[1]) ?? updated.amount
+                store.replaceRecord(updated, in: \.budgetCategories)
+            }
+        }
     }
 }
 
@@ -3305,6 +4091,7 @@ struct SpendingAnalysisView: View {
 struct SavingsGoalView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAddWish = false
+    @State private var editingWish: Wish?
 
     var body: some View {
         ScrollView {
@@ -3357,12 +4144,8 @@ struct SavingsGoalView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .contextMenu {
-                                        Button(role: .destructive) {
-                                            store.deleteWish(wish)
-                                        } label: {
-                                            Label("Delete", systemImage: "trash")
-                                        }
+                                    .recordActions(onEdit: { editingWish = wish }) {
+                                        store.deleteWish(wish)
                                     }
                                 }
                             }
@@ -3373,6 +4156,21 @@ struct SavingsGoalView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingWish) { record in
+            FieldsEditSheet(
+                title: "編輯願望",
+                fieldLabels: ["名稱", "目標金額"],
+                values: [record.name, String(record.targetAmount)],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.name = values[0]
+                updated.targetAmount = Double(values[1]) ?? updated.targetAmount
+
+                store.replaceRecord(updated, in: \.wishes)
+            }
+        }
         .sheet(isPresented: $showAddWish) { AddWishSheet() }
     }
 
@@ -3390,6 +4188,7 @@ struct SavingsGoalView: View {
 struct ShoppingListView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showAdd = false
+    @State private var editingShoppingItem: ShoppingItem?
 
     var body: some View {
         ScrollView {
@@ -3424,12 +4223,8 @@ struct ShoppingListView: View {
                                 .padding(12)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .contextMenu {
-                                    Button(role: .destructive) {
-                                        store.deleteShoppingItem(item)
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
+                                .recordActions(onEdit: { editingShoppingItem = item }) {
+                                    store.deleteShoppingItem(item)
                                 }
                             }
                         }
@@ -3439,6 +4234,21 @@ struct ShoppingListView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $editingShoppingItem) { record in
+            FieldsEditSheet(
+                title: "編輯購物項目",
+                fieldLabels: ["名稱", "預估價格"],
+                values: [record.name, String(record.estimatedPrice)],
+                showsDate: false,
+                date: .now
+            ) { values, newDate in
+                var updated = record
+                updated.name = values[0]
+                updated.estimatedPrice = Double(values[1]) ?? updated.estimatedPrice
+
+                store.replaceRecord(updated, in: \.shoppingItems)
+            }
+        }
         .sheet(isPresented: $showAdd) { AddShoppingItemSheet() }
     }
 }
@@ -5200,6 +6010,279 @@ private struct AddPunchSheet: View {
     }
 }
 
+/// 區域目標 + 記錄彙整建議卡：輸入預期目標，依累積記錄生成後續建議
+struct GoalAdviceCard: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    let area: String
+    let topic: AIAdviceTopic
+    @State private var goalText = ""
+    @State private var goalSaved = false
+
+    var body: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("\(area)目標與建議")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+
+                HStack(spacing: 10) {
+                    ThemedTextField(title: "輸入預期目標（例：三個月瘦 3kg）", text: $goalText)
+                    Button(goalSaved ? "已保存" : "保存") {
+                        store.setAreaGoal(area, goal: goalText)
+                        goalSaved = true
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppTheme.primary)
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("記錄彙整")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(AppTheme.subtext)
+                    ForEach(store.areaRecordsDigest(area), id: \.self) { line in
+                        Text("・\(line)")
+                            .font(.caption)
+                            .foregroundStyle(AppTheme.text)
+                    }
+                }
+
+                Button {
+                    let goal = store.areaGoal(area)
+                    let concerns = (goal.isEmpty ? [] : ["我的目標：\(goal)"]) + store.areaRecordsDigest(area)
+                    Task {
+                        await store.requestAIAdvice(topic: topic, concerns: concerns)
+                    }
+                } label: {
+                    HStack {
+                        if store.isLoadingAdvice(for: topic) {
+                            ProgressView().tint(.white)
+                        }
+                        Text("依記錄生成後續建議")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(AppTheme.primary)
+                    .foregroundStyle(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+                .disabled(store.isLoadingAdvice(for: topic))
+
+                if let error = store.errorMessage(for: topic) {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+
+                let suggestions = store.suggestions(for: topic)
+                if !suggestions.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("後續建議")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.subtext)
+                        ForEach(suggestions, id: \.self) { suggestion in
+                            Text(suggestion)
+                                .font(.subheadline)
+                                .foregroundStyle(AppTheme.text)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(10)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                }
+            }
+        }
+        .onAppear {
+            if goalText.isEmpty {
+                goalText = store.areaGoal(area)
+            }
+        }
+        .onChange(of: goalText) { _ in
+            goalSaved = false
+        }
+    }
+}
+
+/// 通用編輯 sheet：單行文字 + 日期（心得、備註類記錄）
+struct TextDateEditSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let title: String
+    let fieldLabel: String
+    @State var text: String
+    @State var date: Date
+    let onSave: (String, Date) -> Void
+
+    var body: some View {
+        FormSheet(title: title) {
+            ThemedTextField(title: fieldLabel, text: $text)
+            DatePicker("日期", selection: $date, displayedComponents: .date)
+                .font(.subheadline)
+
+            PrimaryButton(title: "保存修改") {
+                onSave(text.trimmingCharacters(in: .whitespacesAndNewlines), date)
+                dismiss()
+            }
+        }
+    }
+}
+
+/// 通用編輯 sheet：標題 + 連結（教學連結、食譜、髮型靈感等）
+struct TitleURLEditSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let title: String
+    @State var itemTitle: String
+    @State var url: String
+    let onSave: (String, String) -> Void
+
+    var body: some View {
+        FormSheet(title: title) {
+            ThemedTextField(title: "標題", text: $itemTitle)
+            ThemedTextField(title: "連結URL", text: $url)
+
+            PrimaryButton(title: "保存修改") {
+                onSave(
+                    itemTitle.trimmingCharacters(in: .whitespacesAndNewlines),
+                    url.trimmingCharacters(in: .whitespacesAndNewlines)
+                )
+                dismiss()
+            }
+        }
+    }
+}
+
+/// 通用編輯 sheet：類型（可選項）+ 備註（膚況、症狀、心情等記錄）
+struct TypeNoteEditSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let title: String
+    let typeLabel: String
+    let typeOptions: [String]
+    @State var typeValue: String
+    @State var note: String
+    let onSave: (String, String) -> Void
+
+    var body: some View {
+        FormSheet(title: title) {
+            if typeOptions.isEmpty {
+                ThemedTextField(title: typeLabel, text: $typeValue)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(typeLabel)
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.subtext)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(typeOptions, id: \.self) { option in
+                                chip(option, selected: option == typeValue) {
+                                    typeValue = option
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            ThemedTextField(title: "備註", text: $note)
+
+            PrimaryButton(title: "保存修改") {
+                onSave(typeValue, note.trimmingCharacters(in: .whitespacesAndNewlines))
+                dismiss()
+            }
+        }
+    }
+}
+
+/// 萬用多欄位編輯 sheet：以文字欄位陣列驅動，可選日期欄
+struct FieldsEditSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let title: String
+    let fieldLabels: [String]
+    @State var values: [String]
+    var showsDate: Bool = false
+    @State var date: Date = .now
+    let onSave: ([String], Date) -> Void
+
+    var body: some View {
+        FormSheet(title: title) {
+            ForEach(Array(fieldLabels.enumerated()), id: \.offset) { index, label in
+                ThemedTextField(title: label, text: Binding(
+                    get: { index < values.count ? values[index] : "" },
+                    set: { newValue in
+                        if index < values.count { values[index] = newValue }
+                    }
+                ))
+            }
+            if showsDate {
+                DatePicker("日期", selection: $date, displayedComponents: .date)
+                    .font(.subheadline)
+            }
+
+            PrimaryButton(title: "保存修改") {
+                onSave(values.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }, date)
+                dismiss()
+            }
+        }
+    }
+}
+
+/// 通用列操作選單：附加「編輯 / 刪除」到記錄列（長按顯示）
+struct RecordRowActions: ViewModifier {
+    let onEdit: (() -> Void)?
+    let onDelete: () -> Void
+
+    func body(content: Content) -> some View {
+        content.contextMenu {
+            if let onEdit {
+                Button {
+                    onEdit()
+                } label: {
+                    Label("編輯", systemImage: "pencil")
+                }
+            }
+            Button(role: .destructive) {
+                onDelete()
+            } label: {
+                Label("刪除", systemImage: "trash")
+            }
+        }
+    }
+}
+
+extension View {
+    func recordActions(onEdit: (() -> Void)? = nil, onDelete: @escaping () -> Void) -> some View {
+        modifier(RecordRowActions(onEdit: onEdit, onDelete: onDelete))
+    }
+}
+
+private struct EditPunchSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var summary: String
+    @State private var date: Date
+    private let record: PunchRecord
+
+    init(record: PunchRecord) {
+        self.record = record
+        _summary = State(initialValue: record.summary)
+        _date = State(initialValue: record.date)
+    }
+
+    var body: some View {
+        FormSheet(title: "編輯打卡") {
+            ThemedTextField(title: "心得", text: $summary)
+            DatePicker("日期", selection: $date, displayedComponents: .date)
+                .font(.subheadline)
+
+            PrimaryButton(title: "保存修改") {
+                var updated = record
+                updated.summary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+                updated.date = date
+                store.replaceRecord(updated, in: \.punchRecords)
+                dismiss()
+            }
+        }
+    }
+}
+
 private struct AddAppointmentSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
@@ -5259,16 +6342,94 @@ private struct AddMealSheet: View {
     @State private var type = "早餐"
     @State private var summary = ""
     @State private var note = ""
+    @State private var caloriesText = ""
+    @State private var photoData: Data?
+    @State private var photoItem: PhotosPickerItem?
+    @State private var showCamera = false
+
+    private let mealTypes = ["早餐", "午餐", "晚餐", "點心", "飲料"]
 
     var body: some View {
         FormSheet(title: "飲食記錄") {
-            ThemedTextField(title: "餐別", text: $type)
-            ThemedTextField(title: "餐點內容", text: $summary)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(mealTypes, id: \.self) { meal in
+                        chip(meal, selected: meal == type) { type = meal }
+                    }
+                }
+            }
+
+            ThemedTextField(title: "餐點內容（例：雞腿便當+無糖豆漿）", text: $summary)
             ThemedTextField(title: "備註", text: $note)
 
+            HStack(spacing: 10) {
+                ThemedTextField(title: "熱量（大卡，可留空自動估算）", text: $caloriesText)
+                Button("估算") {
+                    if let estimated = CalorieEstimator.estimate(from: summary) {
+                        caloriesText = String(estimated)
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppTheme.primary)
+            }
+
+            HStack(spacing: 10) {
+                Button {
+                    showCamera = true
+                } label: {
+                    Label("拍食物照", systemImage: "camera.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.primarySoft)
+                        .foregroundStyle(AppTheme.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+
+                PhotosPicker(selection: $photoItem, matching: .images) {
+                    Label("相簿選照", systemImage: "photo.on.rectangle")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(AppTheme.primarySoft)
+                        .foregroundStyle(AppTheme.primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+            }
+
+            if let photoData, let image = UIImage(data: photoData) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 140)
+                    .clipShape(RoundedRectangle(cornerRadius: 14))
+            }
+
             PrimaryButton(title: "保存") {
-                store.addMealRecord(type: type, summary: summary, note: note)
+                store.addMealRecord(
+                    type: type,
+                    summary: summary,
+                    note: note,
+                    calories: Int(caloriesText),
+                    photoData: photoData
+                )
                 dismiss()
+            }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraPicker { image in
+                photoData = image?.jpegData(compressionQuality: 0.6)
+            }
+            .ignoresSafeArea()
+        }
+        .onChange(of: photoItem) { item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let image = UIImage(data: data) {
+                    photoData = image.jpegData(compressionQuality: 0.6)
+                }
+                photoItem = nil
             }
         }
     }
@@ -5640,6 +6801,19 @@ private struct ResourceDetailView: View {
                                 .font(.subheadline)
                                 .foregroundStyle(AppTheme.text)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+
+                        // 小紅書在台灣被網路封鎖，開原文只會看到錯誤頁，故不提供按鈕
+                        if item.source != .xiaohongshu,
+                           let originalLink = URL(string: item.originalURL.isEmpty ? item.canonicalURL : item.originalURL) {
+                            Link(destination: originalLink) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "safari")
+                                    Text("查看原文")
+                                }
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(AppTheme.primary)
+                            }
                         }
                     }
                 }

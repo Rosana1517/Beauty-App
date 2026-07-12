@@ -641,6 +641,39 @@ struct MealRecord: Identifiable, Codable {
     var mealType: String
     var summary: String
     var note: String
+    /// 估算或手動輸入的熱量（大卡）；舊資料缺此欄位時解碼為 nil
+    var calories: Int?
+    /// 食物照（僅存本機）
+    var photoData: Data?
+}
+
+/// 常見食物關鍵字熱量估算表（大卡），供未輸入熱量時粗估
+enum CalorieEstimator {
+    private static let table: [(keywords: [String], calories: Int)] = [
+        (["便當", "排骨飯", "雞腿飯"], 750),
+        (["滷肉飯", "咖哩飯", "燴飯", "丼飯"], 650),
+        (["炒麵", "炒飯", "義大利麵", "拉麵"], 600),
+        (["火鍋", "麻辣燙"], 700),
+        (["漢堡", "薯條", "炸雞", "披薩", "鹽酥雞"], 800),
+        (["牛肉麵", "湯麵", "米粉", "冬粉"], 500),
+        (["水餃", "鍋貼", "小籠包"], 450),
+        (["壽司", "生魚片", "飯糰"], 400),
+        (["三明治", "吐司", "貝果", "蛋餅"], 350),
+        (["沙拉", "燙青菜", "溫沙拉"], 200),
+        (["雞胸", "水煮蛋", "豆腐", "無糖豆漿"], 180),
+        (["麵包", "蛋糕", "甜點", "餅乾", "冰淇淋"], 380),
+        (["手搖", "奶茶", "拿鐵", "果汁", "可樂"], 250),
+        (["燕麥", "優格", "地瓜", "香蕉"], 220),
+        (["粥", "稀飯"], 300),
+    ]
+
+    static func estimate(from text: String) -> Int? {
+        var total = 0
+        for entry in table where entry.keywords.contains(where: { text.contains($0) }) {
+            total += entry.calories
+        }
+        return total > 0 ? total : nil
+    }
 }
 
 struct Appointment: Identifiable, Codable {
@@ -1145,6 +1178,8 @@ struct BeautyDiaryState: Codable {
     var bookRecords: [BookRecord]
     var tutorialLinks: [TutorialLink]
     var punchRecords: [PunchRecord]
+    /// 各功能區的預期目標（區域名 -> 目標文字），有預設值故不需進 memberwise init
+    var areaGoals: [String: String] = [:]
     var achievements: [AchievementBadge]
     var exportHistory: [ExportRecord]
     var resourceFilter: ResourceCategory
@@ -1206,6 +1241,7 @@ struct BeautyDiaryState: Codable {
         case bookRecords
         case tutorialLinks
         case punchRecords
+        case areaGoals
         case achievements
         case exportHistory
         case resourceFilter
@@ -1391,6 +1427,7 @@ struct BeautyDiaryState: Codable {
         bookRecords = try container.decodeIfPresent([BookRecord].self, forKey: .bookRecords) ?? []
         tutorialLinks = try container.decodeIfPresent([TutorialLink].self, forKey: .tutorialLinks) ?? []
         punchRecords = try container.decodeIfPresent([PunchRecord].self, forKey: .punchRecords) ?? []
+        areaGoals = try container.decodeIfPresent([String: String].self, forKey: .areaGoals) ?? [:]
         achievements = try container.decodeIfPresent([AchievementBadge].self, forKey: .achievements) ?? []
         exportHistory = try container.decodeIfPresent([ExportRecord].self, forKey: .exportHistory) ?? []
         resourceFilter = try container.decodeIfPresent(ResourceCategory.self, forKey: .resourceFilter) ?? .all

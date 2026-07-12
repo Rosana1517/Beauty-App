@@ -15,3 +15,5 @@ artifacts/
 .npm-cache/
 build_artifacts/
 supabase/.temp/
+scripts/__pycache__/
+scripts/*cookies*.txt

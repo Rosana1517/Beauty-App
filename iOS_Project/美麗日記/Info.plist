@@ -41,6 +41,10 @@
             </array>
         </dict>
     </array>
+    <key>NSCameraUsageDescription</key>
+    <string>拍攝臉部照片以自動偵測臉型，並拍攝食物照片記錄飲食。</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>從相簿選擇臉部或食物照片進行分析。</string>
     <key>ITSAppUsesNonExemptEncryption</key>
     <false/>
     <key>LSRequiresIPhoneOS</key>
