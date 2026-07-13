@@ -111,6 +111,49 @@ export interface FreeformAdviceResult {
   products: string[];
 }
 
+/**
+ * 產品類主題先打 Tavily 即時網頁搜尋，把最新市售產品/評價摘要餵給 LLM，
+ * 讓推薦不受模型知識截止時間限制。沒設 TAVILY_API_KEY 或搜尋失敗時
+ * 直接略過，不影響建議產生。
+ */
+const WEB_SEARCH_TOPICS: AIAdviceTopic[] = ["skincare", "hair", "bodySkin", "makeup", "diet", "nourishment"];
+
+async function searchWebForProducts(topic: AIAdviceTopic, concerns: string[]): Promise<string> {
+  const apiKey = (Deno.env.get("TAVILY_API_KEY") ?? "").trim();
+  if (!apiKey || !WEB_SEARCH_TOPICS.includes(topic) || concerns.length === 0) return "";
+
+  try {
+    const query = `${concerns.slice(0, 3).join(" ")} 推薦 產品 評價 ${new Date().getFullYear()}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch("https://api.tavily.com/search", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        api_key: apiKey,
+        query,
+        search_depth: "basic",
+        max_results: 4,
+        include_answer: false,
+      }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+    if (!response.ok) return "";
+
+    const data = await response.json();
+    const results = Array.isArray(data?.results) ? data.results : [];
+    const lines = results
+      .filter((r: { title?: string; content?: string }) => r?.title && r?.content)
+      .slice(0, 4)
+      .map((r: { title: string; content: string }) => `- ${r.title}：${r.content.slice(0, 160)}`);
+    return lines.length > 0 ? lines.join("\n") : "";
+  } catch (error) {
+    console.error("Tavily search failed; continuing without web context.", error);
+    return "";
+  }
+}
+
 export async function requestFreeformSuggestions(
   topic: AIAdviceTopic,
   concerns: string[],
@@ -119,7 +162,8 @@ export async function requestFreeformSuggestions(
   const config = await resolveAIProviderConfig(userID);
   if (!config) return null;
 
-  const prompt = buildAdvicePrompt(topic, concerns);
+  const webContext = await searchWebForProducts(topic, concerns);
+  const prompt = buildAdvicePrompt(topic, concerns, webContext);
   try {
     const rawText = config.provider === "openai"
       ? await callOpenAI(config, prompt)
@@ -184,13 +228,20 @@ const TOPIC_FRAMING: Record<AIAdviceTopic, { persona: string; askedFor: string; 
   },
 };
 
-function buildAdvicePrompt(topic: AIAdviceTopic, concerns: string[]): string {
+function buildAdvicePrompt(topic: AIAdviceTopic, concerns: string[], webContext = ""): string {
   const framing = TOPIC_FRAMING[topic];
   const lines = [
     framing.persona,
     // 輸出 token 量直接決定回應速度，限制條數與每條長度讓使用者不用等太久
     `使用者輸入了以下需求，${framing.askedFor}，給出 3 到 5 個具體建議，每個建議一句話、40 字以內。`,
   ];
+
+  if (webContext) {
+    lines.push(
+      "以下是即時網路搜尋到的最新產品與評價摘要，產品推薦請優先根據這些最新資訊，並在推薦時保留品牌與產品名：",
+      webContext,
+    );
+  }
 
   if (topic === "skincare") {
     lines.push(
