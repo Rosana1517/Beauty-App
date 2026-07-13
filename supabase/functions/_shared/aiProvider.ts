@@ -188,14 +188,15 @@ function buildAdvicePrompt(topic: AIAdviceTopic, concerns: string[]): string {
   const framing = TOPIC_FRAMING[topic];
   const lines = [
     framing.persona,
-    `使用者輸入了以下需求，${framing.askedFor}，給出 4 到 6 個具體建議。`,
+    // 輸出 token 量直接決定回應速度，限制條數與每條長度讓使用者不用等太久
+    `使用者輸入了以下需求，${framing.askedFor}，給出 3 到 5 個具體建議，每個建議一句話、40 字以內。`,
   ];
 
   if (topic === "skincare") {
     lines.push(
-      "另外，請額外整理出可以直接加入使用者「護膚流程」的具體步驟，以及可以加入「保養品清單」的具體產品建議（包含成分/類型，不需要是真實品牌）。",
+      "另外，請額外整理出可以直接加入使用者「護膚流程」的具體步驟，以及可以加入「保養品清單」的具體產品建議（包含成分/類型，不需要是真實品牌），各項同樣一句話內。",
       "請只回覆一個 JSON 物件，不要有任何其他文字、不要用 markdown code block。",
-      `JSON 格式：{"suggestions": string[], "routineSteps": string[](2到4個), "products": string[](2到4個)}`,
+      `JSON 格式：{"suggestions": string[], "routineSteps": string[](2到3個), "products": string[](2到3個)}`,
     );
   } else {
     lines.push(
@@ -254,6 +255,8 @@ async function callOpenAI(config: AIProviderConfig, prompt: string): Promise<str
     body: JSON.stringify({
       model: config.model,
       temperature: 0.3,
+      // 沒有上限時部分模型會生成過長內容，拖慢回應
+      max_tokens: 700,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "You only respond with strict JSON matching the requested schema." },
