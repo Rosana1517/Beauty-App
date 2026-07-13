@@ -125,7 +125,7 @@ async function searchWebForProducts(topic: AIAdviceTopic, concerns: string[]): P
   try {
     const query = `${concerns.slice(0, 3).join(" ")} 推薦 產品 評價 ${new Date().getFullYear()}`;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+    const timer = setTimeout(() => controller.abort(), 4000);
     const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -165,9 +165,11 @@ export async function requestFreeformSuggestions(
   const webContext = await searchWebForProducts(topic, concerns);
   const prompt = buildAdvicePrompt(topic, concerns, webContext);
   try {
-    const rawText = config.provider === "openai"
-      ? await callOpenAI(config, prompt)
-      : await callAnthropic(config, prompt);
+    // 部分閘道（如 agnes）延遲抖動極大（7~60 秒），同時發兩個相同請求
+    // 取先完成者，可把中位數延遲大幅壓低；代價是偶爾多耗一次配額。
+    const call = () =>
+      config.provider === "openai" ? callOpenAI(config, prompt) : callAnthropic(config, prompt);
+    const rawText = await Promise.any([call(), call()]);
     return parseSuggestionsResponse(rawText, topic);
   } catch (error) {
     console.error("AI provider call failed for freeform suggestions.", error);
@@ -233,7 +235,7 @@ function buildAdvicePrompt(topic: AIAdviceTopic, concerns: string[], webContext 
   const lines = [
     framing.persona,
     // 輸出 token 量直接決定回應速度，限制條數與每條長度讓使用者不用等太久
-    `使用者輸入了以下需求，${framing.askedFor}，給出 3 到 5 個具體建議，每個建議一句話、40 字以內。`,
+    `使用者輸入了以下需求，${framing.askedFor}，給出 3 到 4 個具體建議，每個建議一句話、30 字以內。`,
   ];
 
   if (webContext) {
@@ -309,7 +311,7 @@ async function callOpenAI(config: AIProviderConfig, prompt: string): Promise<str
       model: config.model,
       temperature: 0.3,
       // 沒有上限時部分模型會生成過長內容，拖慢回應
-      max_tokens: 700,
+      max_tokens: 450,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: "You only respond with strict JSON matching the requested schema." },
