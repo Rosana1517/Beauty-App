@@ -408,7 +408,25 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
             queryItems: [URLQueryItem(name: "user_id", value: "eq.\(userID)")],
             responseType: [SupabaseResourceRow].self
         )
-        return rows.map(\.resourceItem)
+
+        // 一次抓回使用者名下所有媒體資產（RLS 已限定 owner），依 resource_id 掛回各筆資源
+        var assetsByResource: [String: [SupabaseMediaAssetRow]] = [:]
+        if !rows.isEmpty {
+            let assetRows: [SupabaseMediaAssetRow] = (try? await client.select(
+                table: "resource_media_assets",
+                queryItems: [URLQueryItem(name: "order", value: "display_index.asc")],
+                responseType: [SupabaseMediaAssetRow].self
+            )) ?? []
+            assetsByResource = Dictionary(grouping: assetRows, by: \.resourceID)
+        }
+
+        return rows.map { row in
+            var item = row.resourceItem
+            if let assetRows = assetsByResource[row.id], !assetRows.isEmpty {
+                item.mediaAssets = assetRows.map(\.mediaAsset)
+            }
+            return item
+        }
     }
 
     func enqueueReparse(for item: ResourceItem, reason: String) async throws -> ResourceSyncQueueItem {
@@ -976,6 +994,32 @@ private struct SupabaseResourceRow: Decodable {
     let createdAt: Date?
     let updatedAt: Date?
 
+    // decoder 的 convertFromSnakeCase 會把 original_url 轉成 originalUrl（小寫 l），
+    // 與本結構的 URL/ID 大寫命名不符，必須用 CodingKeys 對回轉換後的鍵名，
+    // 否則非 optional 的 originalURL 會讓整批資源解碼失敗。
+    enum CodingKeys: String, CodingKey {
+        case id
+        case userID = "userId"
+        case sourceType
+        case contentType
+        case category
+        case title
+        case descriptionText
+        case authorName
+        case originalURL = "originalUrl"
+        case canonicalURL = "canonicalUrl"
+        case externalID = "externalId"
+        case thumbnailURL = "thumbnailUrl"
+        case publishedAt
+        case tags
+        case importStatus
+        case metadataConfidence
+        case mediaRetentionPolicy
+        case rawMetadataSnapshot
+        case createdAt
+        case updatedAt
+    }
+
     var resourceItem: ResourceItem {
         ResourceItem(
             id: UUID(),
@@ -1008,6 +1052,45 @@ private struct SupabaseResourceRow: Decodable {
 
 private struct SupabaseImportEventRow: Decodable {
     let id: String
+}
+
+private struct SupabaseMediaAssetRow: Decodable {
+    let id: String
+    let resourceID: String
+    let assetID: String?
+    let assetType: String
+    let remoteURL: String
+    let previewURL: String?
+    let displayIndex: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case resourceID = "resourceId"
+        case assetID = "assetId"
+        case assetType
+        case remoteURL = "remoteUrl"
+        case previewURL = "previewUrl"
+        case displayIndex
+    }
+
+    var mediaAsset: XHSMediaAsset {
+        XHSMediaAsset(
+            id: UUID(uuidString: id) ?? UUID(),
+            assetID: assetID ?? "",
+            type: XHSMediaAssetType(rawValue: assetType) ?? .image,
+            remoteURL: remoteURL,
+            previewURL: previewURL ?? remoteURL,
+            width: nil,
+            height: nil,
+            duration: nil,
+            index: displayIndex ?? 0,
+            retentionPolicy: .explicitKeep,
+            localStoragePath: nil,
+            checksum: nil,
+            isSelectedForImport: true,
+            expiresAt: nil
+        )
+    }
 }
 
 private struct SupabaseAppUserRow: Decodable {

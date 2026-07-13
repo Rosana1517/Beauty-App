@@ -6793,6 +6793,47 @@ private struct ResourceDetailView: View {
             VStack(spacing: 18) {
                 titleRow(title: "資源詳情") {}
 
+                let carouselAssets = item.mediaAssets
+                    .filter { ($0.type == .image || $0.type == .cover) && !$0.displayURL.isEmpty }
+                    .sorted { $0.index < $1.index }
+                if !carouselAssets.isEmpty {
+                    CardView {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("圖片（\(carouselAssets.count) 張，左右滑動）")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            TabView {
+                                ForEach(carouselAssets) { asset in
+                                    AsyncImage(url: URL(string: asset.displayURL)) { phase in
+                                        switch phase {
+                                        case .success(let image):
+                                            image
+                                                .resizable()
+                                                .scaledToFit()
+                                        case .failure:
+                                            VStack(spacing: 6) {
+                                                Image(systemName: "photo")
+                                                    .font(.title)
+                                                Text("圖片載入失敗")
+                                                    .font(.caption)
+                                            }
+                                            .foregroundStyle(AppTheme.subtext)
+                                        default:
+                                            ProgressView()
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                }
+                            }
+                            .tabViewStyle(.page(indexDisplayMode: .always))
+                            .indexViewStyle(.page(backgroundDisplayMode: .always))
+                            .frame(height: 360)
+                            .background(AppTheme.primarySoft)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
+                    }
+                }
+
                 CardView {
                     VStack(alignment: .leading, spacing: 12) {
                         MetadataHero(item: item)
