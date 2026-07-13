@@ -76,6 +76,7 @@ struct AIAdviceResult {
     let suggestions: [String]
     let routineSteps: [String]
     let products: [String]
+    var relatedResources: [AIAdviceRelatedResource] = []
 }
 
 struct ProductLookupResult {
@@ -492,7 +493,8 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
         return AIAdviceResult(
             suggestions: response.suggestions,
             routineSteps: response.routineSteps ?? [],
-            products: response.products ?? []
+            products: response.products ?? [],
+            relatedResources: response.relatedResources ?? []
         )
     }
 
@@ -842,6 +844,25 @@ private struct AIAdviceFunctionResponse: Decodable {
     let suggestions: [String]
     let routineSteps: [String]?
     let products: [String]?
+    let relatedResources: [AIAdviceRelatedResource]?
+}
+
+/// AI 建議附帶的資料庫筆記推薦（可加入運動管理、跳轉教學內容）
+struct AIAdviceRelatedResource: Identifiable, Codable, Equatable {
+    let id: String
+    let title: String
+    let category: String
+    let author: String
+    let thumbnailURL: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case title
+        case category
+        case author
+        // convertFromSnakeCase 會把 thumbnail_url 轉成 thumbnailUrl
+        case thumbnailURL = "thumbnailUrl"
+    }
 }
 
 private struct ProductLookupFunctionRequest: Encodable {

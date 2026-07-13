@@ -1,7 +1,7 @@
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 import { requestFreeformSuggestions } from "../_shared/aiProvider.ts";
 import { createAdminClient, resolveAuthenticatedUserID } from "../_shared/runtime.ts";
-import type { AIAdviceRequest, AIAdviceResponse, AIAdviceTopic } from "../_shared/types.ts";
+import type { AIAdviceRelatedResource, AIAdviceRequest, AIAdviceResponse, AIAdviceTopic } from "../_shared/types.ts";
 
 const VALID_TOPICS: AIAdviceTopic[] = ["skincare", "hair", "facialLift", "bodySkin", "diet", "makeup", "exercise", "wellness", "finance", "nourishment"];
 
@@ -20,13 +20,14 @@ const TOPIC_CATEGORY: Partial<Record<AIAdviceTopic, string[]>> = {
  * 依使用者輸入的關鍵字搜尋庫內小紅書筆記（標題/描述 ilike），
  * 關鍵字沒中時退回主題分類熱門，回傳可直接附加到建議清單的字串。
  */
-async function searchRelatedNotes(topic: AIAdviceTopic, concerns: string[]): Promise<string[]> {
+async function searchRelatedNotes(topic: AIAdviceTopic, concerns: string[]): Promise<AIAdviceRelatedResource[]> {
   const categories = TOPIC_CATEGORY[topic];
   if (!categories) return [];
 
   try {
     const supabase = createAdminClient();
-    const found = new Map<string, { title: string; author: string; liked: string }>();
+    const found = new Map<string, AIAdviceRelatedResource>();
+    const columns = "id, title, author_name, category, thumbnail_url";
 
     const keywords = concerns
       .flatMap((c) => c.split(/[、，,\s：:（）()]+/))
@@ -38,7 +39,7 @@ async function searchRelatedNotes(topic: AIAdviceTopic, concerns: string[]): Pro
       if (found.size >= 3) break;
       const { data } = await supabase
         .from("resource_items")
-        .select("id, title, author_name, raw_metadata_snapshot")
+        .select(columns)
         .eq("source_type", "xiaohongshu")
         .eq("import_status", "parsed")
         .or(`title.ilike.%${keyword}%,description_text.ilike.%${keyword}%`)
@@ -46,9 +47,11 @@ async function searchRelatedNotes(topic: AIAdviceTopic, concerns: string[]): Pro
       for (const row of data ?? []) {
         if (!found.has(row.id)) {
           found.set(row.id, {
+            id: row.id,
             title: row.title,
+            category: row.category ?? "other",
             author: row.author_name ?? "",
-            liked: row.raw_metadata_snapshot?.likedCount ?? "",
+            thumbnail_url: row.thumbnail_url ?? "",
           });
         }
       }
@@ -57,24 +60,23 @@ async function searchRelatedNotes(topic: AIAdviceTopic, concerns: string[]): Pro
     if (found.size === 0) {
       const { data } = await supabase
         .from("resource_items")
-        .select("id, title, author_name, raw_metadata_snapshot")
+        .select(columns)
         .eq("source_type", "xiaohongshu")
         .eq("import_status", "parsed")
         .in("category", categories)
         .limit(2);
       for (const row of data ?? []) {
         found.set(row.id, {
+          id: row.id,
           title: row.title,
+          category: row.category ?? "other",
           author: row.author_name ?? "",
-          liked: row.raw_metadata_snapshot?.likedCount ?? "",
+          thumbnail_url: row.thumbnail_url ?? "",
         });
       }
     }
 
-    return [...found.values()].slice(0, 3).map((note) => {
-      const likedText = note.liked ? `，讚 ${note.liked}` : "";
-      return `📎 小紅書實測：${note.title}（${note.author}${likedText}）— 可到「資源庫」查看`;
-    });
+    return [...found.values()].slice(0, 3);
   } catch (error) {
     console.error("Related note search failed; returning advice without notes.", error);
     return [];
@@ -104,9 +106,10 @@ Deno.serve(async (req) => {
 
     const relatedNotes = await searchRelatedNotes(topic, concerns);
     const response: AIAdviceResponse = {
-      suggestions: [...result.suggestions, ...relatedNotes],
+      suggestions: result.suggestions,
       routineSteps: result.routineSteps.length > 0 ? result.routineSteps : undefined,
       products: result.products.length > 0 ? result.products : undefined,
+      relatedResources: relatedNotes.length > 0 ? relatedNotes : undefined,
     };
     return jsonResponse(response);
   } catch (error) {

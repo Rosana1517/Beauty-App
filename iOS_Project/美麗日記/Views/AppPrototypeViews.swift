@@ -1861,6 +1861,7 @@ struct ExercisePunchView: View {
     @State private var showAddExercise = false
     @State private var editingCustomExercise: CustomExercise?
     @State private var editingExercisePunch: ExercisePunchRecord?
+    @State private var viewingExerciseTutorial: ResourceItem?
 
     private let categories = ["有氧", "力量", "瑜珈", "HIIT", "拉伸", "核心"]
 
@@ -1873,8 +1874,11 @@ struct ExercisePunchView: View {
                     topic: .exercise,
                     title: "AI 運動推薦",
                     subtitle: "輸入想訓練的部位或想改善的外型問題",
-                    commonConcerns: [],
-                    buttonTitle: "獲取推薦"
+                    commonConcerns: ["瘦大腿", "瘦小腿", "翹臀", "假胯寬", "骨盆前傾", "駝背", "腰腹", "副乳", "拉伸放鬆"],
+                    buttonTitle: "獲取推薦",
+                    onAddExercise: { resource in
+                        store.addCustomExercise(name: resource.title, linkedResourceRemoteID: resource.id)
+                    }
                 )
 
                 CardView {
@@ -1934,16 +1938,30 @@ struct ExercisePunchView: View {
                         } else {
                             VStack(spacing: 10) {
                                 ForEach(store.state.customExercises) { exercise in
-                                    Text(exercise.name)
-                                        .font(.subheadline)
-                                        .foregroundStyle(AppTheme.text)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(12)
-                                        .background(AppTheme.primarySoft)
-                                        .clipShape(RoundedRectangle(cornerRadius: 14))
-                                        .recordActions(onEdit: { editingCustomExercise = exercise }) {
-                                            store.deleteCustomExercise(exercise)
+                                    HStack(spacing: 8) {
+                                        Text(exercise.name)
+                                            .font(.subheadline)
+                                            .foregroundStyle(AppTheme.text)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                                        if let remoteID = exercise.linkedResourceRemoteID {
+                                            Button {
+                                                if let item = store.resourceItem(remoteID: remoteID) {
+                                                    viewingExerciseTutorial = item
+                                                }
+                                            } label: {
+                                                Label("教學", systemImage: "book.fill")
+                                                    .font(.caption.weight(.semibold))
+                                                    .foregroundStyle(AppTheme.primary)
+                                            }
                                         }
+                                    }
+                                    .padding(12)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .recordActions(onEdit: { editingCustomExercise = exercise }) {
+                                        store.deleteCustomExercise(exercise)
+                                    }
                                 }
                             }
                         }
@@ -2004,6 +2022,12 @@ struct ExercisePunchView: View {
             .padding(20)
         }
         .background(AppTheme.background)
+        .sheet(item: $viewingExerciseTutorial) { item in
+            NavigationStack {
+                ResourceDetailView(item: item)
+                    .background(AppTheme.background)
+            }
+        }
         .sheet(item: $editingCustomExercise) { record in
             FieldsEditSheet(
                 title: "編輯自訂運動",
@@ -6994,12 +7018,16 @@ struct AIAdviceSection: View {
     let buttonTitle: String
     var onAddRoutineStep: ((String) -> Void)? = nil
     var onAddProduct: ((String) -> Void)? = nil
+    var onAddExercise: ((AIAdviceRelatedResource) -> Void)? = nil
 
     @State private var selectedConcerns: Set<String> = []
     @State private var customConcern = ""
     @State private var selectedCustomConcerns: Set<String> = []
     @State private var addedRoutineSteps: Set<String> = []
     @State private var addedProducts: Set<String> = []
+    @State private var addedExerciseResourceIDs: Set<String> = []
+    @State private var viewingTutorial: ResourceItem?
+    @State private var tutorialMissingMessage: String?
 
     private var allConcerns: [String] {
         Array(selectedConcerns) + Array(selectedCustomConcerns)
@@ -7115,6 +7143,78 @@ struct AIAdviceSection: View {
                         }
                     }
                 }
+
+                let related = store.relatedResources(for: topic)
+                if !related.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("資料庫相關教學")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(AppTheme.text)
+
+                        ForEach(related) { resource in
+                            HStack(spacing: 10) {
+                                AsyncImage(url: URL(string: resource.thumbnailURL)) { phase in
+                                    if case .success(let image) = phase {
+                                        image.resizable().scaledToFill()
+                                    } else {
+                                        AppTheme.primarySoft
+                                    }
+                                }
+                                .frame(width: 48, height: 48)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(resource.title)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.text)
+                                        .lineLimit(2)
+                                    if !resource.author.isEmpty {
+                                        Text(resource.author)
+                                            .font(.caption2)
+                                            .foregroundStyle(AppTheme.subtext)
+                                    }
+                                    HStack(spacing: 12) {
+                                        Button("查看教學") {
+                                            if let item = store.resourceItem(remoteID: resource.id) {
+                                                viewingTutorial = item
+                                            } else {
+                                                tutorialMissingMessage = "教學內容還沒同步到本機，請先登入並到「資源庫」下拉更新後再試。"
+                                            }
+                                        }
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(AppTheme.primary)
+
+                                        if let onAddExercise {
+                                            Button(addedExerciseResourceIDs.contains(resource.id) ? "已加入" : "加入運動管理") {
+                                                onAddExercise(resource)
+                                                addedExerciseResourceIDs.insert(resource.id)
+                                            }
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(addedExerciseResourceIDs.contains(resource.id) ? AppTheme.subtext : AppTheme.primary)
+                                            .disabled(addedExerciseResourceIDs.contains(resource.id))
+                                        }
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .padding(10)
+                            .background(AppTheme.primarySoft)
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                        }
+
+                        if let tutorialMissingMessage {
+                            Text(tutorialMissingMessage)
+                                .font(.caption2)
+                                .foregroundStyle(.orange)
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(item: $viewingTutorial) { item in
+            NavigationStack {
+                ResourceDetailView(item: item)
+                    .background(AppTheme.background)
             }
         }
     }

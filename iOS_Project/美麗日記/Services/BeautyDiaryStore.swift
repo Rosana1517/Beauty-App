@@ -484,11 +484,18 @@ final class BeautyDiaryStore: ObservableObject {
         save()
     }
 
-    func addCustomExercise(name: String) {
+    func addCustomExercise(name: String, linkedResourceRemoteID: String? = nil) {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
+        // 同一篇教學筆記不重複加入
+        if let linkedResourceRemoteID,
+           state.customExercises.contains(where: { $0.linkedResourceRemoteID == linkedResourceRemoteID }) {
+            return
+        }
 
-        state.customExercises.append(CustomExercise(id: UUID(), name: trimmed))
+        state.customExercises.append(
+            CustomExercise(id: UUID(), name: trimmed, linkedResourceRemoteID: linkedResourceRemoteID)
+        )
         save()
     }
 
@@ -850,6 +857,7 @@ final class BeautyDiaryStore: ObservableObject {
     @Published private(set) var aiAdviceSuggestions: [AIAdviceTopic: [String]] = [:]
     @Published private(set) var aiAdviceRoutineSteps: [AIAdviceTopic: [String]] = [:]
     @Published private(set) var aiAdviceProducts: [AIAdviceTopic: [String]] = [:]
+    @Published private(set) var aiAdviceRelatedResources: [AIAdviceTopic: [AIAdviceRelatedResource]] = [:]
     @Published private(set) var aiAdviceErrorMessage: [AIAdviceTopic: String] = [:]
     @Published private(set) var loadingAIAdviceTopics: Set<AIAdviceTopic> = []
     @Published var productLookupError: String?
@@ -865,6 +873,15 @@ final class BeautyDiaryStore: ObservableObject {
 
     func recommendedProducts(for topic: AIAdviceTopic) -> [String] {
         aiAdviceProducts[topic] ?? []
+    }
+
+    func relatedResources(for topic: AIAdviceTopic) -> [AIAdviceRelatedResource] {
+        aiAdviceRelatedResources[topic] ?? []
+    }
+
+    /// 以遠端記錄 ID 找回本地資源（AI 推薦跳轉教學用）
+    func resourceItem(remoteID: String) -> ResourceItem? {
+        state.resourceItems.first { $0.remoteRecordID == remoteID }
     }
 
     func errorMessage(for topic: AIAdviceTopic) -> String? {
@@ -889,6 +906,7 @@ final class BeautyDiaryStore: ObservableObject {
             aiAdviceSuggestions[topic] = result.suggestions
             aiAdviceRoutineSteps[topic] = result.routineSteps
             aiAdviceProducts[topic] = result.products
+            aiAdviceRelatedResources[topic] = result.relatedResources
         } catch {
             aiAdviceErrorMessage[topic] = error.localizedDescription
         }

@@ -152,10 +152,19 @@ export interface AIAdviceRequest {
   concerns: string[];
 }
 
+export interface AIAdviceRelatedResource {
+  id: string;
+  title: string;
+  category: string;
+  author: string;
+  thumbnail_url: string;
+}
+
 export interface AIAdviceResponse {
   suggestions: string[];
   routineSteps?: string[];
   products?: string[];
+  relatedResources?: AIAdviceRelatedResource[];
 }
 
 export interface SupabaseQueueJobResponse {

@@ -583,6 +583,8 @@ struct ExercisePunchRecord: Identifiable, Codable {
 struct CustomExercise: Identifiable, Codable {
     var id: UUID
     var name: String
+    /// 來自 AI 推薦時，關聯的資料庫筆記遠端 ID（可跳轉教學內容）
+    var linkedResourceRemoteID: String?
 }
 
 struct TrainingScheduleItem: Identifiable, Codable {
