@@ -6956,12 +6956,12 @@ struct AIAdviceSection: View {
 
     @State private var selectedConcerns: Set<String> = []
     @State private var customConcern = ""
-    @State private var customConcerns: [String] = []
+    @State private var selectedCustomConcerns: Set<String> = []
     @State private var addedRoutineSteps: Set<String> = []
     @State private var addedProducts: Set<String> = []
 
     private var allConcerns: [String] {
-        Array(selectedConcerns) + customConcerns
+        Array(selectedConcerns) + Array(selectedCustomConcerns)
     }
 
     var body: some View {
@@ -6984,15 +6984,32 @@ struct AIAdviceSection: View {
                     Button("加入") {
                         let trimmed = customConcern.trimmingCharacters(in: .whitespacesAndNewlines)
                         guard !trimmed.isEmpty else { return }
-                        customConcerns.append(trimmed)
+                        store.addCustomConcern(trimmed, for: topic)
+                        selectedCustomConcerns.insert(trimmed)
                         customConcern = ""
                     }
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppTheme.primary)
                 }
 
-                if !customConcerns.isEmpty {
-                    WrapToggleChips(items: customConcerns, selection: .constant(Set(customConcerns)))
+                let savedCustomConcerns = store.customConcerns(for: topic)
+                if !savedCustomConcerns.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("我的常用問題（點選使用，長按刪除）")
+                            .font(.caption2)
+                            .foregroundStyle(AppTheme.subtext)
+                        WrapToggleChips(items: savedCustomConcerns, selection: $selectedCustomConcerns)
+                            .contextMenu {
+                                ForEach(savedCustomConcerns, id: \.self) { concern in
+                                    Button(role: .destructive) {
+                                        store.removeCustomConcern(concern, for: topic)
+                                        selectedCustomConcerns.remove(concern)
+                                    } label: {
+                                        Label("刪除「\(concern)」", systemImage: "trash")
+                                    }
+                                }
+                            }
+                    }
                 }
 
                 PrimaryButton(title: store.isLoadingAdvice(for: topic) ? "正在取得建議…" : buttonTitle) {

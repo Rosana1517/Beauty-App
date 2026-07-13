@@ -1180,6 +1180,8 @@ struct BeautyDiaryState: Codable {
     var punchRecords: [PunchRecord]
     /// 各功能區的預期目標（區域名 -> 目標文字），有預設值故不需進 memberwise init
     var areaGoals: [String: String] = [:]
+    /// AI 建議的自訂常用問題（topic rawValue -> 問題清單），加入後跨啟動保存
+    var customAdviceConcerns: [String: [String]] = [:]
     var achievements: [AchievementBadge]
     var exportHistory: [ExportRecord]
     var resourceFilter: ResourceCategory
@@ -1242,6 +1244,7 @@ struct BeautyDiaryState: Codable {
         case tutorialLinks
         case punchRecords
         case areaGoals
+        case customAdviceConcerns
         case achievements
         case exportHistory
         case resourceFilter
@@ -1428,6 +1431,7 @@ struct BeautyDiaryState: Codable {
         tutorialLinks = try container.decodeIfPresent([TutorialLink].self, forKey: .tutorialLinks) ?? []
         punchRecords = try container.decodeIfPresent([PunchRecord].self, forKey: .punchRecords) ?? []
         areaGoals = try container.decodeIfPresent([String: String].self, forKey: .areaGoals) ?? [:]
+        customAdviceConcerns = try container.decodeIfPresent([String: [String]].self, forKey: .customAdviceConcerns) ?? [:]
         achievements = try container.decodeIfPresent([AchievementBadge].self, forKey: .achievements) ?? []
         exportHistory = try container.decodeIfPresent([ExportRecord].self, forKey: .exportHistory) ?? []
         resourceFilter = try container.decodeIfPresent(ResourceCategory.self, forKey: .resourceFilter) ?? .all

@@ -921,6 +921,29 @@ final class BeautyDiaryStore: ObservableObject {
         }
     }
 
+    // MARK: - AI 建議自訂常用問題
+
+    func customConcerns(for topic: AIAdviceTopic) -> [String] {
+        state.customAdviceConcerns[topic.rawValue] ?? []
+    }
+
+    func addCustomConcern(_ concern: String, for topic: AIAdviceTopic) {
+        let trimmed = concern.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        var list = state.customAdviceConcerns[topic.rawValue] ?? []
+        guard !list.contains(trimmed) else { return }
+        list.append(trimmed)
+        state.customAdviceConcerns[topic.rawValue] = list
+        save()
+    }
+
+    func removeCustomConcern(_ concern: String, for topic: AIAdviceTopic) {
+        var list = state.customAdviceConcerns[topic.rawValue] ?? []
+        list.removeAll { $0 == concern }
+        state.customAdviceConcerns[topic.rawValue] = list
+        save()
+    }
+
     // MARK: - 區域目標與彙整建議
 
     func setAreaGoal(_ area: String, goal: String) {

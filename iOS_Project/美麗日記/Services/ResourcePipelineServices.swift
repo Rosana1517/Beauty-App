@@ -633,7 +633,9 @@ private struct SupabaseRESTClient {
             method: "POST",
             queryItems: [],
             body: payload,
-            responseType: responseType
+            responseType: responseType,
+            // AI 建議等 LLM function 常需 15~30 秒以上，沿用預設 20 秒會頻繁逾時
+            timeout: 90
         )
     }
 
@@ -708,7 +710,8 @@ private struct SupabaseRESTClient {
         queryItems: [URLQueryItem],
         body: Payload?,
         responseType: Response.Type,
-        extraHeaders: [String: String] = [:]
+        extraHeaders: [String: String] = [:],
+        timeout: TimeInterval = 20
     ) async throws -> Response {
         guard var components = URLComponents(string: baseURL) else {
             throw URLError(.badURL)
@@ -721,7 +724,7 @@ private struct SupabaseRESTClient {
 
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.timeoutInterval = 20
+        request.timeoutInterval = timeout
         request.setValue(anonKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(authorizationToken)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
