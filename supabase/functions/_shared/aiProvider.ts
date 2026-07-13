@@ -40,7 +40,7 @@ async function fetchUserAIProviderConfig(userID: string): Promise<AIProviderConf
     }
 
     const model = String(data.model ?? "").trim() || defaultModelFor(provider);
-    const baseURL = String(data.base_url ?? "").trim().replace(/\/+$/, "") || defaultBaseURLFor(provider);
+    const baseURL = sanitizeBaseURL(String(data.base_url ?? "").trim()) || defaultBaseURLFor(provider);
     return { provider, apiKey, model, baseURL };
   } catch (error) {
     console.error("Failed to load user AI provider settings, falling back.", error);
@@ -55,8 +55,24 @@ function getEnvAIProviderConfig(): AIProviderConfig | null {
     return null;
   }
   const model = (Deno.env.get("AI_MODEL") ?? "").trim() || defaultModelFor(provider);
-  const baseURL = (Deno.env.get("AI_BASE_URL") ?? "").trim().replace(/\/+$/, "") || defaultBaseURLFor(provider);
+  const baseURL = sanitizeBaseURL((Deno.env.get("AI_BASE_URL") ?? "").trim()) || defaultBaseURLFor(provider);
   return { provider, apiKey, model, baseURL };
+}
+
+/**
+ * Users commonly paste the full chat endpoint (e.g. copying "Base URL：
+ * https://apihub.agnes-ai.com/v1/chat/completions" verbatim from a
+ * provider's docs) into the "API Base URL" field, even though callOpenAI/
+ * callAnthropic below append "/chat/completions" or "/messages"
+ * themselves. Left as-is this silently doubles the path (".../v1/chat/
+ * completions/chat/completions") and every call 404s. Strip a trailing
+ * endpoint suffix so both the bare root and the full endpoint work.
+ */
+function sanitizeBaseURL(raw: string): string {
+  return raw
+    .replace(/\/+$/, "")
+    .replace(/\/(chat\/completions|messages)$/i, "")
+    .replace(/\/+$/, "");
 }
 
 function defaultModelFor(provider: "openai" | "anthropic"): string {
@@ -449,6 +465,60 @@ export async function requestProductLookup(
     };
   } catch (error) {
     console.error("AI provider call failed for product lookup.", error);
+    return null;
+  }
+}
+
+export interface FoodAnalysisResult {
+  foodName: string;
+  estimatedCalories: number;
+  notes: string;
+}
+
+/**
+ * Identifies food from a photo and/or free-text description and estimates
+ * calories, so 飲食記錄 doesn't rely purely on the local keyword table.
+ * Mirrors requestProductLookup's vision/text branching.
+ */
+export async function requestFoodAnalysis(
+  text: string | undefined,
+  imageBase64: string | undefined,
+  userID: string,
+): Promise<FoodAnalysisResult | null> {
+  const config = await resolveAIProviderConfig(userID);
+  if (!config) return null;
+
+  const instructions = [
+    "你是一個飲食熱量估算助手。",
+    imageBase64
+      ? "請辨識照片中的食物內容（可能含多樣食物），估算這一餐的總熱量（大卡）。"
+      : `請根據使用者描述的餐點「${text ?? ""}」估算這一餐的總熱量（大卡）。`,
+    "請盡量給出合理的真實世界估算值，不確定時仍要給出最佳猜測，不要拒絕回答。",
+    "請只回覆一個 JSON 物件，不要有任何其他文字、不要用 markdown code block。",
+    `JSON 格式：{"foodName": string, "estimatedCalories": number, "notes": string}`,
+    text && imageBase64 ? `使用者輸入的描述：${text}` : "",
+  ].filter(Boolean).join("\n");
+
+  try {
+    const rawText = imageBase64
+      ? config.provider === "openai"
+        ? await callOpenAIVision(config, instructions, imageBase64)
+        : await callAnthropicVision(config, instructions, imageBase64)
+      : config.provider === "openai"
+        ? await callOpenAI(config, instructions)
+        : await callAnthropic(config, instructions);
+
+    const parsed = JSON.parse(extractJSONObject(rawText));
+    const foodName = typeof parsed.foodName === "string" ? parsed.foodName.trim() : "";
+    if (!foodName) return null;
+
+    return {
+      foodName,
+      estimatedCalories: typeof parsed.estimatedCalories === "number" ? Math.max(0, Math.round(parsed.estimatedCalories)) : 0,
+      notes: typeof parsed.notes === "string" ? parsed.notes.trim() : "",
+    };
+  } catch (error) {
+    console.error("AI provider call failed for food analysis.", error);
     return null;
   }
 }

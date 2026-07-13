@@ -2226,6 +2226,16 @@ struct WellnessView: View {
     ]
     private let constitutions = [("寒性", "手腳冰冷‧怕冷"), ("熱性", "易上火‧口渴"), ("虛性", "易疲倦‧氣短"), ("實性", "體力充沛‧易便秘")]
 
+    /// 把使用者已記錄的症狀歷史整理成一段脈絡，靜默併入 AI 請求，
+    /// 讓建議是依照實際紀錄而非僅憑當下輸入的單一問題。
+    private var symptomHistoryContext: [String] {
+        guard !store.state.symptomRecords.isEmpty else { return [] }
+        let recent = store.state.symptomRecords.prefix(8).map { record -> String in
+            record.note.isEmpty ? record.symptom : "\(record.symptom)（\(record.note)）"
+        }
+        return ["我近期記錄的症狀：\(recent.joined(separator: "、"))"]
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
@@ -2532,7 +2542,11 @@ struct WellnessView: View {
                 title: "AI 健康建議",
                 subtitle: "基於當前症狀，輸入想要改善的方向，獲取個人化養生建議",
                 commonConcerns: [],
-                buttonTitle: "獲取 AI 養生建議"
+                buttonTitle: "獲取 AI 養生建議",
+                additionalContext: symptomHistoryContext,
+                onAddRecipe: { text in
+                    store.addNourishmentRecipe(title: text, url: "")
+                }
             )
 
             CardView {
@@ -2700,6 +2714,7 @@ struct MealRecordsView: View {
     @State private var showAddRecipe = false
     @State private var editingFavoriteRecipe: TutorialLink?
     @State private var editingMeal: MealRecord?
+    @State private var addedDietSuggestions: Set<String> = []
 
     private var todaysMealSummaries: [String] {
         let summary = store.todayCalorieSummary()
@@ -2818,13 +2833,23 @@ struct MealRecordsView: View {
                         if !store.suggestions(for: .diet).isEmpty {
                             VStack(alignment: .leading, spacing: 10) {
                                 ForEach(store.suggestions(for: .diet), id: \.self) { suggestion in
-                                    Text("• \(suggestion)")
-                                        .font(.subheadline)
-                                        .foregroundStyle(AppTheme.text)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .padding(12)
-                                        .background(AppTheme.primarySoft)
-                                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    HStack(alignment: .top, spacing: 10) {
+                                        Text("• \(suggestion)")
+                                            .font(.subheadline)
+                                            .foregroundStyle(AppTheme.text)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+
+                                        Button(addedDietSuggestions.contains(suggestion) ? "已加入" : "加入收藏食譜") {
+                                            store.addFavoriteRecipe(title: suggestion, url: "")
+                                            addedDietSuggestions.insert(suggestion)
+                                        }
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(addedDietSuggestions.contains(suggestion) ? AppTheme.subtext : AppTheme.primary)
+                                        .disabled(addedDietSuggestions.contains(suggestion))
+                                    }
+                                    .padding(12)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
                                 }
                             }
                         }
@@ -6370,6 +6395,7 @@ private struct AddMealSheet: View {
     @State private var photoData: Data?
     @State private var photoItem: PhotosPickerItem?
     @State private var showCamera = false
+    @State private var validationMessage: String?
 
     private let mealTypes = ["早餐", "午餐", "晚餐", "點心", "飲料"]
 
@@ -6389,12 +6415,11 @@ private struct AddMealSheet: View {
             HStack(spacing: 10) {
                 ThemedTextField(title: "熱量（大卡，可留空自動估算）", text: $caloriesText)
                 Button("估算") {
-                    if let estimated = CalorieEstimator.estimate(from: summary) {
-                        caloriesText = String(estimated)
-                    }
+                    Task { await runAIAnalysis() }
                 }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(AppTheme.primary)
+                .disabled(store.isAnalyzingFood)
             }
 
             HStack(spacing: 10) {
@@ -6429,7 +6454,31 @@ private struct AddMealSheet: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14))
             }
 
+            if store.isAnalyzingFood {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("AI 正在辨識餐點與估算熱量…")
+                        .font(.caption)
+                        .foregroundStyle(AppTheme.subtext)
+                }
+            } else if let error = store.foodAnalysisError {
+                Text(error)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            if let validationMessage {
+                Text(validationMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
             PrimaryButton(title: "保存") {
+                let trimmed = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else {
+                    validationMessage = "請輸入餐點內容，或先用拍照/選照讓 AI 辨識。"
+                    return
+                }
                 store.addMealRecord(
                     type: type,
                     summary: summary,
@@ -6442,7 +6491,10 @@ private struct AddMealSheet: View {
         }
         .fullScreenCover(isPresented: $showCamera) {
             CameraPicker { image in
-                photoData = image?.jpegData(compressionQuality: 0.6)
+                if let data = image?.jpegData(compressionQuality: 0.6) {
+                    photoData = data
+                    Task { await runAIAnalysis() }
+                }
             }
             .ignoresSafeArea()
         }
@@ -6452,9 +6504,33 @@ private struct AddMealSheet: View {
                 if let data = try? await item.loadTransferable(type: Data.self),
                    let image = UIImage(data: data) {
                     photoData = image.jpegData(compressionQuality: 0.6)
+                    await runAIAnalysis()
                 }
                 photoItem = nil
             }
+        }
+    }
+
+    private func runAIAnalysis() async {
+        validationMessage = nil
+        let textHint = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard photoData != nil || !textHint.isEmpty else {
+            validationMessage = "請先輸入餐點內容或提供照片，AI 才能估算。"
+            return
+        }
+        guard let result = await store.analyzeFood(text: textHint.isEmpty ? nil : textHint, imageData: photoData) else {
+            // AI 失敗時退回本地關鍵字估算，至少熱量欄不會空著
+            if let estimated = CalorieEstimator.estimate(from: summary) {
+                caloriesText = String(estimated)
+            }
+            return
+        }
+        if summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            summary = result.foodName
+        }
+        caloriesText = String(result.estimatedCalories)
+        if !result.notes.isEmpty, note.isEmpty {
+            note = result.notes
         }
     }
 }
@@ -6809,6 +6885,34 @@ private struct ResourceListCard: View {
     }
 }
 
+/// 解析描述欄位裡「📋 教學步驟：\n1. xxx\n2. xxx」這段條列文字，
+/// 讓詳情頁能把每一步跟對應的畫面截圖（若有）配對顯示。
+enum TeachingStepParser {
+    static let marker = "📋 教學步驟"
+
+    static func parse(_ description: String) -> [(index: Int, text: String)] {
+        guard let range = description.range(of: marker) else { return [] }
+        let after = description[range.upperBound...]
+        var results: [(Int, String)] = []
+        for line in after.split(separator: "\n") {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard let dotIndex = trimmed.firstIndex(where: { $0 == "." || $0 == "、" }) else { continue }
+            let numberPart = trimmed[trimmed.startIndex..<dotIndex]
+            guard let number = Int(numberPart) else { continue }
+            let text = trimmed[trimmed.index(after: dotIndex)...].trimmingCharacters(in: .whitespaces)
+            guard !text.isEmpty else { continue }
+            results.append((number, text))
+        }
+        return results
+    }
+
+    static func stripSteps(from description: String) -> String {
+        guard let range = description.range(of: marker) else { return description }
+        return String(description[description.startIndex..<range.lowerBound])
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
 private struct ResourceDetailView: View {
     let item: ResourceItem
 
@@ -6817,8 +6921,13 @@ private struct ResourceDetailView: View {
             VStack(spacing: 18) {
                 titleRow(title: "資源詳情") {}
 
+                let stepShots = Dictionary(uniqueKeysWithValues: item.mediaAssets
+                    .filter { $0.assetID.hasPrefix("step-") && !$0.displayURL.isEmpty }
+                    .map { ($0.index, $0.displayURL) })
+                let parsedSteps = TeachingStepParser.parse(item.descriptionText)
+
                 let carouselAssets = item.mediaAssets
-                    .filter { ($0.type == .image || $0.type == .cover) && !$0.displayURL.isEmpty }
+                    .filter { ($0.type == .image || $0.type == .cover) && !$0.assetID.hasPrefix("step-") && !$0.displayURL.isEmpty }
                     .sorted { $0.index < $1.index }
                 if !carouselAssets.isEmpty {
                     CardView {
@@ -6858,11 +6967,45 @@ private struct ResourceDetailView: View {
                     }
                 }
 
+                if !parsedSteps.isEmpty {
+                    CardView {
+                        VStack(alignment: .leading, spacing: 14) {
+                            Text("📋 教學步驟")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+
+                            ForEach(parsedSteps, id: \.index) { step in
+                                HStack(alignment: .top, spacing: 12) {
+                                    if let shotURL = stepShots[step.index] {
+                                        AsyncImage(url: URL(string: shotURL)) { phase in
+                                            if case .success(let image) = phase {
+                                                image.resizable().scaledToFill()
+                                            } else {
+                                                AppTheme.primarySoft
+                                            }
+                                        }
+                                        .frame(width: 72, height: 72)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    }
+                                    Text("\(step.index). \(step.text)")
+                                        .font(.subheadline)
+                                        .foregroundStyle(AppTheme.text)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                                .padding(10)
+                                .background(AppTheme.primarySoft)
+                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                            }
+                        }
+                    }
+                }
+
                 CardView {
                     VStack(alignment: .leading, spacing: 12) {
                         MetadataHero(item: item)
-                        if !item.descriptionText.isEmpty {
-                            Text(item.descriptionText)
+                        let descriptionWithoutSteps = TeachingStepParser.stripSteps(from: item.descriptionText)
+                        if !descriptionWithoutSteps.isEmpty {
+                            Text(descriptionWithoutSteps)
                                 .font(.subheadline)
                                 .foregroundStyle(AppTheme.text)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -7016,21 +7159,25 @@ struct AIAdviceSection: View {
     let subtitle: String
     let commonConcerns: [String]
     let buttonTitle: String
+    /// 靜默併入 AI 請求的背景資訊（例如症狀歷史、目標），不會顯示成使用者的問題 chip
+    var additionalContext: [String] = []
     var onAddRoutineStep: ((String) -> Void)? = nil
     var onAddProduct: ((String) -> Void)? = nil
     var onAddExercise: ((AIAdviceRelatedResource) -> Void)? = nil
+    var onAddRecipe: ((String) -> Void)? = nil
 
     @State private var selectedConcerns: Set<String> = []
     @State private var customConcern = ""
     @State private var selectedCustomConcerns: Set<String> = []
     @State private var addedRoutineSteps: Set<String> = []
     @State private var addedProducts: Set<String> = []
+    @State private var addedRecipeSuggestions: Set<String> = []
     @State private var addedExerciseResourceIDs: Set<String> = []
     @State private var viewingTutorial: ResourceItem?
     @State private var tutorialMissingMessage: String?
 
     private var allConcerns: [String] {
-        Array(selectedConcerns) + Array(selectedCustomConcerns)
+        Array(selectedConcerns) + Array(selectedCustomConcerns) + additionalContext
     }
 
     var body: some View {
@@ -7095,13 +7242,24 @@ struct AIAdviceSection: View {
                 if !store.suggestions(for: topic).isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
                         ForEach(store.suggestions(for: topic), id: \.self) { suggestion in
-                            Text("• \(suggestion)")
-                                .font(.subheadline)
-                                .foregroundStyle(AppTheme.text)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .padding(12)
-                                .background(AppTheme.primarySoft)
-                                .clipShape(RoundedRectangle(cornerRadius: 14))
+                            if let onAddRecipe {
+                                recommendationRow(
+                                    text: suggestion,
+                                    added: addedRecipeSuggestions.contains(suggestion),
+                                    actionTitle: "加入收藏食譜"
+                                ) {
+                                    onAddRecipe(suggestion)
+                                    addedRecipeSuggestions.insert(suggestion)
+                                }
+                            } else {
+                                Text("• \(suggestion)")
+                                    .font(.subheadline)
+                                    .foregroundStyle(AppTheme.text)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(AppTheme.primarySoft)
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                            }
                         }
                     }
                 }

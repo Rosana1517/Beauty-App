@@ -11,6 +11,7 @@ struct PipelineRuntimeConfiguration {
     let resourceMediaCleanupFunction: String
     let aiAdviceFunction: String
     let videoTranscribeFunction: String
+    let dietAnalyzeFunction: String
     let productLookupFunction: String
     let instagramAppID: String
     let instagramRedirectURI: String
@@ -29,6 +30,7 @@ struct PipelineRuntimeConfiguration {
             resourceMediaCleanupFunction: AppRuntimeConfiguration.resourceMediaCleanupFunction,
             aiAdviceFunction: AppRuntimeConfiguration.aiAdviceFunction,
             videoTranscribeFunction: AppRuntimeConfiguration.videoTranscribeFunction,
+            dietAnalyzeFunction: AppRuntimeConfiguration.dietAnalyzeFunction,
             productLookupFunction: AppRuntimeConfiguration.productLookupFunction,
             instagramAppID: AppRuntimeConfiguration.instagramAppID,
             instagramRedirectURI: AppRuntimeConfiguration.instagramRedirectURI,
@@ -64,6 +66,7 @@ protocol CloudResourceSyncService {
     func requestRecommendations(for item: ResourceItem) async throws -> [ResourceRecommendationCard]
     func requestAIAdvice(topic: AIAdviceTopic, concerns: [String]) async throws -> AIAdviceResult
     func requestVideoTranscription(resourceRemoteID: String, videoURL: String) async
+    func requestFoodAnalysis(text: String?, imageData: Data?) async throws -> FoodAnalysisResult?
     func requestProductLookup(name: String?, imageData: Data?) async throws -> ProductLookupResult?
     func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws
     func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings?
@@ -86,6 +89,12 @@ struct ProductLookupResult {
     let name: String
     let brand: String
     let category: String
+    let notes: String
+}
+
+struct FoodAnalysisResult {
+    let foodName: String
+    let estimatedCalories: Int
     let notes: String
 }
 
@@ -352,6 +361,10 @@ struct NoopCloudResourceSyncService: CloudResourceSyncService {
 
     func requestVideoTranscription(resourceRemoteID: String, videoURL: String) async {}
 
+    func requestFoodAnalysis(text: String?, imageData: Data?) async throws -> FoodAnalysisResult? {
+        nil
+    }
+
     func requestProductLookup(name: String?, imageData: Data?) async throws -> ProductLookupResult? {
         nil
     }
@@ -525,6 +538,20 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
             name: response.name,
             brand: response.brand ?? "",
             category: response.category ?? "",
+            notes: response.notes ?? ""
+        )
+    }
+
+    func requestFoodAnalysis(text: String?, imageData: Data?) async throws -> FoodAnalysisResult? {
+        let response: DietAnalyzeFunctionResponse = try await client.invokeFunction(
+            named: configuration.dietAnalyzeFunction,
+            payload: DietAnalyzeFunctionRequest(text: text, imageBase64: imageData?.base64EncodedString()),
+            responseType: DietAnalyzeFunctionResponse.self
+        )
+        guard !response.foodName.isEmpty else { return nil }
+        return FoodAnalysisResult(
+            foodName: response.foodName,
+            estimatedCalories: response.estimatedCalories,
             notes: response.notes ?? ""
         )
     }
@@ -896,12 +923,37 @@ struct AIAdviceRelatedResource: Identifiable, Codable, Equatable {
 private struct ProductLookupFunctionRequest: Encodable {
     let name: String?
     let imageBase64: String?
+
+    // convertToSnakeCase 會把 "imageBase64" 轉成 "image_base64"，但 Edge Function
+    // 讀的是駝峰 "imageBase64"；明確指定避免照片辨識路徑一直悄悄失敗。
+    enum CodingKeys: String, CodingKey {
+        case name
+        case imageBase64
+    }
 }
 
 private struct ProductLookupFunctionResponse: Decodable {
     let name: String
     let brand: String?
     let category: String?
+    let notes: String?
+}
+
+private struct DietAnalyzeFunctionRequest: Encodable {
+    let text: String?
+    let imageBase64: String?
+
+    // 同 ProductLookupFunctionRequest：避免 convertToSnakeCase 把 imageBase64
+    // 轉成 image_base64 導致與 Edge Function 讀取的駝峰欄位對不上。
+    enum CodingKeys: String, CodingKey {
+        case text
+        case imageBase64
+    }
+}
+
+private struct DietAnalyzeFunctionResponse: Decodable {
+    let foodName: String
+    let estimatedCalories: Int
     let notes: String?
 }
 

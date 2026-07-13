@@ -862,6 +862,8 @@ final class BeautyDiaryStore: ObservableObject {
     @Published private(set) var loadingAIAdviceTopics: Set<AIAdviceTopic> = []
     @Published var productLookupError: String?
     @Published private(set) var isLookingUpProduct = false
+    @Published var foodAnalysisError: String?
+    @Published private(set) var isAnalyzingFood = false
 
     func suggestions(for topic: AIAdviceTopic) -> [String] {
         aiAdviceSuggestions[topic] ?? []
@@ -935,6 +937,28 @@ final class BeautyDiaryStore: ObservableObject {
             return result
         } catch {
             productLookupError = error.localizedDescription
+            return nil
+        }
+    }
+
+    func analyzeFood(text: String?, imageData: Data?) async -> FoodAnalysisResult? {
+        guard authSession != nil else {
+            foodAnalysisError = "請先登入雲端同步帳號，才能使用 AI 熱量估算功能。"
+            return nil
+        }
+
+        isAnalyzingFood = true
+        foodAnalysisError = nil
+        defer { isAnalyzingFood = false }
+
+        do {
+            guard let result = try await cloudSyncService.requestFoodAnalysis(text: text, imageData: imageData) else {
+                foodAnalysisError = "AI 無法辨識這份餐點，請手動輸入餐點內容與熱量。"
+                return nil
+            }
+            return result
+        } catch {
+            foodAnalysisError = error.localizedDescription
             return nil
         }
     }

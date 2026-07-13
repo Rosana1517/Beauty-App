@@ -25,6 +25,7 @@ enum AppRuntimeConfiguration {
     static let resourceMediaCleanupFunctionEnv = "SUPABASE_RESOURCE_MEDIA_CLEANUP_FUNCTION"
     static let aiAdviceFunctionEnv = "SUPABASE_AI_ADVICE_FUNCTION"
     static let videoTranscribeFunctionEnv = "SUPABASE_VIDEO_TRANSCRIBE_FUNCTION"
+    static let dietAnalyzeFunctionEnv = "SUPABASE_DIET_ANALYZE_FUNCTION"
     static let instagramAppIDEnv = "INSTAGRAM_APP_ID"
     static let instagramRedirectURIEnv = "INSTAGRAM_REDIRECT_URI"
     static let xiaohongshuClientIDEnv = "XIAOHONGSHU_CLIENT_ID"
@@ -92,6 +93,10 @@ enum AppRuntimeConfiguration {
 
     static var videoTranscribeFunction: String {
         ProcessInfo.processInfo.environment[videoTranscribeFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "video-transcribe"
+    }
+
+    static var dietAnalyzeFunction: String {
+        ProcessInfo.processInfo.environment[dietAnalyzeFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "diet-analyze"
     }
 
     static let productLookupFunctionEnv = "SUPABASE_PRODUCT_LOOKUP_FUNCTION"
