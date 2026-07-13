@@ -194,12 +194,14 @@ function buildAdvicePrompt(topic: AIAdviceTopic, concerns: string[]): string {
 
   if (topic === "skincare") {
     lines.push(
-      "另外，請額外整理出可以直接加入使用者「護膚流程」的具體步驟，以及可以加入「保養品清單」的具體產品建議（包含成分/類型，不需要是真實品牌），各項同樣一句話內。",
+      "另外，請額外整理出可以直接加入使用者「護膚流程」的具體步驟，以及可以加入「保養品清單」的產品推薦。",
+      "產品推薦請給出真實市售產品（品牌＋產品名＋關鍵成分），優先挑選近年口碑好、廣泛好評的產品，每項一句話內；不確定的品牌寧可給成分類型也不要虛構產品名。",
       "請只回覆一個 JSON 物件，不要有任何其他文字、不要用 markdown code block。",
       `JSON 格式：{"suggestions": string[], "routineSteps": string[](2到3個), "products": string[](2到3個)}`,
     );
   } else {
     lines.push(
+      "如果建議中涉及可購買的產品或用品，請在建議句中直接點名真實市售產品（品牌＋產品名），優先近年口碑好者；不確定就描述成分/類型即可，不要虛構。",
       "請只回覆一個 JSON 物件，不要有任何其他文字、不要用 markdown code block。",
       `JSON 格式：{"suggestions": string[]}`,
     );
