@@ -1660,6 +1660,19 @@ final class BeautyDiaryStore: ObservableObject {
         }
     }
 
+    /// 小紅書影片筆記同步成功後，背景觸發雲端語音轉錄整理教學步驟。
+    /// 非同步、不等待完成也不擋 UI；結果之後靠 refreshCloudResources 帶回。
+    private func requestVideoTranscriptionIfNeeded(for item: ResourceItem) async {
+        guard item.source == .xiaohongshu,
+              item.platformContentType == .video,
+              !item.remoteRecordID.isEmpty,
+              !item.descriptionText.contains("📋 教學步驟") else { return }
+        guard let videoURL = item.mediaAssets.first(where: { $0.type == .video })?.remoteURL,
+              !videoURL.isEmpty else { return }
+
+        await cloudSyncService.requestVideoTranscription(resourceRemoteID: item.remoteRecordID, videoURL: videoURL)
+    }
+
     private func unlockBadgeIfNeeded(title: String, when condition: Bool) {
         guard condition, let index = state.achievements.firstIndex(where: { $0.title == title }) else { return }
         state.achievements[index].unlocked = true
@@ -1870,6 +1883,7 @@ final class BeautyDiaryStore: ObservableObject {
             updateSyncState(for: resourceID, jobType: .importJob, status: .succeeded, errorMessage: nil)
             save()
             await applyBackendRecommendationsIfNeeded(for: state.resourceItems[resourceIndex])
+            await requestVideoTranscriptionIfNeeded(for: state.resourceItems[resourceIndex])
         } catch {
             if allowSessionRetry, await recoverSessionIfNeeded(after: error) {
                 await syncResource(resourceID, allowSessionRetry: false, allowTransientRetry: allowTransientRetry)

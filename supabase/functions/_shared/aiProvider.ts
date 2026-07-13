@@ -358,6 +358,43 @@ async function callAnthropic(config: AIProviderConfig, prompt: string): Promise<
   return content;
 }
 
+/**
+ * Turns a raw speech transcript (from video-transcribe's Groq Whisper call)
+ * into short, actionable teaching steps. Shares the same provider
+ * resolution as the other freeform helpers, but uses a purpose-built prompt
+ * instead of the advice-framing one so it summarizes the transcript's own
+ * content rather than generating generic suggestions.
+ */
+export async function summarizeTranscriptAsSteps(
+  title: string,
+  transcript: string,
+  userID: string,
+): Promise<string[]> {
+  const config = await resolveAIProviderConfig(userID);
+  if (!config) return [];
+
+  const prompt = [
+    `以下是一則教學影片的語音轉錄逐字稿（標題：${title}）。`,
+    "請整理成條列教學步驟，每步一句話、25字以內，最多6步；若含次數/秒數/組數等關鍵數字務必保留。",
+    '只回覆一個 JSON 物件，不要有其他文字、不要用 markdown code block：{"steps": string[]}',
+    `轉錄內容：${transcript.slice(0, 2500)}`,
+  ].join("\n");
+
+  try {
+    const rawText = config.provider === "openai"
+      ? await callOpenAI(config, prompt)
+      : await callAnthropic(config, prompt);
+    const parsed = JSON.parse(extractJSONObject(rawText));
+    const steps = Array.isArray(parsed.steps)
+      ? parsed.steps.filter((item: unknown) => typeof item === "string" && item.trim()).slice(0, 6)
+      : [];
+    return steps;
+  } catch (error) {
+    console.error("Transcript step extraction failed.", error);
+    return [];
+  }
+}
+
 export interface ProductLookupResult {
   name: string;
   brand: string;

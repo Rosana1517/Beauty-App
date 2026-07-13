@@ -10,6 +10,7 @@ struct PipelineRuntimeConfiguration {
     let resourceRecommendationFunction: String
     let resourceMediaCleanupFunction: String
     let aiAdviceFunction: String
+    let videoTranscribeFunction: String
     let productLookupFunction: String
     let instagramAppID: String
     let instagramRedirectURI: String
@@ -27,6 +28,7 @@ struct PipelineRuntimeConfiguration {
             resourceRecommendationFunction: AppRuntimeConfiguration.resourceRecommendationFunction,
             resourceMediaCleanupFunction: AppRuntimeConfiguration.resourceMediaCleanupFunction,
             aiAdviceFunction: AppRuntimeConfiguration.aiAdviceFunction,
+            videoTranscribeFunction: AppRuntimeConfiguration.videoTranscribeFunction,
             productLookupFunction: AppRuntimeConfiguration.productLookupFunction,
             instagramAppID: AppRuntimeConfiguration.instagramAppID,
             instagramRedirectURI: AppRuntimeConfiguration.instagramRedirectURI,
@@ -61,6 +63,7 @@ protocol CloudResourceSyncService {
     func enqueueMediaCleanup(for item: ResourceItem) async throws -> ResourceSyncQueueItem
     func requestRecommendations(for item: ResourceItem) async throws -> [ResourceRecommendationCard]
     func requestAIAdvice(topic: AIAdviceTopic, concerns: [String]) async throws -> AIAdviceResult
+    func requestVideoTranscription(resourceRemoteID: String, videoURL: String) async
     func requestProductLookup(name: String?, imageData: Data?) async throws -> ProductLookupResult?
     func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws
     func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings?
@@ -347,6 +350,8 @@ struct NoopCloudResourceSyncService: CloudResourceSyncService {
         AIAdviceResult(suggestions: [], routineSteps: [], products: [])
     }
 
+    func requestVideoTranscription(resourceRemoteID: String, videoURL: String) async {}
+
     func requestProductLookup(name: String?, imageData: Data?) async throws -> ProductLookupResult? {
         nil
     }
@@ -495,6 +500,17 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
             routineSteps: response.routineSteps ?? [],
             products: response.products ?? [],
             relatedResources: response.relatedResources ?? []
+        )
+    }
+
+    /// 影片筆記同步成功後即時觸發，背景整理教學步驟並回寫描述欄位；
+    /// 失敗（例如影片過大、逾時）不影響匯入本身，靜默記錄即可。
+    func requestVideoTranscription(resourceRemoteID: String, videoURL: String) async {
+        struct EmptyResponse: Decodable {}
+        _ = try? await client.invokeFunction(
+            named: configuration.videoTranscribeFunction,
+            payload: VideoTranscribeFunctionRequest(resourceID: resourceRemoteID, videoURL: videoURL),
+            responseType: EmptyResponse.self
         )
     }
 
@@ -838,6 +854,18 @@ private struct RecommendationFunctionResponse: Decodable {
 private struct AIAdviceFunctionRequest: Encodable {
     let topic: String
     let concerns: [String]
+}
+
+private struct VideoTranscribeFunctionRequest: Encodable {
+    let resourceID: String
+    let videoURL: String
+
+    // 明確指定 CodingKeys，不依賴 JSONEncoder.convertToSnakeCase 對
+    // "resourceID"/"videoURL" 這類尾端縮寫大寫字母的轉換結果。
+    enum CodingKeys: String, CodingKey {
+        case resourceID = "resource_id"
+        case videoURL = "video_url"
+    }
 }
 
 private struct AIAdviceFunctionResponse: Decodable {
