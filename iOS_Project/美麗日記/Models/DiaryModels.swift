@@ -1153,6 +1153,61 @@ struct PunchRecord: Identifiable, Codable {
     var summary: String
 }
 
+/// 每日熱量目標（TDEE）計算參數。以 Mifflin-St Jeor（女性）估基礎代謝，
+/// 乘活動係數後依目標微調；本 app 目標族群為女性故不設性別欄位。
+struct TDEEProfile: Codable, Equatable {
+    var heightCM: Double = 0
+    var age: Int = 0
+    var activityLevel: String = "輕度活動"
+    var goal: String = "維持體重"
+
+    static let activityLevels: [(name: String, factor: Double)] = [
+        ("久坐少動", 1.2),
+        ("輕度活動", 1.375),
+        ("中度活動", 1.55),
+        ("高度活動", 1.725),
+    ]
+
+    static let goals: [(name: String, adjustment: Int)] = [
+        ("減脂", -400),
+        ("維持體重", 0),
+        ("增肌", 300),
+    ]
+
+    var isConfigured: Bool {
+        heightCM > 0 && age > 0
+    }
+
+    /// 以最近一筆體重紀錄計算每日建議攝取熱量（大卡）
+    func dailyCalorieTarget(weightKG: Double) -> Int? {
+        guard isConfigured, weightKG > 0 else { return nil }
+        let bmr = 10 * weightKG + 6.25 * heightCM - 5 * Double(age) - 161
+        let factor = Self.activityLevels.first(where: { $0.name == activityLevel })?.factor ?? 1.375
+        let adjustment = Self.goals.first(where: { $0.name == goal })?.adjustment ?? 0
+        let target = Int(bmr * factor) + adjustment
+        return max(1000, target)
+    }
+}
+
+/// 可設定獨立提醒的習慣清單（key 存進 habitReminderTimes）
+enum HabitReminderKind: String, CaseIterable, Identifiable {
+    case skincare = "護膚打卡"
+    case exercise = "運動"
+    case diet = "飲食記錄"
+    case weighIn = "量體重"
+
+    var id: String { rawValue }
+
+    var notificationBody: String {
+        switch self {
+        case .skincare: return "今天的護膚流程完成了嗎？打開 app 打卡吧。"
+        case .exercise: return "動一動的時間到了，完成今天的運動打卡。"
+        case .diet: return "記得記錄今天吃了什麼，熱量統計才準確。"
+        case .weighIn: return "站上體重計，記錄今天的變化。"
+        }
+    }
+}
+
 struct AchievementBadge: Identifiable, Codable {
     var id: UUID
     var title: String
@@ -1184,6 +1239,10 @@ struct BeautyDiaryState: Codable {
     var areaGoals: [String: String] = [:]
     /// AI 建議的自訂常用問題（topic rawValue -> 問題清單），加入後跨啟動保存
     var customAdviceConcerns: [String: [String]] = [:]
+    /// 每日熱量目標的身體參數（TDEE 計算用）
+    var tdeeProfile: TDEEProfile = TDEEProfile()
+    /// 各習慣的獨立提醒時間（習慣 key -> "HH:mm"，空字串代表關閉）
+    var habitReminderTimes: [String: String] = [:]
     var achievements: [AchievementBadge]
     var exportHistory: [ExportRecord]
     var resourceFilter: ResourceCategory
@@ -1247,6 +1306,8 @@ struct BeautyDiaryState: Codable {
         case punchRecords
         case areaGoals
         case customAdviceConcerns
+        case tdeeProfile
+        case habitReminderTimes
         case achievements
         case exportHistory
         case resourceFilter
@@ -1434,6 +1495,8 @@ struct BeautyDiaryState: Codable {
         punchRecords = try container.decodeIfPresent([PunchRecord].self, forKey: .punchRecords) ?? []
         areaGoals = try container.decodeIfPresent([String: String].self, forKey: .areaGoals) ?? [:]
         customAdviceConcerns = try container.decodeIfPresent([String: [String]].self, forKey: .customAdviceConcerns) ?? [:]
+        tdeeProfile = try container.decodeIfPresent(TDEEProfile.self, forKey: .tdeeProfile) ?? TDEEProfile()
+        habitReminderTimes = try container.decodeIfPresent([String: String].self, forKey: .habitReminderTimes) ?? [:]
         achievements = try container.decodeIfPresent([AchievementBadge].self, forKey: .achievements) ?? []
         exportHistory = try container.decodeIfPresent([ExportRecord].self, forKey: .exportHistory) ?? []
         resourceFilter = try container.decodeIfPresent(ResourceCategory.self, forKey: .resourceFilter) ?? .all

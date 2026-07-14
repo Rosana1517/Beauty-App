@@ -128,6 +128,7 @@ final class BeautyDiaryStore: ObservableObject {
         }
         Task {
             await scheduleDailyReminderIfPossible(requestPermission: false)
+            await rescheduleHabitReminders(requestPermission: false)
         }
     }
 
@@ -960,6 +961,117 @@ final class BeautyDiaryStore: ObservableObject {
         } catch {
             foodAnalysisError = error.localizedDescription
             return nil
+        }
+    }
+
+    // MARK: - TDEE 每日熱量目標
+
+    func updateTDEEProfile(_ profile: TDEEProfile) {
+        state.tdeeProfile = profile
+        save()
+    }
+
+    /// 以最近體重紀錄（無則不計）計算每日建議攝取熱量
+    func dailyCalorieTarget() -> Int? {
+        guard let latestWeight = state.bodyMetricRecords.first?.weight else { return nil }
+        return state.tdeeProfile.dailyCalorieTarget(weightKG: latestWeight)
+    }
+
+    // MARK: - 習慣提醒
+
+    func setHabitReminder(_ kind: HabitReminderKind, timeString: String?) {
+        if let timeString, !timeString.isEmpty {
+            state.habitReminderTimes[kind.rawValue] = timeString
+        } else {
+            state.habitReminderTimes.removeValue(forKey: kind.rawValue)
+        }
+        save()
+        Task { await rescheduleHabitReminders(requestPermission: true) }
+    }
+
+    func habitReminderTime(_ kind: HabitReminderKind) -> String? {
+        state.habitReminderTimes[kind.rawValue]
+    }
+
+    func rescheduleHabitReminders(requestPermission: Bool) async {
+        guard !state.habitReminderTimes.isEmpty else { return }
+        do {
+            let isAuthorized = requestPermission
+                ? try await notificationScheduler.requestAuthorizationIfNeeded()
+                : true
+            guard isAuthorized else {
+                authMessage = "通知權限已關閉，請至「設定」開啟才能收到提醒。"
+                return
+            }
+            try await notificationScheduler.scheduleHabitReminders(
+                state.habitReminderTimes,
+                nickname: state.profile.nickname
+            )
+        } catch {
+            authMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - 每週回顧
+
+    struct WeeklyReview {
+        let punchCount: Int
+        let exerciseMinutes: Int
+        let mealCount: Int
+        let averageDailyCalories: Int?
+        let weightDelta: Double?
+        let moodSummary: String?
+    }
+
+    /// 最近 7 天的活動摘要，供首頁「每週回顧」卡
+    func weeklyReview(now: Date = Date()) -> WeeklyReview {
+        let calendar = Calendar.current
+        guard let weekAgo = calendar.date(byAdding: .day, value: -7, to: now) else {
+            return WeeklyReview(punchCount: 0, exerciseMinutes: 0, mealCount: 0, averageDailyCalories: nil, weightDelta: nil, moodSummary: nil)
+        }
+
+        let punches = state.punchRecords.filter { $0.date >= weekAgo }.count
+            + state.exercisePunches.filter { $0.date >= weekAgo }.count
+        let exerciseMinutes = state.exercisePunches
+            .filter { $0.date >= weekAgo }
+            .reduce(0) { $0 + $1.durationMinutes }
+
+        let weekMeals = state.mealRecords.filter { $0.date >= weekAgo }
+        let calorieDays = Dictionary(grouping: weekMeals.filter { $0.calories != nil }) {
+            calendar.startOfDay(for: $0.date)
+        }
+        let averageCalories: Int? = calorieDays.isEmpty ? nil : calorieDays.values
+            .map { $0.compactMap(\.calories).reduce(0, +) }
+            .reduce(0, +) / calorieDays.count
+
+        var weightDelta: Double?
+        let weekMetrics = state.bodyMetricRecords.filter { $0.date >= weekAgo }.sorted { $0.date < $1.date }
+        if let first = weekMetrics.first, let last = weekMetrics.last, weekMetrics.count >= 2 {
+            weightDelta = last.weight - first.weight
+        }
+
+        let weekMoods = state.moodEntries.filter { $0.date >= weekAgo }
+        let moodSummary = weekMoods.isEmpty ? nil : Dictionary(grouping: weekMoods, by: \.mood)
+            .max { $0.value.count < $1.value.count }?.key
+
+        return WeeklyReview(
+            punchCount: punches,
+            exerciseMinutes: exerciseMinutes,
+            mealCount: weekMeals.count,
+            averageDailyCalories: averageCalories,
+            weightDelta: weightDelta,
+            moodSummary: moodSummary
+        )
+    }
+
+    /// 近 7 天每日熱量合計（含無記錄日=0），供飲食頁長條圖
+    func dailyCalorieTotals(days: Int = 7, now: Date = Date()) -> [(date: Date, calories: Int)] {
+        let calendar = Calendar.current
+        let mealsByDay = Dictionary(grouping: state.mealRecords) { calendar.startOfDay(for: $0.date) }
+        return (0..<days).reversed().compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: calendar.startOfDay(for: now)) else { return nil }
+            let total = (mealsByDay[day] ?? []).compactMap(\.calories).reduce(0, +)
+            return (day, total)
         }
     }
 

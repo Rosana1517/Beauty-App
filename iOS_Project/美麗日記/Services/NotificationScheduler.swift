@@ -4,11 +4,14 @@ import UserNotifications
 protocol NotificationScheduling {
     func requestAuthorizationIfNeeded() async throws -> Bool
     func scheduleDailyReminder(timeString: String, nickname: String) async throws
+    /// 各習慣的獨立提醒（習慣名 -> "HH:mm"）；未在 map 內或時間無效者取消該提醒
+    func scheduleHabitReminders(_ reminders: [String: String], nickname: String) async throws
 }
 
 struct NoopNotificationScheduler: NotificationScheduling {
     func requestAuthorizationIfNeeded() async throws -> Bool { false }
     func scheduleDailyReminder(timeString: String, nickname: String) async throws {}
+    func scheduleHabitReminders(_ reminders: [String: String], nickname: String) async throws {}
 }
 
 struct UserNotificationScheduler: NotificationScheduling {
@@ -42,6 +45,34 @@ struct UserNotificationScheduler: NotificationScheduling {
 
         center.removePendingNotificationRequests(withIdentifiers: [reminderIdentifier])
         try await center.add(request)
+    }
+
+    func scheduleHabitReminders(_ reminders: [String: String], nickname: String) async throws {
+        // 先清掉所有習慣提醒再依現有設定重排，避免改時間後留下舊排程
+        let allIdentifiers = HabitReminderKind.allCases.map { habitIdentifier(for: $0.rawValue) }
+        center.removePendingNotificationRequests(withIdentifiers: allIdentifiers)
+
+        for kind in HabitReminderKind.allCases {
+            guard let timeString = reminders[kind.rawValue],
+                  let dateComponents = parseTimeString(timeString) else { continue }
+
+            let content = UNMutableNotificationContent()
+            content.title = nickname.isEmpty ? kind.rawValue : "\(nickname)，\(kind.rawValue)時間到"
+            content.body = kind.notificationBody
+            content.sound = .default
+
+            let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+            let request = UNNotificationRequest(
+                identifier: habitIdentifier(for: kind.rawValue),
+                content: content,
+                trigger: trigger
+            )
+            try await center.add(request)
+        }
+    }
+
+    private func habitIdentifier(for habit: String) -> String {
+        "beautiful-diary.habit-reminder.\(habit)"
     }
 
     private func parseTimeString(_ value: String) -> DateComponents? {

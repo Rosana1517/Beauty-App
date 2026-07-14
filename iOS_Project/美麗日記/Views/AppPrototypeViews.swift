@@ -2,6 +2,7 @@ import SwiftUI
 import PhotosUI
 import UIKit
 import WebKit
+import Charts
 
 struct HomeView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
@@ -38,6 +39,34 @@ struct HomeView: View {
                         Text("本週已打卡 \(store.weeklyCompletionRate.completed)/\(store.weeklyCompletionRate.total) 項")
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.subtext)
+                    }
+                }
+
+                CardView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("每週回顧")
+                            .font(.headline)
+                            .foregroundStyle(AppTheme.text)
+
+                        let review = store.weeklyReview()
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                            reviewTile(value: "\(review.punchCount)", label: "本週打卡次數")
+                            reviewTile(value: "\(review.exerciseMinutes)", label: "運動分鐘")
+                            reviewTile(
+                                value: review.averageDailyCalories.map { "\($0)" } ?? "—",
+                                label: "日均攝取大卡"
+                            )
+                            reviewTile(
+                                value: review.weightDelta.map { String(format: "%+.1f", $0) } ?? "—",
+                                label: "本週體重變化 kg"
+                            )
+                        }
+
+                        if let mood = review.moodSummary {
+                            Text("本週最常見心情：\(mood)")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.subtext)
+                        }
                     }
                 }
 
@@ -114,6 +143,21 @@ struct HomeView: View {
         let rate = store.weeklyCompletionRate
         guard rate.total > 0 else { return 0 }
         return Int(Double(rate.completed) / Double(rate.total) * 100)
+    }
+
+    private func reviewTile(value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(value)
+                .font(.title3.weight(.bold))
+                .foregroundStyle(AppTheme.primary)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(AppTheme.subtext)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(10)
+        .background(AppTheme.primarySoft)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
@@ -2658,6 +2702,54 @@ struct BodyMetricsView: View {
                     showAdd = true
                 }
 
+                let chartRecords = store.state.bodyMetricRecords.sorted { $0.date < $1.date }
+                if chartRecords.count >= 2 {
+                    CardView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("體重趨勢")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Chart(chartRecords) { record in
+                                LineMark(
+                                    x: .value("日期", record.date),
+                                    y: .value("體重", record.weight)
+                                )
+                                .foregroundStyle(AppTheme.primary)
+                                .interpolationMethod(.catmullRom)
+                                PointMark(
+                                    x: .value("日期", record.date),
+                                    y: .value("體重", record.weight)
+                                )
+                                .foregroundStyle(AppTheme.primary)
+                            }
+                            .chartYScale(domain: .automatic(includesZero: false))
+                            .frame(height: 180)
+
+                            let fatRecords = chartRecords.filter { $0.bodyFat > 0 }
+                            if fatRecords.count >= 2 {
+                                Text("體脂趨勢")
+                                    .font(.headline)
+                                    .foregroundStyle(AppTheme.text)
+                                Chart(fatRecords) { record in
+                                    LineMark(
+                                        x: .value("日期", record.date),
+                                        y: .value("體脂", record.bodyFat)
+                                    )
+                                    .foregroundStyle(Color.orange)
+                                    .interpolationMethod(.catmullRom)
+                                    PointMark(
+                                        x: .value("日期", record.date),
+                                        y: .value("體脂", record.bodyFat)
+                                    )
+                                    .foregroundStyle(Color.orange)
+                                }
+                                .chartYScale(domain: .automatic(includesZero: false))
+                                .frame(height: 160)
+                            }
+                        }
+                    }
+                }
+
                 CardView {
                     if !store.state.bodyMetricRecords.isEmpty {
                         VStack(spacing: 12) {
@@ -2715,6 +2807,7 @@ struct MealRecordsView: View {
     @State private var editingFavoriteRecipe: TutorialLink?
     @State private var editingMeal: MealRecord?
     @State private var addedDietSuggestions: Set<String> = []
+    @State private var showTDEESetup = false
 
     private var todaysMealSummaries: [String] {
         let summary = store.todayCalorieSummary()
@@ -2741,10 +2834,21 @@ struct MealRecordsView: View {
 
                 CardView {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("今日熱量攝取")
-                            .font(.headline)
-                            .foregroundStyle(AppTheme.text)
+                        HStack {
+                            Text("今日熱量攝取")
+                                .font(.headline)
+                                .foregroundStyle(AppTheme.text)
+                            Spacer()
+                            Button(store.dailyCalorieTarget() == nil ? "設定目標" : "調整目標") {
+                                showTDEESetup = true
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(AppTheme.primary)
+                        }
+
                         let summary = store.todayCalorieSummary()
+                        let target = store.dailyCalorieTarget()
+
                         if summary.meals.isEmpty {
                             Text("今天還沒有記錄，新增餐點後自動統計熱量。")
                                 .font(.caption)
@@ -2754,15 +2858,58 @@ struct MealRecordsView: View {
                                 Text("\(summary.total)")
                                     .font(.system(size: 34, weight: .bold))
                                     .foregroundStyle(AppTheme.primary)
-                                Text("大卡（\(summary.meals.count) 餐）")
-                                    .font(.caption)
-                                    .foregroundStyle(AppTheme.subtext)
+                                if let target {
+                                    Text("/ \(target) 大卡")
+                                        .font(.headline)
+                                        .foregroundStyle(AppTheme.subtext)
+                                } else {
+                                    Text("大卡（\(summary.meals.count) 餐）")
+                                        .font(.caption)
+                                        .foregroundStyle(AppTheme.subtext)
+                                }
+                            }
+                            if let target {
+                                let remaining = target - summary.total
+                                ProgressView(value: Double(min(summary.total, target)), total: Double(target))
+                                    .tint(remaining >= 0 ? AppTheme.primary : .orange)
+                                Text(remaining >= 0 ? "還可攝取 \(remaining) 大卡" : "已超標 \(-remaining) 大卡")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(remaining >= 0 ? AppTheme.subtext : .orange)
                             }
                             if summary.meals.contains(where: { $0.calories == nil }) {
                                 Text("部分餐點未有熱量，總數僅供參考；長按餐點可補填。")
                                     .font(.caption2)
                                     .foregroundStyle(.orange)
                             }
+                        }
+
+                        let dailyTotals = store.dailyCalorieTotals()
+                        if dailyTotals.contains(where: { $0.calories > 0 }) {
+                            Chart {
+                                ForEach(dailyTotals, id: \.date) { entry in
+                                    BarMark(
+                                        x: .value("日期", entry.date, unit: .day),
+                                        y: .value("大卡", entry.calories)
+                                    )
+                                    .foregroundStyle(AppTheme.primary.opacity(0.75))
+                                }
+                                if let target {
+                                    RuleMark(y: .value("目標", target))
+                                        .foregroundStyle(.orange)
+                                        .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [4]))
+                                        .annotation(position: .top, alignment: .trailing) {
+                                            Text("目標 \(target)")
+                                                .font(.caption2)
+                                                .foregroundStyle(.orange)
+                                        }
+                                }
+                            }
+                            .chartXAxis {
+                                AxisMarks(values: .stride(by: .day)) { _ in
+                                    AxisValueLabel(format: .dateTime.day())
+                                }
+                            }
+                            .frame(height: 150)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -2933,6 +3080,7 @@ struct MealRecordsView: View {
             }
         }
         .sheet(isPresented: $showAdd) { AddMealSheet() }
+        .sheet(isPresented: $showTDEESetup) { TDEESetupSheet() }
         .sheet(isPresented: $showAddRecipe) {
             AddLinkSheet(sheetTitle: "添加食譜", titleFieldLabel: "食譜名稱") { title, url in
                 store.addFavoriteRecipe(title: title, url: url)
@@ -4811,6 +4959,8 @@ struct PersonalSettingsView: View {
                     }
                 }
 
+                HabitRemindersCard()
+
                 AIProviderSettingsCard(
                     provider: $aiProvider,
                     apiKey: $aiAPIKey,
@@ -4950,6 +5100,77 @@ struct CustomizationView: View {
 /// installation. Saved to the user's own RLS-scoped row in Supabase via
 /// `BeautyDiaryStore.saveAIProviderSettings`, plus cached locally so it
 /// still shows up while offline.
+/// 每個習慣獨立的提醒時間設定；開關 + 時間選擇，改動即刻重排本機通知
+private struct HabitRemindersCard: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+
+    var body: some View {
+        CardView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("習慣提醒")
+                    .font(.headline)
+                    .foregroundStyle(AppTheme.text)
+                Text("為每個習慣設定各自的提醒時間，時間到會收到通知直接來打卡。")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subtext)
+
+                ForEach(HabitReminderKind.allCases) { kind in
+                    HabitReminderRow(kind: kind)
+                }
+            }
+        }
+    }
+}
+
+private struct HabitReminderRow: View {
+    @EnvironmentObject private var store: BeautyDiaryStore
+    let kind: HabitReminderKind
+    @State private var isEnabled = false
+    @State private var time = Date()
+
+    var body: some View {
+        HStack {
+            Toggle(isOn: $isEnabled) {
+                Text(kind.rawValue)
+                    .font(.subheadline)
+                    .foregroundStyle(AppTheme.text)
+            }
+            .toggleStyle(.switch)
+            .tint(AppTheme.primary)
+
+            if isEnabled {
+                DatePicker("", selection: $time, displayedComponents: .hourAndMinute)
+                    .labelsHidden()
+            }
+        }
+        .padding(.vertical, 2)
+        .onAppear {
+            if let saved = store.habitReminderTime(kind), let parsed = Self.parse(saved) {
+                isEnabled = true
+                time = parsed
+            }
+        }
+        .onChange(of: isEnabled) { enabled in
+            store.setHabitReminder(kind, timeString: enabled ? Self.format(time) : nil)
+        }
+        .onChange(of: time) { newTime in
+            guard isEnabled else { return }
+            store.setHabitReminder(kind, timeString: Self.format(newTime))
+        }
+    }
+
+    private static func format(_ date: Date) -> String {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return String(format: "%02d:%02d", components.hour ?? 21, components.minute ?? 0)
+    }
+
+    private static func parse(_ value: String) -> Date? {
+        let pieces = value.split(separator: ":")
+        guard pieces.count == 2, let hour = Int(pieces[0]), let minute = Int(pieces[1]) else { return nil }
+        return Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date())
+    }
+}
+
 private struct AIProviderSettingsCard: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @Binding var provider: AIProviderKind
@@ -6381,6 +6602,77 @@ private struct AddBodyMetricSheet: View {
                 store.addBodyMetric(weight: Double(weight) ?? 0, bodyFat: Double(bodyFat) ?? 0, note: note)
                 dismiss()
             }
+        }
+    }
+}
+
+private struct TDEESetupSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: BeautyDiaryStore
+    @State private var heightText = ""
+    @State private var ageText = ""
+    @State private var activityLevel = "輕度活動"
+    @State private var goal = "維持體重"
+
+    var body: some View {
+        FormSheet(title: "每日熱量目標") {
+            Text("依身高、年齡、活動量與目標，用最近一筆體重紀錄自動計算每日建議攝取熱量。")
+                .font(.caption)
+                .foregroundStyle(AppTheme.subtext)
+
+            ThemedTextField(title: "身高（公分）", text: $heightText)
+            ThemedTextField(title: "年齡", text: $ageText)
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("活動量")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subtext)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(TDEEProfile.activityLevels, id: \.name) { level in
+                            chip(level.name, selected: level.name == activityLevel) {
+                                activityLevel = level.name
+                            }
+                        }
+                    }
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text("目標")
+                    .font(.caption)
+                    .foregroundStyle(AppTheme.subtext)
+                HStack(spacing: 8) {
+                    ForEach(TDEEProfile.goals, id: \.name) { item in
+                        chip(item.name, selected: item.name == goal) {
+                            goal = item.name
+                        }
+                    }
+                }
+            }
+
+            if store.state.bodyMetricRecords.isEmpty {
+                Text("尚無體重紀錄——請先到「體重體脂」新增一筆，目標才能計算。")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            PrimaryButton(title: "保存目標") {
+                var profile = store.state.tdeeProfile
+                profile.heightCM = Double(heightText) ?? profile.heightCM
+                profile.age = Int(ageText) ?? profile.age
+                profile.activityLevel = activityLevel
+                profile.goal = goal
+                store.updateTDEEProfile(profile)
+                dismiss()
+            }
+        }
+        .onAppear {
+            let profile = store.state.tdeeProfile
+            if profile.heightCM > 0 { heightText = String(Int(profile.heightCM)) }
+            if profile.age > 0 { ageText = String(profile.age) }
+            activityLevel = profile.activityLevel
+            goal = profile.goal
         }
     }
 }
