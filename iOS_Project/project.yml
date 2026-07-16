@@ -81,6 +81,11 @@ targets:
       - path: 美麗日記/Services/NotificationScheduler.swift
       - path: 美麗日記/Services/ResourceImportService.swift
       - path: 美麗日記/Services/ResourcePipelineServices.swift
+      - path: 美麗日記/Services/ResourcePipelineServices+OfficialImport.swift
+      - path: 美麗日記/Services/ResourcePipelineServices+LocalAnalysis.swift
+      - path: 美麗日記/Services/ResourcePipelineServices+SupabaseSync.swift
+      - path: 美麗日記/Services/ResourcePipelineServices+SupabasePayloads.swift
+      - path: 美麗日記/Services/ResourcePipelineServices+Mappings.swift
       - path: 美麗日記/Services/SupabaseAuthService.swift
       - path: 美麗日記/Services/FaceShapeDetector.swift
       - path: 美麗日記/Views/ContentView.swift

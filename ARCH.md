@@ -90,7 +90,12 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── BeautyDiaryStore+AIAdvice.swift      ← extension,328 行
     │   │   ├── BeautyDiaryStore+Resource.swift      ← ⚠️ extension,732 行,待再拆(資源匯入/同步/雲端鑑權)
     │   │   ├── BeautyDiaryStore+Profile.swift       ← extension,99 行
-    │   │   ├── ResourcePipelineServices.swift  ← ⚠️ 1521 行,待拆
+    │   │   ├── ResourcePipelineServices.swift              ← 核心(config/protocols/結果型別),107 行
+    │   │   ├── ResourcePipelineServices+OfficialImport.swift  ← 119 行
+    │   │   ├── ResourcePipelineServices+LocalAnalysis.swift   ← 156 行
+    │   │   ├── ResourcePipelineServices+SupabaseSync.swift    ← ⚠️ 469 行,待再拆
+    │   │   ├── ResourcePipelineServices+SupabasePayloads.swift← ⚠️ 529 行,待再拆
+    │   │   ├── ResourcePipelineServices+Mappings.swift        ← 153 行
     │   │   ├── ResourceImportService.swift     ← ⚠️ 1063 行,待拆
     │   │   ├── SupabaseAuthService.swift       ← 600 行
     │   │   ├── FaceShapeDetector.swift
@@ -152,4 +157,5 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
 - `AppPrototypeViews.swift`(原 8185 行)已按分頁/群組拆為 7 個檔案(見第 5 節),其中 3 個仍超標,待下一輪再拆:`SharedViewComponents.swift`(2589)→ `BeautyViews.swift`(1672)→ `BodyViews.swift`(1270)
 - `BeautyDiaryStore.swift`(原 2122 行)已按 domain 拆為主檔 + 8 個 `extension` 檔案(見第 5 節),其中 `BeautyDiaryStore+Resource.swift`(732)仍超標,待下一輪再拆
 - `DiaryModels.swift`(原 1652 行)已按 domain 拆為主檔(BeautyDiaryState 根狀態)+ 7 個檔案(見第 5 節),其中 `DiaryModels+Resource.swift`(645)仍超標,待下一輪再拆
-- 仍待拆分:`ResourcePipelineServices.swift`(1521)→ `ResourceImportService.swift`(1063)
+- `ResourcePipelineServices.swift`(原 1521 行)已拆為主檔 + 5 個檔案(見第 5 節),其中 `+SupabaseSync.swift`(469)、`+SupabasePayloads.swift`(529)仍超標,待下一輪再拆
+- 仍待拆分:`ResourceImportService.swift`(1063)
