@@ -133,7 +133,13 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── BodyViews+Wellness.swift       ← ⚠️ 383 行,待再拆
     │   │   ├── BodyViews+Album.swift          ← 181 行
     │   │   ├── BodyViews+Meals.swift          ← 295 行
-    │   │   ├── GrowthViews.swift             ← ⚠️ 853 行,待拆(成長分頁,先前記錄時漏標)
+    │   │   ├── GrowthViews.swift                     ← 核心(GrowthRootView),91 行
+    │   │   ├── GrowthViews+Reading.swift              ← 74 行
+    │   │   ├── GrowthViews+Course.swift               ← 207 行
+    │   │   ├── GrowthViews+Knowledge.swift            ← 100 行
+    │   │   ├── GrowthViews+VideoLearning.swift        ← 76 行
+    │   │   ├── GrowthViews+DailyQuote.swift           ← 212 行
+    │   │   ├── GrowthViews+Mood.swift                 ← 129 行
     │   │   ├── FinanceViews.swift            ← ⚠️ 690 行,待拆(財務子導覽,先前記錄時漏標)
     │   │   ├── ProfileViews.swift                    ← 核心(ProfileView),98 行
     │   │   ├── ProfileViews+ResourceLibrary.swift     ← 192 行

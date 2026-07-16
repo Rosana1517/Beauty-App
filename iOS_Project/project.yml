@@ -120,6 +120,12 @@ targets:
       - path: 美麗日記/Views/BodyViews+Album.swift
       - path: 美麗日記/Views/BodyViews+Meals.swift
       - path: 美麗日記/Views/GrowthViews.swift
+      - path: 美麗日記/Views/GrowthViews+Reading.swift
+      - path: 美麗日記/Views/GrowthViews+Course.swift
+      - path: 美麗日記/Views/GrowthViews+Knowledge.swift
+      - path: 美麗日記/Views/GrowthViews+VideoLearning.swift
+      - path: 美麗日記/Views/GrowthViews+DailyQuote.swift
+      - path: 美麗日記/Views/GrowthViews+Mood.swift
       - path: 美麗日記/Views/FinanceViews.swift
       - path: 美麗日記/Views/ProfileViews.swift
       - path: 美麗日記/Views/ProfileViews+ResourceLibrary.swift
