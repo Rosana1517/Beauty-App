@@ -63,6 +63,14 @@ targets:
       - path: 美麗日記/Constants/AppConstants.swift
       - path: 美麗日記/Models/DiaryModels.swift
       - path: 美麗日記/Services/BeautyDiaryStore.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+Home.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+Beauty.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+Body.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+Growth.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+Finance.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+AIAdvice.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+Resource.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+Profile.swift
       - path: 美麗日記/Services/NotificationScheduler.swift
       - path: 美麗日記/Services/ResourceImportService.swift
       - path: 美麗日記/Services/ResourcePipelineServices.swift
