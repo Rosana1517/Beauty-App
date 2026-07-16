@@ -114,7 +114,9 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── ResourceImportService+HTMLExtraction.swift    ← extension,84 行
     │   │   ├── ResourceImportService+HTMLUtilities.swift     ← extension,78 行
     │   │   ├── ResourceImportService+JSONLDModels.swift      ← 121 行
-    │   │   ├── SupabaseAuthService.swift       ← ⚠️ 600 行,待拆(先前記錄時漏標)
+    │   │   ├── SupabaseAuthService.swift              ← 核心(小型 enum/protocol/Noop),98 行
+    │   │   ├── SupabaseAuthService+EmailAuthCore.swift ← 261 行(登入/登出/註冊業務邏輯)
+    │   │   ├── SupabaseAuthService+EmailAuthHTTP.swift ← 247 行(HTTP 請求層 + DTO)
     │   │   ├── FaceShapeDetector.swift
     │   │   ├── NotificationScheduler.swift
     │   │   └── Ads/, AI/, API/

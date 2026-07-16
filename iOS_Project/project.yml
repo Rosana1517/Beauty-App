@@ -104,6 +104,8 @@ targets:
       - path: 美麗日記/Services/ResourcePipelineServices+SupabaseAIPayloads.swift
       - path: 美麗日記/Services/ResourcePipelineServices+Mappings.swift
       - path: 美麗日記/Services/SupabaseAuthService.swift
+      - path: 美麗日記/Services/SupabaseAuthService+EmailAuthCore.swift
+      - path: 美麗日記/Services/SupabaseAuthService+EmailAuthHTTP.swift
       - path: 美麗日記/Services/FaceShapeDetector.swift
       - path: 美麗日記/Views/ContentView.swift
       - path: 美麗日記/Views/MainTabView.swift
