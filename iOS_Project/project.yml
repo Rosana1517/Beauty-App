@@ -122,6 +122,11 @@ targets:
       - path: 美麗日記/Views/GrowthViews.swift
       - path: 美麗日記/Views/FinanceViews.swift
       - path: 美麗日記/Views/ProfileViews.swift
+      - path: 美麗日記/Views/ProfileViews+ResourceLibrary.swift
+      - path: 美麗日記/Views/ProfileViews+Settings.swift
+      - path: 美麗日記/Views/ProfileViews+Customization.swift
+      - path: 美麗日記/Views/ProfileViews+Achievements.swift
+      - path: 美麗日記/Views/ProfileViews+DataExport.swift
       - path: 美麗日記/Views/SharedViewComponents.swift
       - path: 美麗日記/Views/SharedViewComponents+AddSheetsBeauty.swift
       - path: 美麗日記/Views/SharedViewComponents+AddSheetsOther.swift

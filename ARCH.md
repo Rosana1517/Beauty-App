@@ -135,7 +135,12 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── BodyViews+Meals.swift          ← 295 行
     │   │   ├── GrowthViews.swift             ← ⚠️ 853 行,待拆(成長分頁,先前記錄時漏標)
     │   │   ├── FinanceViews.swift            ← ⚠️ 690 行,待拆(財務子導覽,先前記錄時漏標)
-    │   │   ├── ProfileViews.swift            ← ⚠️ 990 行,待拆(我的分頁,先前記錄時漏標)
+    │   │   ├── ProfileViews.swift                    ← 核心(ProfileView),98 行
+    │   │   ├── ProfileViews+ResourceLibrary.swift     ← 192 行
+    │   │   ├── ProfileViews+Settings.swift            ← ⚠️ 377 行(含 4 個 private 卡片,耦合緊密未再拆)
+    │   │   ├── ProfileViews+Customization.swift       ← 118 行
+    │   │   ├── ProfileViews+Achievements.swift        ← 131 行
+    │   │   ├── ProfileViews+DataExport.swift          ← 110 行
     │   │   ├── SharedViewComponents.swift              ← 核心(GenericSummaryView),29 行
     │   │   ├── SharedViewComponents+AddSheetsBeauty.swift  ← 282 行
     │   │   ├── SharedViewComponents+AddSheetsOther.swift   ← ⚠️ 388 行,待再拆
