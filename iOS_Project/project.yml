@@ -98,6 +98,7 @@ targets:
       - path: 美麗日記/Services/ResourcePipelineServices+OfficialImport.swift
       - path: 美麗日記/Services/ResourcePipelineServices+LocalAnalysis.swift
       - path: 美麗日記/Services/ResourcePipelineServices+SupabaseSync.swift
+      - path: 美麗日記/Services/ResourcePipelineServices+RESTClient.swift
       - path: 美麗日記/Services/ResourcePipelineServices+SupabasePayloads.swift
       - path: 美麗日記/Services/ResourcePipelineServices+SupabaseRows.swift
       - path: 美麗日記/Services/ResourcePipelineServices+SupabaseAIPayloads.swift

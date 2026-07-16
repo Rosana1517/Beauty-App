@@ -99,7 +99,8 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── ResourcePipelineServices.swift              ← 核心(config/protocols/結果型別),107 行
     │   │   ├── ResourcePipelineServices+OfficialImport.swift  ← 119 行
     │   │   ├── ResourcePipelineServices+LocalAnalysis.swift   ← 156 行
-    │   │   ├── ResourcePipelineServices+SupabaseSync.swift    ← ⚠️ 469 行,待再拆
+    │   │   ├── ResourcePipelineServices+SupabaseSync.swift    ← 264 行
+    │   │   ├── ResourcePipelineServices+RESTClient.swift      ← 207 行
     │   │   ├── ResourcePipelineServices+SupabasePayloads.swift← 127 行
     │   │   ├── ResourcePipelineServices+SupabaseRows.swift    ← 230 行
     │   │   ├── ResourcePipelineServices+SupabaseAIPayloads.swift← 176 行
@@ -196,6 +197,8 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
 - `DiaryModels+Resource.swift`(原 645 行)第二輪已拆為主檔 + 3 個檔案(見第 5 節),全數已在 300 行以下
 - `ResourcePipelineServices+SupabasePayloads.swift`(原 529 行)第二輪已拆為主檔 + 2 個檔案(見第 5 節),全數已在 300 行以下
 - `ResourceImportService+WebPage.swift`(原 524 行)第二輪已拆為主檔 + 4 個檔案(見第 5 節),把 `enum SharedHTMLParser` 的靜態方法拆成多個 `extension`,全數已在 300 行以下
+- `ResourcePipelineServices+SupabaseSync.swift`(原 469 行)第二輪已拆為 2 個檔案(見第 5 節),全數已在 300 行以下
+- **第二輪拆分至此全部 8 個超標檔案處理完畢**
 - `BeautyDiaryStore.swift`(原 2122 行)已按 domain 拆為主檔 + 8 個 `extension` 檔案(見第 5 節),其中 `BeautyDiaryStore+Resource.swift`(732)仍超標,待下一輪再拆
 - `DiaryModels.swift`(原 1652 行)已按 domain 拆為主檔(BeautyDiaryState 根狀態)+ 7 個檔案(見第 5 節),其中 `DiaryModels+Resource.swift`(645)仍超標,待下一輪再拆
 - `ResourcePipelineServices.swift`(原 1521 行)已拆為主檔 + 5 個檔案(見第 5 節),其中 `+SupabaseSync.swift`(469)、`+SupabasePayloads.swift`(529)仍超標,待下一輪再拆

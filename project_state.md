@@ -22,6 +22,7 @@
 - 切片 11:`DiaryModels+Resource.swift`(645 行)拆為主檔(狀態/類型 enum,197 行)+ 3 個檔案(ResourcePayloads/ResourceImportDraft/ResourceItem);無 `private` 宣告,全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
 - 切片 12:`ResourcePipelineServices+SupabasePayloads.swift`(529 行)拆為主檔 + 2 個檔案(SupabaseRows/SupabaseAIPayloads);無 `private` 宣告,全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
 - 切片 13:`ResourceImportService+WebPage.swift`(524 行)拆為主檔(WebPageParser + `enum SharedHTMLParser` 主體,182 行)+ 4 個檔案(把 `SharedHTMLParser` 的靜態方法拆成 HTMLParsingHelpers/HTMLExtraction/HTMLUtilities 三個 `extension`,加上獨立的 JSONLDModels);全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
+- 切片 14:`ResourcePipelineServices+SupabaseSync.swift`(469 行)拆為 2 個檔案(`SupabaseCloudResourceSyncService`+錯誤型別留在主檔,`SupabaseRESTClient` 獨立成 `+RESTClient.swift`);`SupabaseCloudResourceSyncService` 內有 `private` 屬性但整個 struct 沒被拆開,無跨檔案存取風險;全數已在 300 行以下;已更新 `project.yml`;**至此第二輪拆分全部 8 個超標檔案都已處理完畢**
 
 ## 已知問題
 
@@ -60,7 +61,7 @@
 | 11 | 第二輪拆分:DiaryModels+Resource.swift | 記憶 | Models/DiaryModels+Resource.swift → 主檔 + 3 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
 | 12 | 第二輪拆分:ResourcePipelineServices+SupabasePayloads.swift | 連線 | Services/ResourcePipelineServices+SupabasePayloads.swift → 主檔 + 2 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
 | 13 | 第二輪拆分:ResourceImportService+WebPage.swift | 爬蟲 | Services/ResourceImportService+WebPage.swift → 主檔 + 4 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
-| 14 | 第二輪拆分:ResourcePipelineServices+SupabaseSync.swift | 連線 | Services/ResourcePipelineServices+SupabaseSync.swift | ⬜ |
+| 14 | 第二輪拆分:ResourcePipelineServices+SupabaseSync.swift | 連線 | Services/ResourcePipelineServices+SupabaseSync.swift → 2 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
 | 15 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ⬜ |
 | 16 | 補質量閘門(lint / 型別檢查腳本) | 地基 | CI 設定 | ⬜ |
 
