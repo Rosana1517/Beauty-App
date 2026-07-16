@@ -114,7 +114,16 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── GrowthViews.swift             ← 853 行(成長分頁)
     │   │   ├── FinanceViews.swift            ← 690 行(財務子導覽)
     │   │   ├── ProfileViews.swift            ← 990 行(我的分頁)
-    │   │   └── SharedViewComponents.swift    ← ⚠️ 2589 行,待再拆(共用彈窗/元件)
+    │   │   ├── SharedViewComponents.swift              ← 核心(GenericSummaryView),29 行
+    │   │   ├── SharedViewComponents+AddSheetsBeauty.swift  ← 282 行
+    │   │   ├── SharedViewComponents+AddSheetsOther.swift   ← ⚠️ 388 行,待再拆
+    │   │   ├── SharedViewComponents+GoalAndEdit.swift      ← 248 行
+    │   │   ├── SharedViewComponents+AddSheets2.swift       ← ⚠️ 333 行,待再拆
+    │   │   ├── SharedViewComponents+ImportWizardUI.swift   ← 271 行
+    │   │   ├── SharedViewComponents+ResourceDetailUI.swift ← 276 行
+    │   │   ├── SharedViewComponents+AIAdviceUI.swift       ← ⚠️ 308 行,待再拆
+    │   │   ├── SharedViewComponents+CardsAndBadges.swift   ← 297 行
+    │   │   └── SharedViewComponents+FormControls.swift     ← 211 行
     │   └── Utilities/
     └── 美麗日記UITests/                ← 5 個 UI 測試檔
 ```
@@ -158,7 +167,8 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
 ## 11. 檔案上限規則
 
 - 單一檔案不超過 300 行
-- `AppPrototypeViews.swift`(原 8185 行)已按分頁/群組拆為 7 個檔案(見第 5 節),其中 3 個仍超標,待下一輪再拆:`SharedViewComponents.swift`(2589)→ `BeautyViews.swift`(1672)→ `BodyViews.swift`(1270)
+- `AppPrototypeViews.swift`(原 8185 行)已按分頁/群組拆為 7 個檔案(見第 5 節),其中 `BeautyViews.swift`(1672)、`BodyViews.swift`(1270)仍超標,待下一輪再拆
+- `SharedViewComponents.swift`(原 2589 行)第二輪已拆為主檔 + 9 個檔案(見第 5 節),其中 3 個(`+AddSheetsOther`388、`+AddSheets2`333、`+AIAdviceUI`308)仍略超標,待第三輪再拆
 - `BeautyDiaryStore.swift`(原 2122 行)已按 domain 拆為主檔 + 8 個 `extension` 檔案(見第 5 節),其中 `BeautyDiaryStore+Resource.swift`(732)仍超標,待下一輪再拆
 - `DiaryModels.swift`(原 1652 行)已按 domain 拆為主檔(BeautyDiaryState 根狀態)+ 7 個檔案(見第 5 節),其中 `DiaryModels+Resource.swift`(645)仍超標,待下一輪再拆
 - `ResourcePipelineServices.swift`(原 1521 行)已拆為主檔 + 5 個檔案(見第 5 節),其中 `+SupabaseSync.swift`(469)、`+SupabasePayloads.swift`(529)仍超標,待下一輪再拆

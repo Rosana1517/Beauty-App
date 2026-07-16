@@ -101,6 +101,15 @@ targets:
       - path: 美麗日記/Views/FinanceViews.swift
       - path: 美麗日記/Views/ProfileViews.swift
       - path: 美麗日記/Views/SharedViewComponents.swift
+      - path: 美麗日記/Views/SharedViewComponents+AddSheetsBeauty.swift
+      - path: 美麗日記/Views/SharedViewComponents+AddSheetsOther.swift
+      - path: 美麗日記/Views/SharedViewComponents+GoalAndEdit.swift
+      - path: 美麗日記/Views/SharedViewComponents+AddSheets2.swift
+      - path: 美麗日記/Views/SharedViewComponents+ImportWizardUI.swift
+      - path: 美麗日記/Views/SharedViewComponents+ResourceDetailUI.swift
+      - path: 美麗日記/Views/SharedViewComponents+AIAdviceUI.swift
+      - path: 美麗日記/Views/SharedViewComponents+CardsAndBadges.swift
+      - path: 美麗日記/Views/SharedViewComponents+FormControls.swift
     settings:
       base:
         INFOPLIST_FILE: 美麗日記/Info.plist
