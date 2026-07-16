@@ -27,7 +27,7 @@ struct GenericSummaryView: View {
     }
 }
 
-private struct AddStepSheet: View {
+struct AddStepSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var period: RoutinePeriod = .morning
@@ -52,7 +52,7 @@ private struct AddStepSheet: View {
     }
 }
 
-private struct AddProductSheet: View {
+struct AddProductSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var name = ""
@@ -163,7 +163,7 @@ private struct AddProductSheet: View {
     }
 }
 
-private struct AddSkinRecordSheet: View {
+struct AddSkinRecordSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     let concerns: [String]
@@ -188,7 +188,7 @@ private struct AddSkinRecordSheet: View {
 
 /// Generic title+url add form, shared by 收藏食譜/髮型收藏/妝容靈感 (and
 /// anything else that's just "save a link with a title").
-private struct AddLinkSheet: View {
+struct AddLinkSheet: View {
     @Environment(\.dismiss) private var dismiss
     let sheetTitle: String
     let titleFieldLabel: String
@@ -210,7 +210,7 @@ private struct AddLinkSheet: View {
     }
 }
 
-private struct AddWhiteningProductUsageSheet: View {
+struct AddWhiteningProductUsageSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var productName = ""
@@ -229,7 +229,7 @@ private struct AddWhiteningProductUsageSheet: View {
     }
 }
 
-private struct AddShadeTrackingSheet: View {
+struct AddShadeTrackingSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var shadeName = ""
@@ -248,7 +248,7 @@ private struct AddShadeTrackingSheet: View {
     }
 }
 
-private struct AddBeforeAfterPhotoSheet: View {
+struct AddBeforeAfterPhotoSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var beforeItem: PhotosPickerItem?
@@ -303,7 +303,7 @@ private struct AddBeforeAfterPhotoSheet: View {
     }
 }
 
-private struct CustomizeChecklistSheet: View {
+struct CustomizeChecklistSheet: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var newTitle = ""
     @State private var newCategory = "變美"
@@ -351,7 +351,7 @@ private struct CustomizeChecklistSheet: View {
     }
 }
 
-private struct AddTransactionSheet: View {
+struct AddTransactionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var type: TransactionType = .expense
@@ -393,7 +393,7 @@ private struct AddTransactionSheet: View {
     }
 }
 
-private struct SetBudgetSheet: View {
+struct SetBudgetSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var category = "餐飲"
@@ -419,7 +419,7 @@ private struct SetBudgetSheet: View {
     }
 }
 
-private struct AddWishSheet: View {
+struct AddWishSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var name = ""
@@ -439,7 +439,7 @@ private struct AddWishSheet: View {
     }
 }
 
-private struct AddShoppingItemSheet: View {
+struct AddShoppingItemSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var name = ""
@@ -459,7 +459,7 @@ private struct AddShoppingItemSheet: View {
     }
 }
 
-private struct AddCourseSheet: View {
+struct AddCourseSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var title = ""
@@ -480,7 +480,7 @@ private struct AddCourseSheet: View {
     }
 }
 
-private struct AddKnowledgeNoteSheet: View {
+struct AddKnowledgeNoteSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var title = ""
@@ -502,7 +502,7 @@ private struct AddKnowledgeNoteSheet: View {
     }
 }
 
-private struct AddVideoLearningSheet: View {
+struct AddVideoLearningSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var title = ""
@@ -529,7 +529,7 @@ private struct AddVideoLearningSheet: View {
     }
 }
 
-private struct AddSymptomSheet: View {
+struct AddSymptomSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var symptom = ""
@@ -548,7 +548,7 @@ private struct AddSymptomSheet: View {
     }
 }
 
-private struct AddMenstrualRecordSheet: View {
+struct AddMenstrualRecordSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var note = ""
@@ -565,7 +565,7 @@ private struct AddMenstrualRecordSheet: View {
     }
 }
 
-private struct AddNourishmentRecipeSheet: View {
+struct AddNourishmentRecipeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var title = ""
@@ -584,7 +584,7 @@ private struct AddNourishmentRecipeSheet: View {
     }
 }
 
-private struct AddFaceLiftActionSheet: View {
+struct AddFaceLiftActionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var name = ""
@@ -601,7 +601,7 @@ private struct AddFaceLiftActionSheet: View {
     }
 }
 
-private struct AddFaceLiftRatingSheet: View {
+struct AddFaceLiftRatingSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var score: Double = 7
@@ -627,7 +627,7 @@ private struct AddFaceLiftRatingSheet: View {
     }
 }
 
-private struct AddHairCareSheet: View {
+struct AddHairCareSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var careType = ""
@@ -646,7 +646,7 @@ private struct AddHairCareSheet: View {
     }
 }
 
-private struct AddBodySkinRecordSheet: View {
+struct AddBodySkinRecordSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var area = ""
@@ -667,7 +667,7 @@ private struct AddBodySkinRecordSheet: View {
     }
 }
 
-private struct AddPunchSheet: View {
+struct AddPunchSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var summary = ""
@@ -927,7 +927,7 @@ extension View {
     }
 }
 
-private struct EditPunchSheet: View {
+struct EditPunchSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var summary: String
@@ -957,7 +957,7 @@ private struct EditPunchSheet: View {
     }
 }
 
-private struct AddAppointmentSheet: View {
+struct AddAppointmentSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var title = ""
@@ -989,7 +989,7 @@ private struct AddAppointmentSheet: View {
     }
 }
 
-private struct AddBodyMetricSheet: View {
+struct AddBodyMetricSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var weight = ""
@@ -1010,7 +1010,7 @@ private struct AddBodyMetricSheet: View {
     }
 }
 
-private struct TDEESetupSheet: View {
+struct TDEESetupSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var heightText = ""
@@ -1081,7 +1081,7 @@ private struct TDEESetupSheet: View {
     }
 }
 
-private struct AddMealSheet: View {
+struct AddMealSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var type = "早餐"
@@ -1231,7 +1231,7 @@ private struct AddMealSheet: View {
     }
 }
 
-private struct AddBookSheet: View {
+struct AddBookSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var title = ""
@@ -1254,7 +1254,7 @@ private struct AddBookSheet: View {
     }
 }
 
-private struct ImportWizardSheet: View {
+struct ImportWizardSheet: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var url = ""
@@ -1347,7 +1347,7 @@ private struct ImportWizardSheet: View {
     }
 }
 
-private struct ImportPreviewView: View {
+struct ImportPreviewView: View {
     let draft: ResourceImportDraft
     let saveAction: () -> Void
     let manualAction: () -> Void
@@ -1442,7 +1442,7 @@ private struct ImportPreviewView: View {
     }
 }
 
-private struct ManualCompleteView: View {
+struct ManualCompleteView: View {
     @Binding var draft: ResourceImportDraft
     let saveAction: () -> Void
     @State private var tagsText = ""
@@ -1519,7 +1519,7 @@ private struct ManualCompleteView: View {
     }
 }
 
-private struct ResourceListCard: View {
+struct ResourceListCard: View {
     let item: ResourceItem
 
     var body: some View {
@@ -1609,7 +1609,7 @@ enum TeachingStepParser {
     }
 }
 
-private struct ResourceDetailView: View {
+struct ResourceDetailView: View {
     let item: ResourceItem
 
     var body: some View {
@@ -1789,7 +1789,7 @@ private struct ResourceDetailView: View {
     }
 }
 
-private struct FormSheet<Content: View>: View {
+struct FormSheet<Content: View>: View {
     let title: String
     let content: Content
 
@@ -1813,7 +1813,7 @@ private struct FormSheet<Content: View>: View {
     }
 }
 
-private struct HubCard: View {
+struct HubCard: View {
     let title: String
     let subtitle: String
     let icon: String
@@ -2091,7 +2091,7 @@ struct AIAdviceSection: View {
     }
 }
 
-private struct CardView<Content: View>: View {
+struct CardView<Content: View>: View {
     let content: Content
 
     init(@ViewBuilder content: () -> Content) {
@@ -2107,7 +2107,7 @@ private struct CardView<Content: View>: View {
     }
 }
 
-private struct StatusBadge: View {
+struct StatusBadge: View {
     let status: ResourceImportStatus
 
     var body: some View {
@@ -2134,7 +2134,7 @@ private struct StatusBadge: View {
     }
 }
 
-private struct RuntimeStatusChip: View {
+struct RuntimeStatusChip: View {
     let title: String
     let active: Bool
     let activeDetail: String
@@ -2162,7 +2162,7 @@ private struct RuntimeStatusChip: View {
     }
 }
 
-private struct MetadataRow: View {
+struct MetadataRow: View {
     let title: String
     let value: String
 
@@ -2181,7 +2181,7 @@ private struct MetadataRow: View {
     }
 }
 
-private struct InfoCallout: View {
+struct InfoCallout: View {
     let title: String
     let detail: String
 
@@ -2202,7 +2202,7 @@ private struct InfoCallout: View {
     }
 }
 
-private struct MediaRetentionBadge: View {
+struct MediaRetentionBadge: View {
     let policy: MediaRetentionPolicy
 
     var body: some View {
@@ -2227,7 +2227,7 @@ private struct MediaRetentionBadge: View {
     }
 }
 
-private struct MediaAssetListView: View {
+struct MediaAssetListView: View {
     let assets: [XHSMediaAsset]
 
     var body: some View {
@@ -2272,7 +2272,7 @@ private struct MediaAssetListView: View {
     }
 }
 
-private struct MediaAssetSelectionList: View {
+struct MediaAssetSelectionList: View {
     @Binding var assets: [XHSMediaAsset]
 
     var body: some View {
@@ -2308,7 +2308,7 @@ private struct MediaAssetSelectionList: View {
     }
 }
 
-private struct MetadataHero: View {
+struct MetadataHero: View {
     let title: String
     let subtitle: String
     let sourceLabel: String
@@ -2352,7 +2352,7 @@ private struct MetadataHero: View {
     }
 }
 
-private struct ThumbnailPreview: View {
+struct ThumbnailPreview: View {
     let thumbnailURL: String
     var size: CGFloat = 92
 
@@ -2382,7 +2382,7 @@ private struct ThumbnailPreview: View {
     }
 }
 
-private struct EmptyStateView: View {
+struct EmptyStateView: View {
     let title: String
     let subtitle: String
 
@@ -2401,7 +2401,7 @@ private struct EmptyStateView: View {
     }
 }
 
-private struct PrimaryButton: View {
+struct PrimaryButton: View {
     let title: String
     let action: () -> Void
 
@@ -2420,7 +2420,7 @@ private struct PrimaryButton: View {
     }
 }
 
-private struct ThemedTextField: View {
+struct ThemedTextField: View {
     let title: String
     @Binding var text: String
 
@@ -2433,7 +2433,7 @@ private struct ThemedTextField: View {
     }
 }
 
-private struct ThemedSecureField: View {
+struct ThemedSecureField: View {
     let title: String
     @Binding var text: String
 
@@ -2446,7 +2446,7 @@ private struct ThemedSecureField: View {
     }
 }
 
-private struct InfoRow: View {
+struct InfoRow: View {
     let title: String
     let value: String
 
@@ -2462,7 +2462,7 @@ private struct InfoRow: View {
     }
 }
 
-private struct WrapChips: View {
+struct WrapChips: View {
     let items: [String]
 
     var body: some View {
@@ -2479,7 +2479,7 @@ private struct WrapChips: View {
     }
 }
 
-private struct WrapToggleChips: View {
+struct WrapToggleChips: View {
     let items: [String]
     @Binding var selection: Set<String>
 
@@ -2507,7 +2507,7 @@ private struct WrapToggleChips: View {
     }
 }
 
-private struct WrapSelectableChips: View {
+struct WrapSelectableChips: View {
     let items: [ResourceCategory]
     let selected: ResourceCategory
     let action: (ResourceCategory) -> Void
@@ -2532,7 +2532,7 @@ private struct WrapSelectableChips: View {
     }
 }
 
-private func header(title: String, subtitle: String) -> some View {
+func header(title: String, subtitle: String) -> some View {
     VStack(alignment: .leading, spacing: 4) {
         Text(title)
             .font(.system(size: 30, weight: .bold))
@@ -2543,7 +2543,7 @@ private func header(title: String, subtitle: String) -> some View {
     }
 }
 
-private func titleRow(title: String, action: String? = nil, onTap: @escaping () -> Void = {}) -> some View {
+func titleRow(title: String, action: String? = nil, onTap: @escaping () -> Void = {}) -> some View {
     HStack {
         Text(title)
             .font(.system(size: 28, weight: .bold))
@@ -2564,7 +2564,7 @@ private func titleRow(title: String, action: String? = nil, onTap: @escaping () 
     }
 }
 
-private func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+func chip(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
     Button(action: action) {
         Text(title)
             .font(.subheadline.weight(.medium))
