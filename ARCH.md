@@ -74,7 +74,10 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   ├── Models/
     │   │   ├── DiaryModels.swift             ← 核心(BeautyDiaryState 根狀態),430 行
     │   │   ├── DiaryModels+Routes.swift       ← 127 行(分頁/路由 enum)
-    │   │   ├── DiaryModels+Resource.swift     ← ⚠️ 645 行,待再拆(資源匯入/XHS 模型)
+    │   │   ├── DiaryModels+Resource.swift          ← 核心(狀態/類型 enum),197 行
+    │   │   ├── DiaryModels+ResourcePayloads.swift    ← 103 行
+    │   │   ├── DiaryModels+ResourceImportDraft.swift ← 106 行
+    │   │   ├── DiaryModels+ResourceItem.swift        ← 245 行
     │   │   ├── DiaryModels+Profile.swift      ← 102 行
     │   │   ├── DiaryModels+Beauty.swift       ← 89 行
     │   │   ├── DiaryModels+Finance.swift      ← 49 行
@@ -184,6 +187,7 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
 - `BeautyViews.swift`(原 1672 行)第二輪已拆為主檔 + 5 個檔案,其中 4 個(`+Skincare`371、`+Whitening`338、`+HairAndBody`391、`+Products`352)仍略超標,待第三輪再拆
 - `BodyViews.swift`(原 1270 行)第二輪已拆為主檔 + 4 個檔案(見第 5 節),其中 2 個(`+Exercise`356、`+Wellness`383)仍略超標,待第三輪再拆
 - `BeautyDiaryStore+Resource.swift`(原 732 行)第二輪已拆為 4 個 extension 檔案(見第 5 節),全數已在 300 行以下
+- `DiaryModels+Resource.swift`(原 645 行)第二輪已拆為主檔 + 3 個檔案(見第 5 節),全數已在 300 行以下
 - `BeautyDiaryStore.swift`(原 2122 行)已按 domain 拆為主檔 + 8 個 `extension` 檔案(見第 5 節),其中 `BeautyDiaryStore+Resource.swift`(732)仍超標,待下一輪再拆
 - `DiaryModels.swift`(原 1652 行)已按 domain 拆為主檔(BeautyDiaryState 根狀態)+ 7 個檔案(見第 5 節),其中 `DiaryModels+Resource.swift`(645)仍超標,待下一輪再拆
 - `ResourcePipelineServices.swift`(原 1521 行)已拆為主檔 + 5 個檔案(見第 5 節),其中 `+SupabaseSync.swift`(469)、`+SupabasePayloads.swift`(529)仍超標,待下一輪再拆

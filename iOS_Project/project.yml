@@ -64,6 +64,9 @@ targets:
       - path: 美麗日記/Models/DiaryModels.swift
       - path: 美麗日記/Models/DiaryModels+Routes.swift
       - path: 美麗日記/Models/DiaryModels+Resource.swift
+      - path: 美麗日記/Models/DiaryModels+ResourcePayloads.swift
+      - path: 美麗日記/Models/DiaryModels+ResourceImportDraft.swift
+      - path: 美麗日記/Models/DiaryModels+ResourceItem.swift
       - path: 美麗日記/Models/DiaryModels+Profile.swift
       - path: 美麗日記/Models/DiaryModels+Beauty.swift
       - path: 美麗日記/Models/DiaryModels+Finance.swift
