@@ -2,17 +2,6 @@ import Combine
 import Foundation
 
 extension BeautyDiaryStore {
-    @Published private(set) var aiAdviceSuggestions: [AIAdviceTopic: [String]] = [:]
-    @Published private(set) var aiAdviceRoutineSteps: [AIAdviceTopic: [String]] = [:]
-    @Published private(set) var aiAdviceProducts: [AIAdviceTopic: [String]] = [:]
-    @Published private(set) var aiAdviceRelatedResources: [AIAdviceTopic: [AIAdviceRelatedResource]] = [:]
-    @Published private(set) var aiAdviceErrorMessage: [AIAdviceTopic: String] = [:]
-    @Published private(set) var loadingAIAdviceTopics: Set<AIAdviceTopic> = []
-    @Published var productLookupError: String?
-    @Published private(set) var isLookingUpProduct = false
-    @Published var foodAnalysisError: String?
-    @Published private(set) var isAnalyzingFood = false
-
     func suggestions(for topic: AIAdviceTopic) -> [String] {
         aiAdviceSuggestions[topic] ?? []
     }
