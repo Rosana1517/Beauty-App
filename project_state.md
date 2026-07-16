@@ -18,13 +18,13 @@
 - 切片 7(第二輪拆分開始):`SharedViewComponents.swift`(2589 行)拆為主檔(`GenericSummaryView`,29 行)+ 9 個檔案(AddSheetsBeauty/AddSheetsOther/GoalAndEdit/AddSheets2/ImportWizardUI/ResourceDetailUI/AIAdviceUI/CardsAndBadges/FormControls);本檔無 `private` 宣告(第一輪已清過),拆分風險低,已檢查每個新檔案大括號配對正確;9 個新檔案中 6 個已在 300 行以下,3 個略超標留待第三輪;已更新 `project.yml`
 - 切片 8:`BeautyViews.swift`(1672 行)拆為主檔(`BeautyRootView`,97 行)+ 5 個檔案(Skincare/Whitening/HairAndBody/Products/Makeup);無 `private` 宣告,已檢查大括號配對正確;5 個新檔案中僅 `+Makeup.swift` 在 300 行以下,其餘 4 個略超標留待第三輪;已更新 `project.yml`
 - 切片 9:`BodyViews.swift`(1270 行)拆為主檔(`BodyRootView`,79 行)+ 4 個檔案(Exercise/Wellness/Album/Meals);無 `private` 宣告,已檢查大括號配對正確;4 個新檔案中 2 個(`+Album`181、`+Meals`295)已在 300 行以下,`+Exercise`(356)、`+Wellness`(383)略超標留待第三輪;已更新 `project.yml`;至此展示層(`Views/`)的全部原始巨型檔案(AppPrototypeViews 衍生的 SharedViewComponents/BeautyViews/BodyViews)第二輪拆分皆已完成
+- 切片 10:`BeautyDiaryStore+Resource.swift`(732 行,單一 `extension BeautyDiaryStore` 區塊)拆為 4 個 extension 檔案(Resource/ResourceSync/ResourceProfileSync/ResourceWorker),全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
 
 ## 已知問題
 
 - `SharedViewComponents+AddSheetsOther.swift`(388)、`+AddSheets2.swift`(333)、`+AIAdviceUI.swift`(308)第二輪拆分後仍略超標,待第三輪再拆
 - `BeautyViews+Skincare.swift`(371)、`+Whitening.swift`(338)、`+HairAndBody.swift`(391)、`+Products.swift`(352)第二輪拆分後仍略超標,待第三輪再拆
 - `BodyViews+Exercise.swift`(356)、`+Wellness.swift`(383)第二輪拆分後仍略超標,待第三輪再拆
-- `BeautyDiaryStore+Resource.swift`(732 行,資源匯入/同步/雲端鑑權)仍超過 300 行上限,待下一輪再拆
 - `DiaryModels+Resource.swift`(645 行,資源匯入/XHS 模型)仍超過 300 行上限,待下一輪再拆
 - `ResourcePipelineServices+SupabaseSync.swift`(469 行)、`+SupabasePayloads.swift`(529 行)仍超過 300 行上限,待下一輪再拆
 - `ResourceImportService+WebPage.swift`(524 行)仍超過 300 行上限,待下一輪再拆
@@ -55,8 +55,9 @@
 | 7 | 第二輪拆分:SharedViewComponents.swift | 展示 | Views/SharedViewComponents.swift → 主檔 + 9 個檔案 + project.yml | ✅ 已完成(CI 跑中) |
 | 8 | 第二輪拆分:BeautyViews.swift | 展示 | Views/BeautyViews.swift → 主檔 + 5 個檔案 + project.yml | ✅ 已完成(CI 跑中) |
 | 9 | 第二輪拆分:BodyViews.swift | 展示 | Views/BodyViews.swift → 主檔 + 4 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
-| 10 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ⬜ |
-| 11 | 補質量閘門(lint / 型別檢查腳本) | 地基 | CI 設定 | ⬜ |
+| 10 | 第二輪拆分:BeautyDiaryStore+Resource.swift | 記憶/邏輯 | Services/BeautyDiaryStore+Resource.swift → 4 個 extension 檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
+| 11 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ⬜ |
+| 12 | 補質量閘門(lint / 型別檢查腳本) | 地基 | CI 設定 | ⬜ |
 
 ---
 

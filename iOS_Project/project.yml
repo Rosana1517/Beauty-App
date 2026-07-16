@@ -77,6 +77,9 @@ targets:
       - path: 美麗日記/Services/BeautyDiaryStore+Finance.swift
       - path: 美麗日記/Services/BeautyDiaryStore+AIAdvice.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Resource.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+ResourceSync.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+ResourceProfileSync.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+ResourceWorker.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Profile.swift
       - path: 美麗日記/Services/NotificationScheduler.swift
       - path: 美麗日記/Services/ResourceImportService.swift
