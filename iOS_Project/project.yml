@@ -62,6 +62,13 @@ targets:
       - path: 美麗日記/Assets.xcassets
       - path: 美麗日記/Constants/AppConstants.swift
       - path: 美麗日記/Models/DiaryModels.swift
+      - path: 美麗日記/Models/DiaryModels+Routes.swift
+      - path: 美麗日記/Models/DiaryModels+Resource.swift
+      - path: 美麗日記/Models/DiaryModels+Profile.swift
+      - path: 美麗日記/Models/DiaryModels+Beauty.swift
+      - path: 美麗日記/Models/DiaryModels+Finance.swift
+      - path: 美麗日記/Models/DiaryModels+Growth.swift
+      - path: 美麗日記/Models/DiaryModels+Body.swift
       - path: 美麗日記/Services/BeautyDiaryStore.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Home.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Beauty.swift
