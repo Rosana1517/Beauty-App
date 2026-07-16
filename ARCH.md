@@ -140,7 +140,12 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── GrowthViews+VideoLearning.swift        ← 76 行
     │   │   ├── GrowthViews+DailyQuote.swift           ← 212 行
     │   │   ├── GrowthViews+Mood.swift                 ← 129 行
-    │   │   ├── FinanceViews.swift            ← ⚠️ 690 行,待拆(財務子導覽,先前記錄時漏標)
+    │   │   ├── FinanceViews.swift                    ← 核心(FinanceRootView),69 行
+    │   │   ├── FinanceViews+Ledger.swift              ← 111 行
+    │   │   ├── FinanceViews+Budget.swift              ← 137 行
+    │   │   ├── FinanceViews+Analysis.swift            ← 155 行
+    │   │   ├── FinanceViews+Shopping.swift            ← 74 行
+    │   │   ├── FinanceViews+Health.swift              ← 174 行
     │   │   ├── ProfileViews.swift                    ← 核心(ProfileView),98 行
     │   │   ├── ProfileViews+ResourceLibrary.swift     ← 192 行
     │   │   ├── ProfileViews+Settings.swift            ← ⚠️ 377 行(含 4 個 private 卡片,耦合緊密未再拆)

@@ -127,6 +127,11 @@ targets:
       - path: 美麗日記/Views/GrowthViews+DailyQuote.swift
       - path: 美麗日記/Views/GrowthViews+Mood.swift
       - path: 美麗日記/Views/FinanceViews.swift
+      - path: 美麗日記/Views/FinanceViews+Ledger.swift
+      - path: 美麗日記/Views/FinanceViews+Budget.swift
+      - path: 美麗日記/Views/FinanceViews+Analysis.swift
+      - path: 美麗日記/Views/FinanceViews+Shopping.swift
+      - path: 美麗日記/Views/FinanceViews+Health.swift
       - path: 美麗日記/Views/ProfileViews.swift
       - path: 美麗日記/Views/ProfileViews+ResourceLibrary.swift
       - path: 美麗日記/Views/ProfileViews+Settings.swift
