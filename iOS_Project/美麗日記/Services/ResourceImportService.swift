@@ -1033,12 +1033,6 @@ private struct NameValue: Decodable {
     }
 }
 
-private extension String {
-    var nilIfEmpty: String? {
-        isEmpty ? nil : self
-    }
-}
-
 private extension JSONDecoder {
     static var youtube: JSONDecoder {
         let decoder = JSONDecoder()
