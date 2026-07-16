@@ -96,7 +96,11 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── ResourcePipelineServices+SupabaseSync.swift    ← ⚠️ 469 行,待再拆
     │   │   ├── ResourcePipelineServices+SupabasePayloads.swift← ⚠️ 529 行,待再拆
     │   │   ├── ResourcePipelineServices+Mappings.swift        ← 153 行
-    │   │   ├── ResourceImportService.swift     ← ⚠️ 1063 行,待拆
+    │   │   ├── ResourceImportService.swift              ← 核心(protocol/Composite/config),74 行
+    │   │   ├── ResourceImportService+XHS.swift            ← 288 行
+    │   │   ├── ResourceImportService+Instagram.swift      ← 36 行
+    │   │   ├── ResourceImportService+YouTube.swift        ← 154 行
+    │   │   ├── ResourceImportService+WebPage.swift        ← ⚠️ 524 行,待再拆
     │   │   ├── SupabaseAuthService.swift       ← 600 行
     │   │   ├── FaceShapeDetector.swift
     │   │   ├── NotificationScheduler.swift
@@ -158,4 +162,5 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
 - `BeautyDiaryStore.swift`(原 2122 行)已按 domain 拆為主檔 + 8 個 `extension` 檔案(見第 5 節),其中 `BeautyDiaryStore+Resource.swift`(732)仍超標,待下一輪再拆
 - `DiaryModels.swift`(原 1652 行)已按 domain 拆為主檔(BeautyDiaryState 根狀態)+ 7 個檔案(見第 5 節),其中 `DiaryModels+Resource.swift`(645)仍超標,待下一輪再拆
 - `ResourcePipelineServices.swift`(原 1521 行)已拆為主檔 + 5 個檔案(見第 5 節),其中 `+SupabaseSync.swift`(469)、`+SupabasePayloads.swift`(529)仍超標,待下一輪再拆
-- 仍待拆分:`ResourceImportService.swift`(1063)
+- `ResourceImportService.swift`(原 1057 行)已拆為主檔 + 4 個平台檔案(見第 5 節),其中 `+WebPage.swift`(524)仍超標,待下一輪再拆
+- 目前所有原本超過 300 行的巨型檔案都已完成第一輪拆分,剩餘的都是「拆過一次但個別檔案仍超標」的第二輪目標
