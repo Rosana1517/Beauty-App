@@ -28,14 +28,14 @@
 - 切片 17:`FinanceViews.swift`(690 行)拆為主檔(`FinanceRootView`,69 行)+ 5 個檔案(Ledger/Budget/Analysis/Shopping/Health);無 `private` 宣告;全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
 - 切片 18(第三輪拆分完成):`SupabaseAuthService.swift`(600 行)拆為主檔(小型 enum/protocol/Noop,98 行)+ 2 個檔案(EmailAuthCore 業務邏輯/EmailAuthHTTP 請求層+DTO);`SupabaseEmailAuthService` 的儲存屬性、多個 `private` 方法、以及 7 個被 EmailAuthCore 用到的 DTO/`JSONDecoder` 擴充皆已 strip private 改為模組內可見(僅 `SupabaseErrorResponse`/`decodeSupabaseErrorMessage` 因只在同檔案內使用而保留 private);已 grep 確認新暴露符號無撞名;全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`;**四個漏標檔案至此全數拆分完畢**
 - 第二輪 CI 全面驗證完成:切片 7(SharedViewComponents)、9(BodyViews)、11(DiaryModels+Resource)、13(ResourceImportService+WebPage,重跑後)、14(ResourcePipelineServices+SupabaseSync)完整通過含 UI 測試;切片 8(BeautyViews)、10(BeautyDiaryStore+Resource)編譯 100% 通過,僅各自撞到已知的偶發性網路/模擬器 UI 測試問題(小紅書解析逾時、YouTube 鍵盤焦點合成失敗),經查證與拆分無關;切片 12(SupabasePayloads)完整通過;切片 13 第一次失敗在 `testImportResourceFromURLAppearsInLibrary`(先前程式碼註解標註為「穩定基準測試」,值得認真查證),已用逐行 diff 確認拆分內容 100% 無誤(唯一差異是 import 語句與 extension 包裝括號),重跑後全數通過,確認為偶發性網路逾時,非迴歸
-- **第一輪(切片 2-6)+ 第二輪(切片 7-14)共 14 個切片全部完成,10 個原本超過 300 行的巨型檔案全數拆分並通過 CI 驗證**
+- **第一輪(切片 2-6)+ 第二輪(切片 7-14)+ 第三輪(切片 15-18)共 18 個切片全部完成,14 個超過 300 行的檔案全數拆分**;第三輪 4 個切片(ProfileViews/GrowthViews/FinanceViews/SupabaseAuthService)CI 全數**完整通過(含 UI 測試)**,零問題
+- 現況:仍有 12 個檔案在 300-430 行之間(多屬第二輪拆分後的輕微超標,報酬遞減),詳見下方已知問題
 
 ## 已知問題
 
-- ⚠️ **文檔疏漏發現**:重新掃描全部 `.swift` 檔案後發現,`ProfileViews.swift`(990 行)、`GrowthViews.swift`(853 行)、`FinanceViews.swift`(690 行)這三個切片 2 產出的檔案,以及原本就存在的 `SupabaseAuthService.swift`(600 行),當初都超過 300 行上限,但先前記錄 `ARCH.md`/`project_state.md` 時漏標警告、未列入待拆清單。目前完整清單(16 個檔案仍超過 300 行):
-  - 四個原本漏標的檔案(`ProfileViews.swift`/`GrowthViews.swift`/`FinanceViews.swift`/`SupabaseAuthService.swift`)已於切片 15-18 全數處理完畢
-  - `DiaryModels.swift`(430)——切片 4 的核心檔案
-  - 第二輪拆分後仍在 300-400 行的 11 個檔案:`BeautyViews+HairAndBody`(391)、`SharedViewComponents+AddSheetsOther`(388)、`BodyViews+Wellness`(383)、`BeautyViews+Skincare`(371)、`BodyViews+Exercise`(356)、`BeautyViews+Products`(352)、`BeautyViews+Whitening`(338)、`SharedViewComponents+AddSheets2`(333)、`BeautyDiaryStore+AIAdvice`(317)、`SharedViewComponents+AIAdviceUI`(308)、`BeautyDiaryStore+Beauty`(308)
+- 目前(第三輪拆分完成後)仍有 **12 個檔案**超過 300 行,全部落在 300-430 行區間(輕微超標,非巨型檔案):
+  - `DiaryModels.swift`(430)——切片 4 的核心檔案(BeautyDiaryState 根狀態)
+  - `BeautyViews+HairAndBody.swift`(391)、`SharedViewComponents+AddSheetsOther.swift`(388)、`BodyViews+Wellness.swift`(383)、`ProfileViews+Settings.swift`(377,因 4 個 private 卡片耦合刻意不再拆)、`BeautyViews+Skincare.swift`(371)、`BodyViews+Exercise.swift`(356)、`BeautyViews+Products.swift`(352)、`BeautyViews+Whitening.swift`(338)、`SharedViewComponents+AddSheets2.swift`(333)、`BeautyDiaryStore+AIAdvice.swift`(317)、`SharedViewComponents+AIAdviceUI.swift`(308)、`BeautyDiaryStore+Beauty.swift`(308)
 
 - `SharedViewComponents+AddSheetsOther.swift`(388)、`+AddSheets2.swift`(333)、`+AIAdviceUI.swift`(308)第二輪拆分後仍略超標,待第三輪再拆
 - `BeautyViews+Skincare.swift`(371)、`+Whitening.swift`(338)、`+HairAndBody.swift`(391)、`+Products.swift`(352)第二輪拆分後仍略超標,待第三輪再拆
@@ -73,12 +73,14 @@
 | 12 | 第二輪拆分:ResourcePipelineServices+SupabasePayloads.swift | 連線 | Services/ResourcePipelineServices+SupabasePayloads.swift → 主檔 + 2 個檔案 + project.yml | ✅ 已完成並通過 CI |
 | 13 | 第二輪拆分:ResourceImportService+WebPage.swift | 爬蟲 | Services/ResourceImportService+WebPage.swift → 主檔 + 4 個檔案 + project.yml | ✅ 已完成並通過 CI |
 | 14 | 第二輪拆分:ResourcePipelineServices+SupabaseSync.swift | 連線 | Services/ResourcePipelineServices+SupabaseSync.swift → 2 個檔案 + project.yml | ✅ 已完成並通過 CI |
-| 15 | 第三輪拆分:ProfileViews.swift | 展示 | Views/ProfileViews.swift → 主檔 + 5 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
-| 16 | 第三輪拆分:GrowthViews.swift | 展示 | Views/GrowthViews.swift → 主檔 + 6 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
-| 17 | 第三輪拆分:FinanceViews.swift | 展示 | Views/FinanceViews.swift → 主檔 + 5 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
-| 18 | 第三輪拆分:SupabaseAuthService.swift | 身份 | Services/SupabaseAuthService.swift → 主檔 + 2 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
+| 15 | 第三輪拆分:ProfileViews.swift | 展示 | Views/ProfileViews.swift → 主檔 + 5 個檔案 + project.yml | ✅ 已完成並通過 CI(含 UI 測試) |
+| 16 | 第三輪拆分:GrowthViews.swift | 展示 | Views/GrowthViews.swift → 主檔 + 6 個檔案 + project.yml | ✅ 已完成並通過 CI(含 UI 測試) |
+| 17 | 第三輪拆分:FinanceViews.swift | 展示 | Views/FinanceViews.swift → 主檔 + 5 個檔案 + project.yml | ✅ 已完成並通過 CI(含 UI 測試) |
+| 18 | 第三輪拆分:SupabaseAuthService.swift | 身份 | Services/SupabaseAuthService.swift → 主檔 + 2 個檔案 + project.yml | ✅ 已完成並通過 CI(含 UI 測試) |
 | 19 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ⬜ |
 | 20 | 補質量閘門(lint / 型別檢查腳本) | 地基 | CI 設定 | ⬜ |
+
+(切片 15-18 CI 全數 success,含 UI 測試,無任何問題)
 
 ---
 
