@@ -16,11 +16,13 @@
 - 切片 6:`Services/ResourceImportService.swift`(1057 行)拆為主檔(protocol/CompositeResourceImportService/config,74 行)+ 4 個平台檔案(XHS/Instagram/YouTube/WebPage);拆分前先確認 `CompositeResourceImportService` 直接引用所有平台解析器(皆為 `private`),依教訓先把所有頂層 `private` 宣告改為模組內可見;並主動 grep 檢查新暴露的符號(含 `extension JSONDecoder`)是否與其他檔案(尤其 `SupabaseAuthService.swift`、`ResourcePipelineServices+*.swift`)撞名,確認皆為不同成員名稱,無衝突;已更新 `project.yml`;commit d9fbac9 首次 CI 的「Build for iOS Simulator」✓ 通過(編譯 100% 正常),UI 測試 6 個中 1 個失敗(`testXiaohongshuLinkParsesToRealMetadata`,真實小紅書連結解析逾時);已用逐行 diff 比對確認拆分前後檔案內容完全一致(唯一差異是拿掉 `private` 與區塊搬移位置,無程式碼遺失或改壞),並重跑該 CI job **全數通過(含 UI 測試)**——確認為偶發性的第三方小紅書網站問題,與這次拆分無關,已排除疑慮
 - **第一輪巨型檔案拆分至此全部完成**(切片 2-6):`AppPrototypeViews.swift`、`BeautyDiaryStore.swift`、`DiaryModels.swift`、`ResourcePipelineServices.swift`、`ResourceImportService.swift` 六個原本超過 300 行的檔案都已拆過一輪,全部通過編譯驗證
 - 切片 7(第二輪拆分開始):`SharedViewComponents.swift`(2589 行)拆為主檔(`GenericSummaryView`,29 行)+ 9 個檔案(AddSheetsBeauty/AddSheetsOther/GoalAndEdit/AddSheets2/ImportWizardUI/ResourceDetailUI/AIAdviceUI/CardsAndBadges/FormControls);本檔無 `private` 宣告(第一輪已清過),拆分風險低,已檢查每個新檔案大括號配對正確;9 個新檔案中 6 個已在 300 行以下,3 個略超標留待第三輪;已更新 `project.yml`
+- 切片 8:`BeautyViews.swift`(1672 行)拆為主檔(`BeautyRootView`,97 行)+ 5 個檔案(Skincare/Whitening/HairAndBody/Products/Makeup);無 `private` 宣告,已檢查大括號配對正確;5 個新檔案中僅 `+Makeup.swift` 在 300 行以下,其餘 4 個略超標留待第三輪;已更新 `project.yml`
 
 ## 已知問題
 
-- `BeautyViews.swift`(1672 行)、`BodyViews.swift`(1270 行)仍超過 300 行上限,待下一輪再拆
+- `BodyViews.swift`(1270 行)仍超過 300 行上限,待下一輪再拆
 - `SharedViewComponents+AddSheetsOther.swift`(388)、`+AddSheets2.swift`(333)、`+AIAdviceUI.swift`(308)第二輪拆分後仍略超標,待第三輪再拆
+- `BeautyViews+Skincare.swift`(371)、`+Whitening.swift`(338)、`+HairAndBody.swift`(391)、`+Products.swift`(352)第二輪拆分後仍略超標,待第三輪再拆
 - `BeautyDiaryStore+Resource.swift`(732 行,資源匯入/同步/雲端鑑權)仍超過 300 行上限,待下一輪再拆
 - `DiaryModels+Resource.swift`(645 行,資源匯入/XHS 模型)仍超過 300 行上限,待下一輪再拆
 - `ResourcePipelineServices+SupabaseSync.swift`(469 行)、`+SupabasePayloads.swift`(529 行)仍超過 300 行上限,待下一輪再拆
@@ -49,9 +51,10 @@
 | 4 | 拆分 DiaryModels.swift | 記憶 | Models/DiaryModels.swift → 主檔 + 7 個檔案 + project.yml | ✅ 已完成並通過 CI |
 | 5 | 拆分 ResourcePipelineServices.swift | 連線 | Services/ResourcePipelineServices.swift → 主檔 + 5 個檔案 + project.yml | ✅ 已完成並通過 CI |
 | 6 | 拆分 ResourceImportService.swift | 連線/爬蟲 | Services/ResourceImportService.swift → 主檔 + 4 個平台檔案 + project.yml | ✅ 已完成並通過 CI(含 UI 測試) |
-| 7 | 第二輪拆分:SharedViewComponents.swift | 展示 | Views/SharedViewComponents.swift → 主檔 + 9 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
-| 8 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ⬜ |
-| 9 | 補質量閘門(lint / 型別檢查腳本) | 地基 | CI 設定 | ⬜ |
+| 7 | 第二輪拆分:SharedViewComponents.swift | 展示 | Views/SharedViewComponents.swift → 主檔 + 9 個檔案 + project.yml | ✅ 已完成(CI 跑中) |
+| 8 | 第二輪拆分:BeautyViews.swift | 展示 | Views/BeautyViews.swift → 主檔 + 5 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
+| 9 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ⬜ |
+| 10 | 補質量閘門(lint / 型別檢查腳本) | 地基 | CI 設定 | ⬜ |
 
 ---
 

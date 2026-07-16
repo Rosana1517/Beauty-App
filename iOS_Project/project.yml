@@ -96,6 +96,11 @@ targets:
       - path: 美麗日記/Views/MainTabView.swift
       - path: 美麗日記/Views/HomeView.swift
       - path: 美麗日記/Views/BeautyViews.swift
+      - path: 美麗日記/Views/BeautyViews+Skincare.swift
+      - path: 美麗日記/Views/BeautyViews+Whitening.swift
+      - path: 美麗日記/Views/BeautyViews+HairAndBody.swift
+      - path: 美麗日記/Views/BeautyViews+Products.swift
+      - path: 美麗日記/Views/BeautyViews+Makeup.swift
       - path: 美麗日記/Views/BodyViews.swift
       - path: 美麗日記/Views/GrowthViews.swift
       - path: 美麗日記/Views/FinanceViews.swift
