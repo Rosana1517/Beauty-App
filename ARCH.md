@@ -115,7 +115,11 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── BeautyViews+HairAndBody.swift  ← ⚠️ 391 行,待再拆
     │   │   ├── BeautyViews+Products.swift     ← ⚠️ 352 行,待再拆
     │   │   ├── BeautyViews+Makeup.swift       ← 158 行
-    │   │   ├── BodyViews.swift               ← ⚠️ 1270 行,待再拆(體態分頁)
+    │   │   ├── BodyViews.swift               ← 核心(BodyRootView),79 行
+    │   │   ├── BodyViews+Exercise.swift       ← ⚠️ 356 行,待再拆
+    │   │   ├── BodyViews+Wellness.swift       ← ⚠️ 383 行,待再拆
+    │   │   ├── BodyViews+Album.swift          ← 181 行
+    │   │   ├── BodyViews+Meals.swift          ← 295 行
     │   │   ├── GrowthViews.swift             ← 853 行(成長分頁)
     │   │   ├── FinanceViews.swift            ← 690 行(財務子導覽)
     │   │   ├── ProfileViews.swift            ← 990 行(我的分頁)
@@ -172,9 +176,10 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
 ## 11. 檔案上限規則
 
 - 單一檔案不超過 300 行
-- `AppPrototypeViews.swift`(原 8185 行)已按分頁/群組拆為 7 個檔案,其中 `BodyViews.swift`(1270)仍超標,待下一輪再拆
+- `AppPrototypeViews.swift`(原 8185 行)已按分頁/群組拆為 7 個檔案,已於第二輪全數拆完(見下)
 - `SharedViewComponents.swift`(原 2589 行)第二輪已拆為主檔 + 9 個檔案,其中 3 個(`+AddSheetsOther`388、`+AddSheets2`333、`+AIAdviceUI`308)仍略超標,待第三輪再拆
-- `BeautyViews.swift`(原 1672 行)第二輪已拆為主檔 + 5 個檔案(見第 5 節),其中 4 個(`+Skincare`371、`+Whitening`338、`+HairAndBody`391、`+Products`352)仍略超標,待第三輪再拆
+- `BeautyViews.swift`(原 1672 行)第二輪已拆為主檔 + 5 個檔案,其中 4 個(`+Skincare`371、`+Whitening`338、`+HairAndBody`391、`+Products`352)仍略超標,待第三輪再拆
+- `BodyViews.swift`(原 1270 行)第二輪已拆為主檔 + 4 個檔案(見第 5 節),其中 2 個(`+Exercise`356、`+Wellness`383)仍略超標,待第三輪再拆
 - `BeautyDiaryStore.swift`(原 2122 行)已按 domain 拆為主檔 + 8 個 `extension` 檔案(見第 5 節),其中 `BeautyDiaryStore+Resource.swift`(732)仍超標,待下一輪再拆
 - `DiaryModels.swift`(原 1652 行)已按 domain 拆為主檔(BeautyDiaryState 根狀態)+ 7 個檔案(見第 5 節),其中 `DiaryModels+Resource.swift`(645)仍超標,待下一輪再拆
 - `ResourcePipelineServices.swift`(原 1521 行)已拆為主檔 + 5 個檔案(見第 5 節),其中 `+SupabaseSync.swift`(469)、`+SupabasePayloads.swift`(529)仍超標,待下一輪再拆

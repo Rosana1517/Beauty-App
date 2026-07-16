@@ -102,6 +102,10 @@ targets:
       - path: 美麗日記/Views/BeautyViews+Products.swift
       - path: 美麗日記/Views/BeautyViews+Makeup.swift
       - path: 美麗日記/Views/BodyViews.swift
+      - path: 美麗日記/Views/BodyViews+Exercise.swift
+      - path: 美麗日記/Views/BodyViews+Wellness.swift
+      - path: 美麗日記/Views/BodyViews+Album.swift
+      - path: 美麗日記/Views/BodyViews+Meals.swift
       - path: 美麗日記/Views/GrowthViews.swift
       - path: 美麗日記/Views/FinanceViews.swift
       - path: 美麗日記/Views/ProfileViews.swift
