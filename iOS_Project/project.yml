@@ -95,6 +95,8 @@ targets:
       - path: 美麗日記/Services/ResourcePipelineServices+LocalAnalysis.swift
       - path: 美麗日記/Services/ResourcePipelineServices+SupabaseSync.swift
       - path: 美麗日記/Services/ResourcePipelineServices+SupabasePayloads.swift
+      - path: 美麗日記/Services/ResourcePipelineServices+SupabaseRows.swift
+      - path: 美麗日記/Services/ResourcePipelineServices+SupabaseAIPayloads.swift
       - path: 美麗日記/Services/ResourcePipelineServices+Mappings.swift
       - path: 美麗日記/Services/SupabaseAuthService.swift
       - path: 美麗日記/Services/FaceShapeDetector.swift
