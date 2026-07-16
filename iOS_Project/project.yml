@@ -90,6 +90,10 @@ targets:
       - path: 美麗日記/Services/ResourceImportService+Instagram.swift
       - path: 美麗日記/Services/ResourceImportService+YouTube.swift
       - path: 美麗日記/Services/ResourceImportService+WebPage.swift
+      - path: 美麗日記/Services/ResourceImportService+HTMLParsingHelpers.swift
+      - path: 美麗日記/Services/ResourceImportService+HTMLExtraction.swift
+      - path: 美麗日記/Services/ResourceImportService+HTMLUtilities.swift
+      - path: 美麗日記/Services/ResourceImportService+JSONLDModels.swift
       - path: 美麗日記/Services/ResourcePipelineServices.swift
       - path: 美麗日記/Services/ResourcePipelineServices+OfficialImport.swift
       - path: 美麗日記/Services/ResourcePipelineServices+LocalAnalysis.swift

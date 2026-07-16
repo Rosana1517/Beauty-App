@@ -21,6 +21,7 @@
 - 切片 10:`BeautyDiaryStore+Resource.swift`(732 行,單一 `extension BeautyDiaryStore` 區塊)拆為 4 個 extension 檔案(Resource/ResourceSync/ResourceProfileSync/ResourceWorker),全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
 - 切片 11:`DiaryModels+Resource.swift`(645 行)拆為主檔(狀態/類型 enum,197 行)+ 3 個檔案(ResourcePayloads/ResourceImportDraft/ResourceItem);無 `private` 宣告,全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
 - 切片 12:`ResourcePipelineServices+SupabasePayloads.swift`(529 行)拆為主檔 + 2 個檔案(SupabaseRows/SupabaseAIPayloads);無 `private` 宣告,全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
+- 切片 13:`ResourceImportService+WebPage.swift`(524 行)拆為主檔(WebPageParser + `enum SharedHTMLParser` 主體,182 行)+ 4 個檔案(把 `SharedHTMLParser` 的靜態方法拆成 HTMLParsingHelpers/HTMLExtraction/HTMLUtilities 三個 `extension`,加上獨立的 JSONLDModels);全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
 
 ## 已知問題
 
@@ -28,7 +29,6 @@
 - `BeautyViews+Skincare.swift`(371)、`+Whitening.swift`(338)、`+HairAndBody.swift`(391)、`+Products.swift`(352)第二輪拆分後仍略超標,待第三輪再拆
 - `BodyViews+Exercise.swift`(356)、`+Wellness.swift`(383)第二輪拆分後仍略超標,待第三輪再拆
 - `ResourcePipelineServices+SupabaseSync.swift`(469 行)仍超過 300 行上限,待下一輪再拆
-- `ResourceImportService+WebPage.swift`(524 行)仍超過 300 行上限,待下一輪再拆
 - `scripts/` 下 8 個 Python 腳本(`xhs_*.py`、`csv_to_supabase.py` 等)未加入 git 追蹤,也未列入 `.gitignore`,去留未定
 - 外層工作目錄(`美麗日記app/`)的 `API.txt` 明文存放 Supabase secret key 與 management token,雖未進 git,仍建議清除或移至密碼管理工具
 - 尚無 lint / 型別檢查自動化腳本,質量閘門僅有編譯 CI,無測試覆蓋率把關
@@ -59,8 +59,10 @@
 | 10 | 第二輪拆分:BeautyDiaryStore+Resource.swift | 記憶/邏輯 | Services/BeautyDiaryStore+Resource.swift → 4 個 extension 檔案 + project.yml | ✅ 編譯通過(1 個無關的 UI 測試偶發失敗) |
 | 11 | 第二輪拆分:DiaryModels+Resource.swift | 記憶 | Models/DiaryModels+Resource.swift → 主檔 + 3 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
 | 12 | 第二輪拆分:ResourcePipelineServices+SupabasePayloads.swift | 連線 | Services/ResourcePipelineServices+SupabasePayloads.swift → 主檔 + 2 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
-| 13 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ⬜ |
-| 14 | 補質量閘門(lint / 型別檢查腳本) | 地基 | CI 設定 | ⬜ |
+| 13 | 第二輪拆分:ResourceImportService+WebPage.swift | 爬蟲 | Services/ResourceImportService+WebPage.swift → 主檔 + 4 個檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證) |
+| 14 | 第二輪拆分:ResourcePipelineServices+SupabaseSync.swift | 連線 | Services/ResourcePipelineServices+SupabaseSync.swift | ⬜ |
+| 15 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ⬜ |
+| 16 | 補質量閘門(lint / 型別檢查腳本) | 地基 | CI 設定 | ⬜ |
 
 ---
 

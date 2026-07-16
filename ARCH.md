@@ -108,7 +108,11 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── ResourceImportService+XHS.swift            ← 288 行
     │   │   ├── ResourceImportService+Instagram.swift      ← 36 行
     │   │   ├── ResourceImportService+YouTube.swift        ← 154 行
-    │   │   ├── ResourceImportService+WebPage.swift        ← ⚠️ 524 行,待再拆
+    │   │   ├── ResourceImportService+WebPage.swift          ← 核心(WebPageParser + SharedHTMLParser 主體),182 行
+    │   │   ├── ResourceImportService+HTMLParsingHelpers.swift← extension,71 行
+    │   │   ├── ResourceImportService+HTMLExtraction.swift    ← extension,84 行
+    │   │   ├── ResourceImportService+HTMLUtilities.swift     ← extension,78 行
+    │   │   ├── ResourceImportService+JSONLDModels.swift      ← 121 行
     │   │   ├── SupabaseAuthService.swift       ← 600 行
     │   │   ├── FaceShapeDetector.swift
     │   │   ├── NotificationScheduler.swift
@@ -191,6 +195,7 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
 - `BeautyDiaryStore+Resource.swift`(原 732 行)第二輪已拆為 4 個 extension 檔案(見第 5 節),全數已在 300 行以下
 - `DiaryModels+Resource.swift`(原 645 行)第二輪已拆為主檔 + 3 個檔案(見第 5 節),全數已在 300 行以下
 - `ResourcePipelineServices+SupabasePayloads.swift`(原 529 行)第二輪已拆為主檔 + 2 個檔案(見第 5 節),全數已在 300 行以下
+- `ResourceImportService+WebPage.swift`(原 524 行)第二輪已拆為主檔 + 4 個檔案(見第 5 節),把 `enum SharedHTMLParser` 的靜態方法拆成多個 `extension`,全數已在 300 行以下
 - `BeautyDiaryStore.swift`(原 2122 行)已按 domain 拆為主檔 + 8 個 `extension` 檔案(見第 5 節),其中 `BeautyDiaryStore+Resource.swift`(732)仍超標,待下一輪再拆
 - `DiaryModels.swift`(原 1652 行)已按 domain 拆為主檔(BeautyDiaryState 根狀態)+ 7 個檔案(見第 5 節),其中 `DiaryModels+Resource.swift`(645)仍超標,待下一輪再拆
 - `ResourcePipelineServices.swift`(原 1521 行)已拆為主檔 + 5 個檔案(見第 5 節),其中 `+SupabaseSync.swift`(469)、`+SupabasePayloads.swift`(529)仍超標,待下一輪再拆
