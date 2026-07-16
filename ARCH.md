@@ -72,7 +72,7 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     ├── 美麗日記/
     │   ├── Constants/                 ← AppTheme、AppRuntimeConfiguration(env 讀取)
     │   ├── Models/
-    │   │   ├── DiaryModels.swift             ← 核心(BeautyDiaryState 根狀態),430 行
+    │   │   ├── DiaryModels.swift             ← ⚠️ 核心(BeautyDiaryState 根狀態),430 行,待拆
     │   │   ├── DiaryModels+Routes.swift       ← 127 行(分頁/路由 enum)
     │   │   ├── DiaryModels+Resource.swift          ← 核心(狀態/類型 enum),197 行
     │   │   ├── DiaryModels+ResourcePayloads.swift    ← 103 行
@@ -114,7 +114,7 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── ResourceImportService+HTMLExtraction.swift    ← extension,84 行
     │   │   ├── ResourceImportService+HTMLUtilities.swift     ← extension,78 行
     │   │   ├── ResourceImportService+JSONLDModels.swift      ← 121 行
-    │   │   ├── SupabaseAuthService.swift       ← 600 行
+    │   │   ├── SupabaseAuthService.swift       ← ⚠️ 600 行,待拆(先前記錄時漏標)
     │   │   ├── FaceShapeDetector.swift
     │   │   ├── NotificationScheduler.swift
     │   │   └── Ads/, AI/, API/
@@ -133,9 +133,9 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── BodyViews+Wellness.swift       ← ⚠️ 383 行,待再拆
     │   │   ├── BodyViews+Album.swift          ← 181 行
     │   │   ├── BodyViews+Meals.swift          ← 295 行
-    │   │   ├── GrowthViews.swift             ← 853 行(成長分頁)
-    │   │   ├── FinanceViews.swift            ← 690 行(財務子導覽)
-    │   │   ├── ProfileViews.swift            ← 990 行(我的分頁)
+    │   │   ├── GrowthViews.swift             ← ⚠️ 853 行,待拆(成長分頁,先前記錄時漏標)
+    │   │   ├── FinanceViews.swift            ← ⚠️ 690 行,待拆(財務子導覽,先前記錄時漏標)
+    │   │   ├── ProfileViews.swift            ← ⚠️ 990 行,待拆(我的分頁,先前記錄時漏標)
     │   │   ├── SharedViewComponents.swift              ← 核心(GenericSummaryView),29 行
     │   │   ├── SharedViewComponents+AddSheetsBeauty.swift  ← 282 行
     │   │   ├── SharedViewComponents+AddSheetsOther.swift   ← ⚠️ 388 行,待再拆

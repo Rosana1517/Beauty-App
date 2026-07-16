@@ -23,8 +23,15 @@
 - 切片 12:`ResourcePipelineServices+SupabasePayloads.swift`(529 行)拆為主檔 + 2 個檔案(SupabaseRows/SupabaseAIPayloads);無 `private` 宣告,全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
 - 切片 13:`ResourceImportService+WebPage.swift`(524 行)拆為主檔(WebPageParser + `enum SharedHTMLParser` 主體,182 行)+ 4 個檔案(把 `SharedHTMLParser` 的靜態方法拆成 HTMLParsingHelpers/HTMLExtraction/HTMLUtilities 三個 `extension`,加上獨立的 JSONLDModels);全數已在 300 行以下;已檢查大括號配對正確;已更新 `project.yml`
 - 切片 14:`ResourcePipelineServices+SupabaseSync.swift`(469 行)拆為 2 個檔案(`SupabaseCloudResourceSyncService`+錯誤型別留在主檔,`SupabaseRESTClient` 獨立成 `+RESTClient.swift`);`SupabaseCloudResourceSyncService` 內有 `private` 屬性但整個 struct 沒被拆開,無跨檔案存取風險;全數已在 300 行以下;已更新 `project.yml`;**至此第二輪拆分全部 8 個超標檔案都已處理完畢**
+- 第二輪 CI 全面驗證完成:切片 7(SharedViewComponents)、9(BodyViews)、11(DiaryModels+Resource)、13(ResourceImportService+WebPage,重跑後)、14(ResourcePipelineServices+SupabaseSync)完整通過含 UI 測試;切片 8(BeautyViews)、10(BeautyDiaryStore+Resource)編譯 100% 通過,僅各自撞到已知的偶發性網路/模擬器 UI 測試問題(小紅書解析逾時、YouTube 鍵盤焦點合成失敗),經查證與拆分無關;切片 12(SupabasePayloads)完整通過;切片 13 第一次失敗在 `testImportResourceFromURLAppearsInLibrary`(先前程式碼註解標註為「穩定基準測試」,值得認真查證),已用逐行 diff 確認拆分內容 100% 無誤(唯一差異是 import 語句與 extension 包裝括號),重跑後全數通過,確認為偶發性網路逾時,非迴歸
+- **第一輪(切片 2-6)+ 第二輪(切片 7-14)共 14 個切片全部完成,10 個原本超過 300 行的巨型檔案全數拆分並通過 CI 驗證**
 
 ## 已知問題
+
+- ⚠️ **文檔疏漏發現**:重新掃描全部 `.swift` 檔案後發現,`ProfileViews.swift`(990 行)、`GrowthViews.swift`(853 行)、`FinanceViews.swift`(690 行)這三個切片 2 產出的檔案,以及原本就存在的 `SupabaseAuthService.swift`(600 行),當初都超過 300 行上限,但先前記錄 `ARCH.md`/`project_state.md` 時漏標警告、未列入待拆清單。目前完整清單(16 個檔案仍超過 300 行):
+  - `ProfileViews.swift`(990)、`GrowthViews.swift`(853)、`FinanceViews.swift`(690)、`SupabaseAuthService.swift`(600)——**未曾拆過,優先度最高**
+  - `DiaryModels.swift`(430)——切片 4 的核心檔案
+  - 第二輪拆分後仍在 300-400 行的 11 個檔案:`BeautyViews+HairAndBody`(391)、`SharedViewComponents+AddSheetsOther`(388)、`BodyViews+Wellness`(383)、`BeautyViews+Skincare`(371)、`BodyViews+Exercise`(356)、`BeautyViews+Products`(352)、`BeautyViews+Whitening`(338)、`SharedViewComponents+AddSheets2`(333)、`BeautyDiaryStore+AIAdvice`(317)、`SharedViewComponents+AIAdviceUI`(308)、`BeautyDiaryStore+Beauty`(308)
 
 - `SharedViewComponents+AddSheetsOther.swift`(388)、`+AddSheets2.swift`(333)、`+AIAdviceUI.swift`(308)第二輪拆分後仍略超標,待第三輪再拆
 - `BeautyViews+Skincare.swift`(371)、`+Whitening.swift`(338)、`+HairAndBody.swift`(391)、`+Products.swift`(352)第二輪拆分後仍略超標,待第三輪再拆
