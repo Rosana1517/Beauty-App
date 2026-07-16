@@ -78,20 +78,20 @@ struct MockRecommendationService {
 
 @MainActor
 final class BeautyDiaryStore: ObservableObject {
-    @Published private(set) var state: BeautyDiaryState
-    @Published private(set) var authStatus: SupabaseAuthStatus
-    @Published private(set) var authSession: SupabaseAuthSession?
-    @Published private(set) var authMessage: String?
-    @Published private(set) var aiAdviceSuggestions: [AIAdviceTopic: [String]] = [:]
-    @Published private(set) var aiAdviceRoutineSteps: [AIAdviceTopic: [String]] = [:]
-    @Published private(set) var aiAdviceProducts: [AIAdviceTopic: [String]] = [:]
-    @Published private(set) var aiAdviceRelatedResources: [AIAdviceTopic: [AIAdviceRelatedResource]] = [:]
-    @Published private(set) var aiAdviceErrorMessage: [AIAdviceTopic: String] = [:]
-    @Published private(set) var loadingAIAdviceTopics: Set<AIAdviceTopic> = []
+    @Published var state: BeautyDiaryState
+    @Published var authStatus: SupabaseAuthStatus
+    @Published var authSession: SupabaseAuthSession?
+    @Published var authMessage: String?
+    @Published var aiAdviceSuggestions: [AIAdviceTopic: [String]] = [:]
+    @Published var aiAdviceRoutineSteps: [AIAdviceTopic: [String]] = [:]
+    @Published var aiAdviceProducts: [AIAdviceTopic: [String]] = [:]
+    @Published var aiAdviceRelatedResources: [AIAdviceTopic: [AIAdviceRelatedResource]] = [:]
+    @Published var aiAdviceErrorMessage: [AIAdviceTopic: String] = [:]
+    @Published var loadingAIAdviceTopics: Set<AIAdviceTopic> = []
     @Published var productLookupError: String?
-    @Published private(set) var isLookingUpProduct = false
+    @Published var isLookingUpProduct = false
     @Published var foodAnalysisError: String?
-    @Published private(set) var isAnalyzingFood = false
+    @Published var isAnalyzingFood = false
 
     let repository: BeautyDiaryRepository
     let recommendationService = MockRecommendationService()
