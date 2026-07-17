@@ -117,9 +117,9 @@ extension WellnessView {
                             .padding(12)
                             .background(AppTheme.primarySoft)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .recordActions(onEdit: { editingNourishmentRecipe = link }) {
+                            .recordActions(onEdit: { editingNourishmentRecipe = link }, onDelete: {
                                 store.deleteNourishmentRecipe(link)
-                            }
+                            })
                         }
                     }
                 }
@@ -154,9 +154,9 @@ extension WellnessView {
                                 .padding(12)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .recordActions(onEdit: { editingMenstrualRecord = record }) {
+                                .recordActions(onEdit: { editingMenstrualRecord = record }, onDelete: {
                                     store.deleteMenstrualRecord(record)
-                                }
+                                })
                             }
                         }
                     }
@@ -226,9 +226,9 @@ extension WellnessView {
                                 .padding(12)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .recordActions(onEdit: { editingSymptomRecord = record }) {
+                                .recordActions(onEdit: { editingSymptomRecord = record }, onDelete: {
                                     store.deleteSymptomRecord(record)
-                                }
+                                })
                             }
                         }
                     }

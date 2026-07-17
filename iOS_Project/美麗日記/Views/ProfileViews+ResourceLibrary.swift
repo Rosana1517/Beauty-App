@@ -183,8 +183,8 @@ struct ResourceLibraryView: View {
         .background(AppTheme.background)
         .sheet(isPresented: $showImport, onDismiss: {
             store.clearPendingImportDraft()
-        }) {
+        }, content: {
             ImportWizardSheet()
-        }
+        })
     }
 }

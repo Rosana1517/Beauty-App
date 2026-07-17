@@ -153,9 +153,9 @@ struct MealRecordsView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .recordActions(onEdit: { editingMeal = meal }) {
+                                .recordActions(onEdit: { editingMeal = meal }, onDelete: {
                                     store.deleteMealRecord(meal)
-                                }
+                                })
                             }
                         }
                     }
@@ -239,9 +239,9 @@ struct MealRecordsView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .recordActions(onEdit: { editingFavoriteRecipe = recipe }) {
+                                    .recordActions(onEdit: { editingFavoriteRecipe = recipe }, onDelete: {
                                         store.deleteFavoriteRecipe(recipe)
-                                    }
+                                    })
                                 }
                             }
                         }

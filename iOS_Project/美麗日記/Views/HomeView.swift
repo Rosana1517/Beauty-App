@@ -105,9 +105,9 @@ struct HomeView: View {
                         }
                         .buttonStyle(.plain)
                         .shadow(color: AppTheme.shadow, radius: 10, y: 5)
-                        .recordActions(onEdit: { editingChecklistItem = item }) {
+                        .recordActions(onEdit: { editingChecklistItem = item }, onDelete: {
                             store.deleteChecklistItem(item)
-                        }
+                        })
                     }
                 }
             }

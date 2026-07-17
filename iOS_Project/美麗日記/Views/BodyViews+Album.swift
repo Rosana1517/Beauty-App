@@ -146,9 +146,9 @@ struct BodyMetricsView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .recordActions(onEdit: { editingBodyMetric = record }) {
+                                .recordActions(onEdit: { editingBodyMetric = record }, onDelete: {
                                     store.deleteBodyMetric(record)
-                                }
+                                })
                             }
                         }
                     } else {

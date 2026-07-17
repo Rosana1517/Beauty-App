@@ -61,9 +61,9 @@ struct ShapingPlanView: View {
                                         .padding(12)
                                         .background(AppTheme.primarySoft)
                                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                                        .recordActions(onEdit: { editingTrainingItem = item }) {
+                                        .recordActions(onEdit: { editingTrainingItem = item }, onDelete: {
                                             store.deleteTrainingScheduleItem(item)
-                                        }
+                                        })
                                 }
                             }
                         }

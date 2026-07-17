@@ -61,9 +61,9 @@ struct LedgerView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .recordActions(onEdit: { editingTransaction = transaction }) {
+                                    .recordActions(onEdit: { editingTransaction = transaction }, onDelete: {
                                         store.deleteTransaction(transaction)
-                                    }
+                                    })
                                 }
                             }
                         }

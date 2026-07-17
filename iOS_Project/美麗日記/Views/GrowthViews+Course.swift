@@ -65,9 +65,9 @@ struct CourseTrackerView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .recordActions(onEdit: { editingCourse = course }) {
+                                .recordActions(onEdit: { editingCourse = course }, onDelete: {
                                     store.deleteCourse(course)
-                                }
+                                })
                             }
                         }
                     }

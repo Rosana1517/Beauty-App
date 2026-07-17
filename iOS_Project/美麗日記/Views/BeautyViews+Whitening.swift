@@ -29,8 +29,9 @@ struct WhiteningPlanView: View {
                                     planRow(
                                         title: record.productName,
                                         subtitle: record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .omitted) : record.note,
-                                        onEdit: { editingWhiteningUsage = record }
-                                    ) { store.deleteWhiteningProductUsage(record) }
+                                        onEdit: { editingWhiteningUsage = record },
+                                        onDelete: { store.deleteWhiteningProductUsage(record) }
+                                    )
                                 }
                             }
                         }
@@ -49,8 +50,9 @@ struct WhiteningPlanView: View {
                                     planRow(
                                         title: record.shadeName,
                                         subtitle: record.note.isEmpty ? record.date.formatted(date: .abbreviated, time: .omitted) : record.note,
-                                        onEdit: { editingShadeRecord = record }
-                                    ) { store.deleteShadeTrackingRecord(record) }
+                                        onEdit: { editingShadeRecord = record },
+                                        onDelete: { store.deleteShadeTrackingRecord(record) }
+                                    )
                                 }
                             }
                         }

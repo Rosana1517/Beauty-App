@@ -42,9 +42,9 @@ struct ShoppingListView: View {
                                 .padding(12)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .recordActions(onEdit: { editingShoppingItem = item }) {
+                                .recordActions(onEdit: { editingShoppingItem = item }, onDelete: {
                                     store.deleteShoppingItem(item)
-                                }
+                                })
                             }
                         }
                     }

@@ -52,9 +52,9 @@ struct BudgetDashboardView: View {
                                 .padding(12)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 14))
-                                .recordActions(onEdit: { editingBudget = budget }) {
+                                .recordActions(onEdit: { editingBudget = budget }, onDelete: {
                                     store.removeRecord(budget, from: \.budgetCategories)
-                                }
+                                })
                             }
                         }
                     }

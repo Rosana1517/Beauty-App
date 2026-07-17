@@ -43,9 +43,9 @@ struct VideoLearningView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .recordActions(onEdit: { editingVideoRecord = record }) {
+                                .recordActions(onEdit: { editingVideoRecord = record }, onDelete: {
                                     store.deleteVideoLearningRecord(record)
-                                }
+                                })
                             }
                         }
                     }

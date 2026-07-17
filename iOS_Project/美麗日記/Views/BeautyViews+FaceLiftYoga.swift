@@ -121,9 +121,9 @@ struct FaceLiftYogaView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .recordActions(onEdit: { editingFaceLiftRating = rating }) {
+                                    .recordActions(onEdit: { editingFaceLiftRating = rating }, onDelete: {
                                         store.deleteFaceLiftRating(rating)
-                                    }
+                                    })
                                 }
                             }
                         }

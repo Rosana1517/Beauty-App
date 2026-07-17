@@ -133,9 +133,9 @@ struct ExercisePunchView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .recordActions(onEdit: { editingCustomExercise = exercise }) {
+                                    .recordActions(onEdit: { editingCustomExercise = exercise }, onDelete: {
                                         store.deleteCustomExercise(exercise)
-                                    }
+                                    })
                                 }
                             }
                         }
@@ -184,9 +184,9 @@ struct ExercisePunchView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .recordActions(onEdit: { editingExercisePunch = record }) {
+                                    .recordActions(onEdit: { editingExercisePunch = record }, onDelete: {
                                         store.deleteExercisePunch(record)
-                                    }
+                                    })
                                 }
                             }
                         }

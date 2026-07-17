@@ -112,9 +112,9 @@ struct SavingsGoalView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .recordActions(onEdit: { editingWish = wish }) {
+                                    .recordActions(onEdit: { editingWish = wish }, onDelete: {
                                         store.deleteWish(wish)
-                                    }
+                                    })
                                 }
                             }
                         }

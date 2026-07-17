@@ -143,9 +143,9 @@ struct HairstyleMatchView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .recordActions(onEdit: { editingSavedHairstyle = hairstyle }) {
+                                    .recordActions(onEdit: { editingSavedHairstyle = hairstyle }, onDelete: {
                                         store.deleteSavedHairstyle(hairstyle)
-                                    }
+                                    })
                                 }
                             }
                         }

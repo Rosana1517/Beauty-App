@@ -54,9 +54,9 @@ struct MakeupInspirationView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .recordActions(onEdit: { editingMakeupInspiration = inspiration }) {
+                                    .recordActions(onEdit: { editingMakeupInspiration = inspiration }, onDelete: {
                                         store.deleteMakeupInspiration(inspiration)
-                                    }
+                                    })
                                 }
                             }
                         }
@@ -124,9 +124,9 @@ struct BeautyAppointmentsView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .recordActions(onEdit: { editingAppointment = item }) {
+                                .recordActions(onEdit: { editingAppointment = item }, onDelete: {
                                     store.deleteAppointment(item)
-                                }
+                                })
                             }
                         }
                     }

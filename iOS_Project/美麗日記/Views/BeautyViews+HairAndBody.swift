@@ -197,9 +197,9 @@ struct BodySkincareView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .recordActions(onEdit: { editingBodyProduct = product }) {
+                                    .recordActions(onEdit: { editingBodyProduct = product }, onDelete: {
                                         store.deleteBodyProduct(product)
-                                    }
+                                    })
                                 }
                             }
                         }
@@ -224,9 +224,9 @@ struct BodySkincareView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .recordActions(onEdit: { editingBodySkinRecord = record }) {
+                                .recordActions(onEdit: { editingBodySkinRecord = record }, onDelete: {
                                     store.deleteBodySkinRecord(record)
-                                }
+                                })
                             }
                         }
                     }

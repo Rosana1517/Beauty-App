@@ -35,9 +35,9 @@ extension HairCareView {
                             .padding(12)
                             .background(AppTheme.primarySoft)
                             .clipShape(RoundedRectangle(cornerRadius: 14))
-                            .recordActions(onEdit: { editingHairProduct = product }) {
+                            .recordActions(onEdit: { editingHairProduct = product }, onDelete: {
                                 store.deleteHairProduct(product)
-                            }
+                            })
                         }
                     }
                 }
@@ -75,9 +75,9 @@ extension HairCareView {
                             .padding(14)
                             .background(AppTheme.primarySoft)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .recordActions(onEdit: { editingHairCareRecord = record }) {
+                            .recordActions(onEdit: { editingHairCareRecord = record }, onDelete: {
                                 store.deleteHairCareRecord(record)
-                            }
+                            })
                         }
                     }
                 }
@@ -115,9 +115,9 @@ extension HairCareView {
                             .padding(14)
                             .background(AppTheme.primarySoft)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .recordActions(onEdit: { editingHairAppointment = appointment }) {
+                            .recordActions(onEdit: { editingHairAppointment = appointment }, onDelete: {
                                 store.deleteHairAppointment(appointment)
-                            }
+                            })
                         }
                     }
                 }

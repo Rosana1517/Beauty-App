@@ -40,9 +40,9 @@ struct ReadingTrackerView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .recordActions(onEdit: { editingBookRecord = book }) {
+                                .recordActions(onEdit: { editingBookRecord = book }, onDelete: {
                                     store.deleteBook(book)
-                                }
+                                })
                             }
                         }
                     }

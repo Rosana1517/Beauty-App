@@ -67,9 +67,9 @@ struct DailyQuoteView: View {
                                         .padding(12)
                                         .background(AppTheme.primarySoft)
                                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                                        .recordActions(onEdit: { editingAffirmation = item }) {
+                                        .recordActions(onEdit: { editingAffirmation = item }, onDelete: {
                                             store.deleteSelfAffirmation(item)
-                                        }
+                                        })
                                 }
                             }
                         }
@@ -100,9 +100,9 @@ struct DailyQuoteView: View {
                                         .padding(12)
                                         .background(AppTheme.primarySoft)
                                         .clipShape(RoundedRectangle(cornerRadius: 14))
-                                        .recordActions(onEdit: { editingVisionItem = item }) {
+                                        .recordActions(onEdit: { editingVisionItem = item }, onDelete: {
                                             store.deleteVisionBoardItem(item)
-                                        }
+                                        })
                                 }
                             }
                         }
@@ -138,9 +138,9 @@ struct DailyQuoteView: View {
                                     .padding(12)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 14))
-                                    .recordActions(onEdit: { editingGratitude = entry }) {
+                                    .recordActions(onEdit: { editingGratitude = entry }, onDelete: {
                                         store.deleteGratitudeEntry(entry)
-                                    }
+                                    })
                                 }
                             }
                         }

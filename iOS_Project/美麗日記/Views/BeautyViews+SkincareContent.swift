@@ -33,9 +33,9 @@ extension SkincareManagementView {
                         .padding(14)
                         .background(AppTheme.primarySoft)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .recordActions(onEdit: { editingProduct = product }) {
+                        .recordActions(onEdit: { editingProduct = product }, onDelete: {
                             store.deleteProduct(product)
-                        }
+                        })
                     }
                 }
             }
@@ -66,9 +66,9 @@ extension SkincareManagementView {
                         .padding(14)
                         .background(AppTheme.primarySoft)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .recordActions(onEdit: { editingSkinRecord = record }) {
+                        .recordActions(onEdit: { editingSkinRecord = record }, onDelete: {
                             store.deleteSkinRecord(record)
-                        }
+                        })
                     }
                 } else {
                     Text("目前尚無膚況紀錄，點右上角「記錄」開始建立。")
@@ -101,9 +101,9 @@ extension SkincareManagementView {
                     .padding(14)
                     .background(AppTheme.primarySoft)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .recordActions(onEdit: { editingTutorialLink = link }) {
+                    .recordActions(onEdit: { editingTutorialLink = link }, onDelete: {
                         store.removeRecord(link, from: \.tutorialLinks)
-                    }
+                    })
                 }
             }
         }

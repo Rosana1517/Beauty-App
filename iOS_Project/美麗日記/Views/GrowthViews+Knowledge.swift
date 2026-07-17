@@ -68,9 +68,9 @@ struct KnowledgeNotesView: View {
                                 .padding(14)
                                 .background(AppTheme.primarySoft)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                                .recordActions(onEdit: { editingNote = note }) {
+                                .recordActions(onEdit: { editingNote = note }, onDelete: {
                                     store.deleteKnowledgeNote(note)
-                                }
+                                })
                             }
                         }
                     }

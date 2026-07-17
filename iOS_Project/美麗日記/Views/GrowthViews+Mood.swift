@@ -97,9 +97,9 @@ struct MoodTrackingView: View {
                                     .padding(10)
                                     .background(AppTheme.primarySoft)
                                     .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .recordActions(onEdit: { editingMoodEntry = entry }) {
+                                    .recordActions(onEdit: { editingMoodEntry = entry }, onDelete: {
                                         store.deleteMoodEntry(entry)
-                                    }
+                                    })
                                 }
                             }
                         }
