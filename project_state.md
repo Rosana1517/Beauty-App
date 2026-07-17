@@ -2,7 +2,7 @@
 
 ## 當前階段
 
-舊專案積木化改造(模式 E)20 個切片全數完成並通過 CI 驗證。全專案已無超過 300 行的檔案,外層工作目錄已清理,安全底線問題已修復。唯一未做的是質量閘門(lint/型別檢查腳本),可視需要另行安排。
+舊專案積木化改造(模式 E)20 個切片全數完成並通過 CI 驗證。全專案已無超過 300 行的檔案,外層工作目錄已清理,安全底線問題已修復,質量閘門(SwiftLint)已加入 CI(advisory 模式)。
 
 已完成:
 - 體檢:掃描工作目錄結構,確認 `publish_ios_repo`(本目錄)為唯一真專案,外層工作目錄混雜競品 APK 分析、小紅書爬蟲輸出、過期複製品,不屬於本專案
@@ -39,14 +39,14 @@
 - ✅ **外層工作目錄已清理**(2026-07-17):移除 182MB+ 的 APK 逆向殘留與過期 `iOS_Project/` 複製品(僅本機 commit,未推送——該倉庫落後 origin/main 169 個 commit 且有自己的分歧歷史);保留小紅書爬蟲輸出、`apk版本功能頁面參考/`、`API.txt`(使用者自行處理)
 - ✅ **`scripts/` 安全底線已處理**(2026-07-17):發現 5 個腳本(`csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py`)硬編碼了 Supabase secret key(跟外層 `API.txt` 同一把),已改成讀取 `SUPABASE_SERVICE_ROLE_KEY` 環境變數並在未設定時明確報錯;8 個腳本(含另外 3 個無金鑰問題的)全數加入 git 追蹤,commit a1bb94b 已推送
 - 外層工作目錄的 `API.txt` 仍明文存放 Supabase secret key 與 management token,使用者已表示會自行移至密碼管理工具後再刪除
-- 尚無 lint / 型別檢查自動化腳本,質量閘門僅有編譯 CI,無測試覆蓋率把關
+- ✅ **SwiftLint 質量閘門已加入 CI**(2026-07-17,commit 009b9a3):新增 `iOS_Project/.swiftlint.yml`(已停用 `file_length`/`type_body_length`,因為 300 行檔案上限已由人工慣例把關;`line_length` 放寬到 160/220)與 CI 新的 `lint` job(`.github/workflows/ios-xcodegen-build.yml`);型別檢查本身已由既有的 `Build for iOS Simulator` 步驟(`xcodebuild build`)涵蓋,不需另外的型別檢查腳本。基準掃描(run 29554231033)結果:**203 個違規、3 個 serious,分佈於 105 個檔案**,規則分佈前幾名:`trailing_newline` 76、`multiple_closures_with_trailing_closure` 37、`vertical_whitespace` 36、`unused_closure_parameter` 15、`trailing_comma` 10、`redundant_string_enum_value` 10、其餘(`large_tuple`/`implicit_optional_initialization`/`line_length`/`function_parameter_count`/`duplicate_imports`/`optional_data_string_conversion`/`function_body_length`/`force_cast`)各 1-4 個。目前設為 **advisory**(`continue-on-error: true`),不阻斷既有 CI;已確認 lint job 與 `build-ios-simulator` job(含 UI 測試)皆 ✓ 通過,新增 lint 未影響既有 pipeline。約九成違規(trailing_newline/vertical_whitespace/multiple_closures/trailing_comma/redundant_string_enum_value 等)屬機械式格式問題,可視需要逐步清理後把 `continue-on-error` 拿掉轉為 blocking
 - `MVP_GAP_TRACKER.md` 所列 P0 項目(小紅書/Instagram 正式匯入、真實 AI 供應商、同步衝突處理)仍為 partial/in progress
 
 ## 下一步
 
 - 請在 Xcode(或觸發 CI)跑一次 build,確認第四輪(切片 19+)的拆分沒有破壞編譯
 - 檔案上限規則已全面達標,無待辦拆檔項目
-- 質量閘門(lint / 型別檢查腳本)尚未補齊,可視需要進行
+- SwiftLint 已加入 CI(advisory);待使用者決定是否要花時間清理 203 個基準違規、轉為 blocking 閘門
 - 其餘 [待確認] 項目(隱私合規、性能/成本上限、可用性、維護方式)可待上線前再補,不阻塞當前拆檔工作
 - 外層工作目錄清理與 `scripts/` 安全底線皆已完成;僅剩 `API.txt` 待使用者自行處理
 - 使用執行 `csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py` 前需先 `export SUPABASE_SERVICE_ROLE_KEY=...`(或 Windows `set`),否則會直接報錯退出
@@ -77,8 +77,8 @@
 | 18 | 第三輪拆分:SupabaseAuthService.swift | 身份 | Services/SupabaseAuthService.swift → 主檔 + 2 個檔案 + project.yml | ✅ 已完成並通過 CI(含 UI 測試) |
 | 19 | 第四輪拆分:13 個輕微超標檔案 | 展示/記憶/邏輯 | 13 個原檔 → 24 個新檔案 + project.yml | ✅ 12/13 完成並通過 CI(含 UI 測試) |
 | 20 | 第五輪:BeautyViews+HairAndBody.swift 視圖重構 | 展示 | Views/BeautyViews+HairAndBody.swift → 主檔 + Extra 檔案 + project.yml | ✅ 已完成並通過 CI(含 UI 測試);**全專案檔案已無超過 300 行者** |
-| 20 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ⬜ |
-| 21 | 補質量閘門(lint / 型別檢查腳本) | 地基 | CI 設定 | ⬜ |
+| 20 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ✅ 已完成(本機 commit,未推送) |
+| 21 | 補質量閘門(SwiftLint) | 地基 | `.swiftlint.yml` + CI lint job | ✅ 已完成(advisory 模式,基準 203 個違規) |
 
 (切片 15-18 CI 全數 success,含 UI 測試,無任何問題)
 
