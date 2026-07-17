@@ -209,18 +209,9 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
 ## 11. 檔案上限規則
 
 - 單一檔案不超過 300 行
-- `AppPrototypeViews.swift`(原 8185 行)已按分頁/群組拆為 7 個檔案,已於第二輪全數拆完(見下)
-- `SharedViewComponents.swift`(原 2589 行)第二輪已拆為主檔 + 9 個檔案,其中 3 個(`+AddSheetsOther`388、`+AddSheets2`333、`+AIAdviceUI`308)仍略超標,待第三輪再拆
-- `BeautyViews.swift`(原 1672 行)第二輪已拆為主檔 + 5 個檔案,其中 4 個(`+Skincare`371、`+Whitening`338、`+HairAndBody`391、`+Products`352)仍略超標,待第三輪再拆
-- `BodyViews.swift`(原 1270 行)第二輪已拆為主檔 + 4 個檔案(見第 5 節),其中 2 個(`+Exercise`356、`+Wellness`383)仍略超標,待第三輪再拆
-- `BeautyDiaryStore+Resource.swift`(原 732 行)第二輪已拆為 4 個 extension 檔案(見第 5 節),全數已在 300 行以下
-- `DiaryModels+Resource.swift`(原 645 行)第二輪已拆為主檔 + 3 個檔案(見第 5 節),全數已在 300 行以下
-- `ResourcePipelineServices+SupabasePayloads.swift`(原 529 行)第二輪已拆為主檔 + 2 個檔案(見第 5 節),全數已在 300 行以下
-- `ResourceImportService+WebPage.swift`(原 524 行)第二輪已拆為主檔 + 4 個檔案(見第 5 節),把 `enum SharedHTMLParser` 的靜態方法拆成多個 `extension`,全數已在 300 行以下
-- `ResourcePipelineServices+SupabaseSync.swift`(原 469 行)第二輪已拆為 2 個檔案(見第 5 節),全數已在 300 行以下
-- **第二輪拆分至此全部 8 個超標檔案處理完畢**
-- `BeautyDiaryStore.swift`(原 2122 行)已按 domain 拆為主檔 + 8 個 `extension` 檔案(見第 5 節),其中 `BeautyDiaryStore+Resource.swift`(732)仍超標,待下一輪再拆
-- `DiaryModels.swift`(原 1652 行)已按 domain 拆為主檔(BeautyDiaryState 根狀態)+ 7 個檔案(見第 5 節),其中 `DiaryModels+Resource.swift`(645)仍超標,待下一輪再拆
-- `ResourcePipelineServices.swift`(原 1521 行)已拆為主檔 + 5 個檔案(見第 5 節),其中 `+SupabaseSync.swift`(469)、`+SupabasePayloads.swift`(529)仍超標,待下一輪再拆
-- `ResourceImportService.swift`(原 1057 行)已拆為主檔 + 4 個平台檔案(見第 5 節),其中 `+WebPage.swift`(524)仍超標,待下一輪再拆
-- 目前所有原本超過 300 行的巨型檔案都已完成第一輪拆分,剩餘的都是「拆過一次但個別檔案仍超標」的第二輪目標
+- 拆檔進度(模式 E 舊專案改造,詳細切片記錄見 `project_state.md`):
+  - **第一輪**(切片 2-6):5 個原始巨型檔案(最大 8185 行)全數拆分
+  - **第二輪**(切片 7-14):第一輪產出中仍超標的 8 個檔案全數拆分
+  - **第三輪**(切片 15-18):先前記錄時漏標、從未拆過的 4 個檔案(`ProfileViews`/`GrowthViews`/`FinanceViews`/`SupabaseAuthService`)全數拆分
+  - **第四輪**(切片 19+):處理第二/三輪後仍在 300-430 行的 13 個輕微超標檔案,12 個已拆到 300 行以下
+- 目前僅剩 `BeautyViews+HairAndBody.swift`(391 行,`HairCareView` 單一巨型 `body` computed property)超過 300 行——這個需要拆解成獨立子視圖(實際重構,非單純搬移檔案),風險與性質跟前四輪不同,故保留待後續評估是否值得做

@@ -77,10 +77,12 @@ targets:
       - path: 美麗日記/Services/BeautyDiaryStore.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Home.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Beauty.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+BeautyExtra.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Body.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Growth.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Finance.swift
       - path: 美麗日記/Services/BeautyDiaryStore+AIAdvice.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+Habits.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Resource.swift
       - path: 美麗日記/Services/BeautyDiaryStore+ResourceSync.swift
       - path: 美麗日記/Services/BeautyDiaryStore+ResourceProfileSync.swift
@@ -114,13 +116,18 @@ targets:
       - path: 美麗日記/Views/HomeView.swift
       - path: 美麗日記/Views/BeautyViews.swift
       - path: 美麗日記/Views/BeautyViews+Skincare.swift
+      - path: 美麗日記/Views/BeautyViews+SkincareContent.swift
       - path: 美麗日記/Views/BeautyViews+Whitening.swift
+      - path: 美麗日記/Views/BeautyViews+FaceLiftYoga.swift
       - path: 美麗日記/Views/BeautyViews+HairAndBody.swift
       - path: 美麗日記/Views/BeautyViews+Products.swift
+      - path: 美麗日記/Views/BeautyViews+Hairstyle.swift
       - path: 美麗日記/Views/BeautyViews+Makeup.swift
       - path: 美麗日記/Views/BodyViews.swift
       - path: 美麗日記/Views/BodyViews+Exercise.swift
+      - path: 美麗日記/Views/BodyViews+Shaping.swift
       - path: 美麗日記/Views/BodyViews+Wellness.swift
+      - path: 美麗日記/Views/BodyViews+WellnessContent.swift
       - path: 美麗日記/Views/BodyViews+Album.swift
       - path: 美麗日記/Views/BodyViews+Meals.swift
       - path: 美麗日記/Views/GrowthViews.swift
@@ -139,17 +146,21 @@ targets:
       - path: 美麗日記/Views/ProfileViews.swift
       - path: 美麗日記/Views/ProfileViews+ResourceLibrary.swift
       - path: 美麗日記/Views/ProfileViews+Settings.swift
+      - path: 美麗日記/Views/ProfileViews+SettingsCards.swift
       - path: 美麗日記/Views/ProfileViews+Customization.swift
       - path: 美麗日記/Views/ProfileViews+Achievements.swift
       - path: 美麗日記/Views/ProfileViews+DataExport.swift
       - path: 美麗日記/Views/SharedViewComponents.swift
       - path: 美麗日記/Views/SharedViewComponents+AddSheetsBeauty.swift
       - path: 美麗日記/Views/SharedViewComponents+AddSheetsOther.swift
+      - path: 美麗日記/Views/SharedViewComponents+AddSheetsOther2.swift
       - path: 美麗日記/Views/SharedViewComponents+GoalAndEdit.swift
       - path: 美麗日記/Views/SharedViewComponents+AddSheets2.swift
+      - path: 美麗日記/Views/SharedViewComponents+AddMealAndBookSheet.swift
       - path: 美麗日記/Views/SharedViewComponents+ImportWizardUI.swift
       - path: 美麗日記/Views/SharedViewComponents+ResourceDetailUI.swift
       - path: 美麗日記/Views/SharedViewComponents+AIAdviceUI.swift
+      - path: 美麗日記/Views/SharedViewComponents+FormSheetAndHubCard.swift
       - path: 美麗日記/Views/SharedViewComponents+CardsAndBadges.swift
       - path: 美麗日記/Views/SharedViewComponents+FormControls.swift
     settings:
