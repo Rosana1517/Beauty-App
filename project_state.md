@@ -39,10 +39,22 @@
 - ✅ **外層工作目錄已清理**(2026-07-17):移除 182MB+ 的 APK 逆向殘留與過期 `iOS_Project/` 複製品(僅本機 commit,未推送——該倉庫落後 origin/main 169 個 commit 且有自己的分歧歷史);保留小紅書爬蟲輸出、`apk版本功能頁面參考/`、`API.txt`(使用者自行處理)
 - ✅ **`scripts/` 安全底線已處理**(2026-07-17):發現 5 個腳本(`csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py`)硬編碼了 Supabase secret key(跟外層 `API.txt` 同一把),已改成讀取 `SUPABASE_SERVICE_ROLE_KEY` 環境變數並在未設定時明確報錯;8 個腳本(含另外 3 個無金鑰問題的)全數加入 git 追蹤,commit a1bb94b 已推送
 - 外層工作目錄的 `API.txt` 仍明文存放 Supabase secret key 與 management token,使用者已表示會自行移至密碼管理工具後再刪除
-- ✅ **SwiftLint 質量閘門已加入 CI**(2026-07-17,commit 009b9a3):新增 `iOS_Project/.swiftlint.yml`(已停用 `file_length`/`type_body_length`,因為 300 行檔案上限已由人工慣例把關;`line_length` 放寬到 160/220)與 CI 新的 `lint` job(`.github/workflows/ios-xcodegen-build.yml`);型別檢查本身已由既有的 `Build for iOS Simulator` 步驟(`xcodebuild build`)涵蓋,不需另外的型別檢查腳本。基準掃描(run 29554231033)結果:**203 個違規、3 個 serious,分佈於 105 個檔案**,規則分佈前幾名:`trailing_newline` 76、`multiple_closures_with_trailing_closure` 37、`vertical_whitespace` 36、`unused_closure_parameter` 15、`trailing_comma` 10、`redundant_string_enum_value` 10、其餘(`large_tuple`/`implicit_optional_initialization`/`line_length`/`function_parameter_count`/`duplicate_imports`/`optional_data_string_conversion`/`function_body_length`/`force_cast`)各 1-4 個。目前設為 **advisory**(`continue-on-error: true`),不阻斷既有 CI;已確認 lint job 與 `build-ios-simulator` job(含 UI 測試)皆 ✓ 通過,新增 lint 未影響既有 pipeline。約九成違規(trailing_newline/vertical_whitespace/multiple_closures/trailing_comma/redundant_string_enum_value 等)屬機械式格式問題,可視需要逐步清理後把 `continue-on-error` 拿掉轉為 blocking
+- ✅ **SwiftLint 質量閘門已加入 CI 並完成兩輪清理**(2026-07-17):新增 `iOS_Project/.swiftlint.yml`(已停用 `file_length`/`type_body_length`,因為 300 行檔案上限已由人工慣例把關)與 CI 新的 `lint` job(`.github/workflows/ios-xcodegen-build.yml`,commit 009b9a3);另加了一個 `swiftlint-report` JSON artifact 上傳步驟,方便抓精確 file:line 修違規(compact 的 github-actions-logging reporter 只有規則說明沒有行號,不夠精準)。型別檢查本身已由既有的 `Build for iOS Simulator` 步驟(`xcodebuild build`)涵蓋,不需另外的型別檢查腳本。
+  - 基準(run 29554231033):**203 個違規、3 個 serious,105 個檔案**
+  - 第一輪(commit a5f6146):修掉 `trailing_newline`(76,CRLF 換行結尾)與 `vertical_whitespace`(36,多餘空行)→ 剩 91 個;CI 全綠(build-ios-simulator 10m31s ✓)
+  - 第二輪(commit 111bcc5 + b469656):修掉 `trailing_comma`(10)、`redundant_string_enum_value`(10)、`unused_closure_parameter`(15)、`duplicate_imports`(2)、`implicit_optional_initialization`(4)、`large_tuple`(4,改成具名 struct `AchievementItem`/`ExerciseCompletionRates`,僅限單檔案內部使用,無外部 API 影響)、`line_length`(2)、`force_cast`(1,`as!` 改成 `if let ... as?`)共 49 個 → **剩 43 個**;CI 全綠(build-ios-simulator 13m42s ✓)
+  - **踩坑記錄(教訓)**:commit 111bcc5 對 `BeautyViews+HairAndBody.swift` 用 Edit 工具的 `replace_all: true` 修 `unused_closure_parameter`,但該檔案裡 `{ values, newDate in }` 這個 pattern 在 `showsDate: false`(newDate 真的沒用到)與 `showsDate: true`(newDate 有用到,要寫入 `updated.date`)兩種情境都出現,replace_all 誤把 3 處「有用到」的也改成 `_`,導致編譯錯誤(`cannot find 'newDate' in scope`)。已於 commit b469656 修正並重跑 CI 驗證通過。**教訓:同一 pattern 在同檔案內若可能出現在語意不同的位置(尤其是「參數是否被使用」這種要看函式本體才能判斷的情況),絕不能用 `replace_all: true` 盲改,必須逐一 Read 確認上下文語意一致後才批次替換,否則要靠 CI 才能抓到。**
+  - **剩餘 43 個違規,刻意跳過未修,原因如下**:
+    - `multiple_closures_with_trailing_closure`(37):把 trailing closure 語法改成具名參數語法會改動所有呼叫端的結構(不只是重新命名),範圍大且分散在 9 個檔案,風險較高,建議另開一輪仔細做
+    - `function_parameter_count`(3):`ResourceImportService+WebPage.swift` 的 `makeDraft`(12 參數)與 `SupabaseAuthService+EmailAuthHTTP.swift` 的 `request`/`performRequest`(7 參數,含泛型)要降到 5 以下需要包成 DTO/Options struct,牽涉所有呼叫端簽名,風險較高
+    - `function_body_length`(1):`XHSMediaDeriver.derive`(HTML 爬蟲解析函式),拆分需要重構解析邏輯,擔心引入爬蟲 bug
+    - `optional_data_string_conversion`(1):建議把 `String(decoding:as:)`(遇到非法編碼會 lossy-decode 保留亂碼字元)改成 `String(bytes:encoding:)`(遇到非法編碼回傳 nil),這是行為語意改變,可能讓格式異常的網頁匯入從「勉強解析」變成「直接失敗」,不確定是否為預期行為,先跳過
+    - `line_length`(1,警告等級,197/160 字元,`ResourceImportService+WebPage.swift` 的 User-Agent 字串):同一個因上述兩條而整體避開修改的高風險檔案,一併留待之後處理
+  - 目前 lint job 維持 **advisory**(`continue-on-error: true`),不阻斷 CI
 - `MVP_GAP_TRACKER.md` 所列 P0 項目(小紅書/Instagram 正式匯入、真實 AI 供應商、同步衝突處理)仍為 partial/in progress
 
-- ✅ **運動資料庫 `exercise_library` 已上線 Supabase**(2026-07-17):整合 exercises-dataset(1,324 筆健身動作,中文教學已簡轉繁)與 yoga-api(48 個瑜伽體式,繁中名稱/難度/分類已補)共 1,372 筆,統一格式;schema(含 RLS 公開唯讀、tags GIN 索引)、清洗與匯入腳本、原始資料備份皆在外層 `../database/`;已用 publishable key 驗證匿名讀取、難度/tags 篩選、繁中內容皆正常;已知缺口:strength 的 `name_zh` 與 yoga 的 `description_zh`/`benefits_zh` 待 AI 批次翻譯,媒體仍外連 GitHub raw/Cloudinary(詳見 `../database/README.md`)
+- ✅ **運動資料庫 `exercise_library` 已上線 Supabase**(2026-07-17):整合 exercises-dataset(1,324 筆健身動作,中文教學已簡轉繁)與 yoga-api(48 個瑜伽體式,繁中名稱/難度/分類已補)共 1,372 筆,統一格式;schema(含 RLS 公開唯讀、tags GIN 索引)、清洗與匯入腳本、原始資料備份皆在外層 `../database/`;已用 publishable key 驗證匿名讀取、難度/tags 篩選、繁中內容皆正常;媒體仍外連 GitHub raw/Cloudinary(詳見 `../database/README.md`)
+- ✅ **`exercise_library` 中文翻譯已全數補齊**(2026-07-17):AI 批次翻譯 1,324 個健身動作繁中名稱(統一術語慣例:槓鈴/啞鈴/滑輪/槓桿式/上斜/坐姿/俯身等)與 48 個瑜伽體式的繁中動作說明+功效;翻譯檔存於 `../database/translations/`(strength_names_zh.json / yoga_zh.json),`apply_translations.py` 已套用到本地 cleaned JSON 與 Supabase;驗證:全表 1,372 筆 `name_zh`/`description_zh` 100% 非空、yoga 48 筆 `benefits_zh` 100% 非空,抽查內容正確
 
 ## 下一步
 
@@ -51,7 +63,7 @@
 - SwiftLint 已加入 CI(advisory);待使用者決定是否要花時間清理 203 個基準違規、轉為 blocking 閘門
 - 其餘 [待確認] 項目(隱私合規、性能/成本上限、可用性、維護方式)可待上線前再補,不阻塞當前拆檔工作
 - 外層工作目錄清理與 `scripts/` 安全底線皆已完成;僅剩 `API.txt` 待使用者自行處理
-- `exercise_library` 後續切片建議:① AI 批次翻譯補齊 strength 中文名與 yoga 中文說明 ② iOS 端新增查詢/展示(體態頁運動模組可接)③ AI 智能匹配(需求 → Edge Function + Claude API → 回傳動作清單)④ 媒體搬遷至 Supabase Storage(約 125 MB)
+- `exercise_library` 後續切片建議:① ~~AI 批次翻譯補齊中文~~(✅ 已完成)② iOS 端新增查詢/展示(體態頁運動模組可接)③ AI 智能匹配(需求 → Edge Function + Claude API → 回傳動作清單)④ 媒體搬遷至 Supabase Storage(約 125 MB)
 - 使用執行 `csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py` 前需先 `export SUPABASE_SERVICE_ROLE_KEY=...`(或 Windows `set`),否則會直接報錯退出
 
 ---
