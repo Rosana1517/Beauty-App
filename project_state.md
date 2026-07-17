@@ -35,8 +35,9 @@
 ## 已知問題
 
 - 第四輪拆分後,僅剩 `BeautyViews+HairAndBody.swift`(391 行)超過 300 行——`HairCareView` 是單一巨型 `body` computed property(212 行),要再縮小需要拆解成獨立子視圖(真正的重構,不是單純搬移檔案),風險性質跟前四輪不同,暫緩,待你決定是否值得做
-- `scripts/` 下 8 個 Python 腳本(`xhs_*.py`、`csv_to_supabase.py` 等)未加入 git 追蹤,也未列入 `.gitignore`,去留未定
-- 外層工作目錄(`美麗日記app/`)的 `API.txt` 明文存放 Supabase secret key 與 management token,雖未進 git,仍建議清除或移至密碼管理工具
+- ✅ **外層工作目錄已清理**(2026-07-17):移除 182MB+ 的 APK 逆向殘留與過期 `iOS_Project/` 複製品(僅本機 commit,未推送——該倉庫落後 origin/main 169 個 commit 且有自己的分歧歷史);保留小紅書爬蟲輸出、`apk版本功能頁面參考/`、`API.txt`(使用者自行處理)
+- ✅ **`scripts/` 安全底線已處理**(2026-07-17):發現 5 個腳本(`csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py`)硬編碼了 Supabase secret key(跟外層 `API.txt` 同一把),已改成讀取 `SUPABASE_SERVICE_ROLE_KEY` 環境變數並在未設定時明確報錯;8 個腳本(含另外 3 個無金鑰問題的)全數加入 git 追蹤,commit a1bb94b 已推送
+- 外層工作目錄的 `API.txt` 仍明文存放 Supabase secret key 與 management token,使用者已表示會自行移至密碼管理工具後再刪除
 - 尚無 lint / 型別檢查自動化腳本,質量閘門僅有編譯 CI,無測試覆蓋率把關
 - `MVP_GAP_TRACKER.md` 所列 P0 項目(小紅書/Instagram 正式匯入、真實 AI 供應商、同步衝突處理)仍為 partial/in progress
 
@@ -45,7 +46,8 @@
 - 請在 Xcode(或觸發 CI)跑一次 build,確認第四輪(切片 19+)的拆分沒有破壞編譯
 - 第四輪已把 12/13 個輕微超標檔案處理到 300 行以下,剩 `BeautyViews+HairAndBody.swift` 需要真正的視圖重構才能再縮,建議先問過使用者是否要做
 - 其餘 [待確認] 項目(隱私合規、性能/成本上限、可用性、維護方式)可待上線前再補,不阻塞當前拆檔工作
-- 之後依序處理外層工作目錄清理、`scripts/` 去留、`API.txt` 明文金鑰
+- 外層工作目錄清理與 `scripts/` 安全底線皆已完成;僅剩 `API.txt` 待使用者自行處理
+- 使用執行 `csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py` 前需先 `export SUPABASE_SERVICE_ROLE_KEY=...`(或 Windows `set`),否則會直接報錯退出
 
 ---
 
