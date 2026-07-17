@@ -72,7 +72,9 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     ├── 美麗日記/
     │   ├── Constants/                 ← AppTheme、AppRuntimeConfiguration(env 讀取)
     │   ├── Models/
-    │   │   ├── DiaryModels.swift             ← ⚠️ 核心(BeautyDiaryState 根狀態),430 行,待拆
+    │   │   ├── DiaryModels.swift             ← 核心(BeautyDiaryState 屬性/init),260 行
+    │   │   ├── DiaryModels+Decoding.swift     ← 69 行(Codable init(from:))
+    │   │   ├── DiaryModels+Seed.swift         ← 104 行(.seed 預設資料)
     │   │   ├── DiaryModels+Routes.swift       ← 127 行(分頁/路由 enum)
     │   │   ├── DiaryModels+Resource.swift          ← 核心(狀態/類型 enum),197 行
     │   │   ├── DiaryModels+ResourcePayloads.swift    ← 103 行

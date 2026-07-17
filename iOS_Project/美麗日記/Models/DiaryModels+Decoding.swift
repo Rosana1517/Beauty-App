@@ -1,0 +1,70 @@
+import Foundation
+
+extension BeautyDiaryState {
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        profile = try container.decode(UserProfileRecord.self, forKey: .profile)
+        checklistItems = try container.decode([ChecklistItem].self, forKey: .checklistItems)
+        routine = try container.decode(SkincareRoutine.self, forKey: .routine)
+        products = try container.decodeIfPresent([Product].self, forKey: .products) ?? []
+        skinRecords = try container.decodeIfPresent([SkinRecord].self, forKey: .skinRecords) ?? []
+        bodyMetricRecords = try container.decodeIfPresent([BodyMetricRecord].self, forKey: .bodyMetricRecords) ?? []
+        mealRecords = try container.decodeIfPresent([MealRecord].self, forKey: .mealRecords) ?? []
+        appointments = try container.decodeIfPresent([Appointment].self, forKey: .appointments) ?? []
+        resourceItems = try container.decodeIfPresent([ResourceItem].self, forKey: .resourceItems) ?? []
+        bookRecords = try container.decodeIfPresent([BookRecord].self, forKey: .bookRecords) ?? []
+        tutorialLinks = try container.decodeIfPresent([TutorialLink].self, forKey: .tutorialLinks) ?? []
+        punchRecords = try container.decodeIfPresent([PunchRecord].self, forKey: .punchRecords) ?? []
+        areaGoals = try container.decodeIfPresent([String: String].self, forKey: .areaGoals) ?? [:]
+        customAdviceConcerns = try container.decodeIfPresent([String: [String]].self, forKey: .customAdviceConcerns) ?? [:]
+        tdeeProfile = try container.decodeIfPresent(TDEEProfile.self, forKey: .tdeeProfile) ?? TDEEProfile()
+        habitReminderTimes = try container.decodeIfPresent([String: String].self, forKey: .habitReminderTimes) ?? [:]
+        achievements = try container.decodeIfPresent([AchievementBadge].self, forKey: .achievements) ?? []
+        exportHistory = try container.decodeIfPresent([ExportRecord].self, forKey: .exportHistory) ?? []
+        resourceFilter = try container.decodeIfPresent(ResourceCategory.self, forKey: .resourceFilter) ?? .all
+        resourceImportHistory = try container.decodeIfPresent([ResourceImportHistoryEntry].self, forKey: .resourceImportHistory) ?? []
+        pendingImportDraft = try container.decodeIfPresent(ResourceImportDraft.self, forKey: .pendingImportDraft)
+        resourceSyncQueue = try container.decodeIfPresent([ResourceSyncQueueItem].self, forKey: .resourceSyncQueue) ?? []
+        aiProviderSettings = try container.decodeIfPresent(AIProviderSettings.self, forKey: .aiProviderSettings)
+        hairCareRecords = try container.decodeIfPresent([HairCareRecord].self, forKey: .hairCareRecords) ?? []
+        bodySkinRecords = try container.decodeIfPresent([BodySkinRecord].self, forKey: .bodySkinRecords) ?? []
+        faceLiftActions = try container.decodeIfPresent([FaceLiftAction].self, forKey: .faceLiftActions) ?? []
+        faceLiftPunches = try container.decodeIfPresent([FaceLiftPunchRecord].self, forKey: .faceLiftPunches) ?? []
+        faceLiftRatings = try container.decodeIfPresent([FaceLiftRatingRecord].self, forKey: .faceLiftRatings) ?? []
+        bodyProducts = try container.decodeIfPresent([Product].self, forKey: .bodyProducts) ?? []
+        hairProducts = try container.decodeIfPresent([Product].self, forKey: .hairProducts) ?? []
+        hairAppointments = try container.decodeIfPresent([Appointment].self, forKey: .hairAppointments) ?? []
+        washFrequencyDays = try container.decodeIfPresent(Int.self, forKey: .washFrequencyDays) ?? 2
+        careFrequencyDays = try container.decodeIfPresent(Int.self, forKey: .careFrequencyDays) ?? 7
+        whiteningProductUsages = try container.decodeIfPresent([WhiteningProductUsage].self, forKey: .whiteningProductUsages) ?? []
+        shadeTrackingRecords = try container.decodeIfPresent([ShadeTrackingRecord].self, forKey: .shadeTrackingRecords) ?? []
+        beforeAfterPhotos = try container.decodeIfPresent([BeforeAfterPhotoPair].self, forKey: .beforeAfterPhotos) ?? []
+        favoriteRecipes = try container.decodeIfPresent([TutorialLink].self, forKey: .favoriteRecipes) ?? []
+        faceShape = try container.decodeIfPresent(String.self, forKey: .faceShape)
+        savedHairstyles = try container.decodeIfPresent([TutorialLink].self, forKey: .savedHairstyles) ?? []
+        makeupInspirations = try container.decodeIfPresent([TutorialLink].self, forKey: .makeupInspirations) ?? []
+        exercisePunches = try container.decodeIfPresent([ExercisePunchRecord].self, forKey: .exercisePunches) ?? []
+        customExercises = try container.decodeIfPresent([CustomExercise].self, forKey: .customExercises) ?? []
+        targetWeight = try container.decodeIfPresent(Double.self, forKey: .targetWeight)
+        targetBodyFat = try container.decodeIfPresent(Double.self, forKey: .targetBodyFat)
+        trainingSchedule = try container.decodeIfPresent([TrainingScheduleItem].self, forKey: .trainingSchedule) ?? []
+        symptomRecords = try container.decodeIfPresent([SymptomRecord].self, forKey: .symptomRecords) ?? []
+        bodyAlbumPhotos = try container.decodeIfPresent([BodyAlbumPhoto].self, forKey: .bodyAlbumPhotos) ?? []
+        courses = try container.decodeIfPresent([Course].self, forKey: .courses) ?? []
+        knowledgeNotes = try container.decodeIfPresent([KnowledgeNote].self, forKey: .knowledgeNotes) ?? []
+        videoLearningRecords = try container.decodeIfPresent([VideoLearningRecord].self, forKey: .videoLearningRecords) ?? []
+        selfAffirmations = try container.decodeIfPresent([SelfAffirmation].self, forKey: .selfAffirmations) ?? []
+        visionBoardItems = try container.decodeIfPresent([VisionBoardItem].self, forKey: .visionBoardItems) ?? []
+        gratitudeEntries = try container.decodeIfPresent([GratitudeEntry].self, forKey: .gratitudeEntries) ?? []
+        moodEntries = try container.decodeIfPresent([MoodEntry].self, forKey: .moodEntries) ?? []
+        transactions = try container.decodeIfPresent([Transaction].self, forKey: .transactions) ?? []
+        budgetCategories = try container.decodeIfPresent([BudgetCategory].self, forKey: .budgetCategories) ?? []
+        beautyFundTransactions = try container.decodeIfPresent([BeautyFundTransaction].self, forKey: .beautyFundTransactions) ?? []
+        wishes = try container.decodeIfPresent([Wish].self, forKey: .wishes) ?? []
+        shoppingItems = try container.decodeIfPresent([ShoppingItem].self, forKey: .shoppingItems) ?? []
+        checklistCompletions = try container.decodeIfPresent([ChecklistCompletionEntry].self, forKey: .checklistCompletions) ?? []
+        menstrualRecords = try container.decodeIfPresent([MenstrualRecord].self, forKey: .menstrualRecords) ?? []
+        nourishmentRecipes = try container.decodeIfPresent([TutorialLink].self, forKey: .nourishmentRecipes) ?? []
+        bodyConstitution = try container.decodeIfPresent(String.self, forKey: .bodyConstitution)
+    }
+}

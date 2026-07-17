@@ -62,6 +62,8 @@ targets:
       - path: 美麗日記/Assets.xcassets
       - path: 美麗日記/Constants/AppConstants.swift
       - path: 美麗日記/Models/DiaryModels.swift
+      - path: 美麗日記/Models/DiaryModels+Decoding.swift
+      - path: 美麗日記/Models/DiaryModels+Seed.swift
       - path: 美麗日記/Models/DiaryModels+Routes.swift
       - path: 美麗日記/Models/DiaryModels+Resource.swift
       - path: 美麗日記/Models/DiaryModels+ResourcePayloads.swift
