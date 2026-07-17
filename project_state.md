@@ -42,6 +42,8 @@
 - ✅ **SwiftLint 質量閘門已加入 CI**(2026-07-17,commit 009b9a3):新增 `iOS_Project/.swiftlint.yml`(已停用 `file_length`/`type_body_length`,因為 300 行檔案上限已由人工慣例把關;`line_length` 放寬到 160/220)與 CI 新的 `lint` job(`.github/workflows/ios-xcodegen-build.yml`);型別檢查本身已由既有的 `Build for iOS Simulator` 步驟(`xcodebuild build`)涵蓋,不需另外的型別檢查腳本。基準掃描(run 29554231033)結果:**203 個違規、3 個 serious,分佈於 105 個檔案**,規則分佈前幾名:`trailing_newline` 76、`multiple_closures_with_trailing_closure` 37、`vertical_whitespace` 36、`unused_closure_parameter` 15、`trailing_comma` 10、`redundant_string_enum_value` 10、其餘(`large_tuple`/`implicit_optional_initialization`/`line_length`/`function_parameter_count`/`duplicate_imports`/`optional_data_string_conversion`/`function_body_length`/`force_cast`)各 1-4 個。目前設為 **advisory**(`continue-on-error: true`),不阻斷既有 CI;已確認 lint job 與 `build-ios-simulator` job(含 UI 測試)皆 ✓ 通過,新增 lint 未影響既有 pipeline。約九成違規(trailing_newline/vertical_whitespace/multiple_closures/trailing_comma/redundant_string_enum_value 等)屬機械式格式問題,可視需要逐步清理後把 `continue-on-error` 拿掉轉為 blocking
 - `MVP_GAP_TRACKER.md` 所列 P0 項目(小紅書/Instagram 正式匯入、真實 AI 供應商、同步衝突處理)仍為 partial/in progress
 
+- ✅ **運動資料庫 `exercise_library` 已上線 Supabase**(2026-07-17):整合 exercises-dataset(1,324 筆健身動作,中文教學已簡轉繁)與 yoga-api(48 個瑜伽體式,繁中名稱/難度/分類已補)共 1,372 筆,統一格式;schema(含 RLS 公開唯讀、tags GIN 索引)、清洗與匯入腳本、原始資料備份皆在外層 `../database/`;已用 publishable key 驗證匿名讀取、難度/tags 篩選、繁中內容皆正常;已知缺口:strength 的 `name_zh` 與 yoga 的 `description_zh`/`benefits_zh` 待 AI 批次翻譯,媒體仍外連 GitHub raw/Cloudinary(詳見 `../database/README.md`)
+
 ## 下一步
 
 - 請在 Xcode(或觸發 CI)跑一次 build,確認第四輪(切片 19+)的拆分沒有破壞編譯
@@ -49,6 +51,7 @@
 - SwiftLint 已加入 CI(advisory);待使用者決定是否要花時間清理 203 個基準違規、轉為 blocking 閘門
 - 其餘 [待確認] 項目(隱私合規、性能/成本上限、可用性、維護方式)可待上線前再補,不阻塞當前拆檔工作
 - 外層工作目錄清理與 `scripts/` 安全底線皆已完成;僅剩 `API.txt` 待使用者自行處理
+- `exercise_library` 後續切片建議:① AI 批次翻譯補齊 strength 中文名與 yoga 中文說明 ② iOS 端新增查詢/展示(體態頁運動模組可接)③ AI 智能匹配(需求 → Edge Function + Claude API → 回傳動作清單)④ 媒體搬遷至 Supabase Storage(約 125 MB)
 - 使用執行 `csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py` 前需先 `export SUPABASE_SERVICE_ROLE_KEY=...`(或 Windows `set`),否則會直接報錯退出
 
 ---

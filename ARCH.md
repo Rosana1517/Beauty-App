@@ -17,7 +17,7 @@
 - [x] 爬蟲積木:一般網頁 Open Graph/JSON-LD 解析;小紅書/YouTube/Instagram 來源偵測與解析
 - [x] AI 積木:伺服器端規則引擎生成保養建議/推薦(尚未接外部 AI 供應商)
 - [x] 通知積木:本地推播通知排程
-- [x] 記憶積木:本地 JSON 持久化 + Supabase Postgres(10 張表,詳見 `supabase_resource_schema.sql`)
+- [x] 記憶積木:本地 JSON 持久化 + Supabase Postgres(10 張表,詳見 `supabase_resource_schema.sql`;另有公開唯讀運動資料表 `exercise_library` 1,372 筆,schema 與資料管線見外層 `../database/`)
 - [x] 檔案積木:資源媒體資產(`resource_media_assets`)、暫存租約(`temporary_media_leases`)
 
 ### 地基層
