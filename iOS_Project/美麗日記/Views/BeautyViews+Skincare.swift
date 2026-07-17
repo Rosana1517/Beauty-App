@@ -5,18 +5,18 @@ import WebKit
 import Charts
 
 struct SkincareManagementView: View {
-    @EnvironmentObject private var store: BeautyDiaryStore
-    @State private var section: SkincareSection = .steps
-    @State private var showAddProduct = false
-    @State private var showAddStep = false
-    @State private var showSkinRecord = false
-    @State private var showPunch = false
-    @State private var editingPunch: PunchRecord?
-    @State private var editingSkinRecord: SkinRecord?
-    @State private var editingTutorialLink: TutorialLink?
-    @State private var editingProduct: Product?
+    @EnvironmentObject var store: BeautyDiaryStore
+    @State var section: SkincareSection = .steps
+    @State var showAddProduct = false
+    @State var showAddStep = false
+    @State var showSkinRecord = false
+    @State var showPunch = false
+    @State var editingPunch: PunchRecord?
+    @State var editingSkinRecord: SkinRecord?
+    @State var editingTutorialLink: TutorialLink?
+    @State var editingProduct: Product?
 
-    private let concerns = ["清潔", "乾燥", "泛紅", "毛孔", "粉刺", "暗沉", "敏感", "痘痘"]
+    let concerns = ["清潔", "乾燥", "泛紅", "毛孔", "粉刺", "暗沉", "敏感", "痘痘"]
 
     var body: some View {
         ScrollView {

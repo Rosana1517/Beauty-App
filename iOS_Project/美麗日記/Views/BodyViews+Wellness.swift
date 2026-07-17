@@ -5,30 +5,30 @@ import WebKit
 import Charts
 
 struct WellnessView: View {
-    @EnvironmentObject private var store: BeautyDiaryStore
-    @State private var section: WellnessSection = .status
-    @State private var showAddSymptom = false
-    @State private var improvementDirection = ""
-    @State private var showAddMenstrual = false
-    @State private var showAddNourishmentRecipe = false
-    @State private var selectedTeaCategory: String?
-    @State private var editingNourishmentRecipe: TutorialLink?
-    @State private var editingMenstrualRecord: MenstrualRecord?
-    @State private var editingSymptomRecord: SymptomRecord?
+    @EnvironmentObject var store: BeautyDiaryStore
+    @State var section: WellnessSection = .status
+    @State var showAddSymptom = false
+    @State var improvementDirection = ""
+    @State var showAddMenstrual = false
+    @State var showAddNourishmentRecipe = false
+    @State var selectedTeaCategory: String?
+    @State var editingNourishmentRecipe: TutorialLink?
+    @State var editingMenstrualRecord: MenstrualRecord?
+    @State var editingSymptomRecord: SymptomRecord?
 
-    private let teaCategories = ["養身", "豐胸", "瘦身", "美白", "助眠"]
-    private let teaRecipeLibrary: [String: [String]] = [
+    let teaCategories = ["養身", "豐胸", "瘦身", "美白", "助眠"]
+    let teaRecipeLibrary: [String: [String]] = [
         "養身": ["紅棗枸杞茶", "黃耆人蔘茶", "四物飲"],
         "豐胸": ["木瓜銀耳湯", "山藥豆漿"],
         "瘦身": ["荷葉決明子茶", "陳皮普洱茶"],
         "美白": ["玫瑰珍珠茶", "百合蓮子茶"],
         "助眠": ["甘麥大棗湯", "酸棗仁茶"]
     ]
-    private let constitutions = [("寒性", "手腳冰冷‧怕冷"), ("熱性", "易上火‧口渴"), ("虛性", "易疲倦‧氣短"), ("實性", "體力充沛‧易便秘")]
+    let constitutions = [("寒性", "手腳冰冷‧怕冷"), ("熱性", "易上火‧口渴"), ("虛性", "易疲倦‧氣短"), ("實性", "體力充沛‧易便秘")]
 
     /// 把使用者已記錄的症狀歷史整理成一段脈絡，靜默併入 AI 請求，
     /// 讓建議是依照實際紀錄而非僅憑當下輸入的單一問題。
-    private var symptomHistoryContext: [String] {
+    var symptomHistoryContext: [String] {
         guard !store.state.symptomRecords.isEmpty else { return [] }
         let recent = store.state.symptomRecords.prefix(8).map { record -> String in
             record.note.isEmpty ? record.symptom : "\(record.symptom)（\(record.note)）"
