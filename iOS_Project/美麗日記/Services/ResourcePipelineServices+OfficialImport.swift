@@ -64,7 +64,9 @@ struct OfficialMetadataImportGateway: OfficialMetadataImportService {
                 source: source,
                 supportsOfficialOAuth: !configuration.xiaohongshuClientID.isEmpty && !configuration.xiaohongshuRedirectURI.isEmpty,
                 supportsBackendReparse: client != nil,
-                authorizationState: !configuration.xiaohongshuClientID.isEmpty && !configuration.xiaohongshuRedirectURI.isEmpty ? .backendRequired : .notConfigured,
+                authorizationState: !configuration.xiaohongshuClientID.isEmpty && !configuration.xiaohongshuRedirectURI.isEmpty
+                    ? .backendRequired
+                    : .notConfigured,
                 note: "小紅書正式內容抓取需由後端代理授權與解析；client 只負責送出匯入請求與顯示結果。"
             )
         case .youtube:

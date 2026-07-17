@@ -157,7 +157,7 @@ struct DailyQuoteView: View {
                 values: [record.text],
                 showsDate: false,
                 date: .now
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.text = values[0]
 
@@ -171,7 +171,7 @@ struct DailyQuoteView: View {
                 values: [record.text],
                 showsDate: false,
                 date: .now
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.text = values[0]
 

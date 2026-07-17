@@ -1,7 +1,5 @@
 import Foundation
 
-import Foundation
-
 protocol ResourceImportService {
     func parse(url: String) async -> ResourceImportDraft
 }

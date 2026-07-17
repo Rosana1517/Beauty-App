@@ -1,6 +1,12 @@
 import Combine
 import Foundation
 
+struct ExerciseCompletionRates {
+    let week: Int
+    let month: Int
+    let total: Int
+}
+
 extension BeautyDiaryStore {
     func addExercisePunch(category: String, durationMinutes: Int) {
         state.exercisePunches.insert(
@@ -54,7 +60,7 @@ extension BeautyDiaryStore {
         save()
     }
 
-    var exerciseCompletionRates: (week: Int, month: Int, total: Int) {
+    var exerciseCompletionRates: ExerciseCompletionRates {
         let calendar = Calendar.current
         let now = Date()
         let weekCount = state.exercisePunches.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .weekOfYear) }.count
@@ -63,7 +69,7 @@ extension BeautyDiaryStore {
         let monthlyGoal = 30
         let weekPercent = min(100, Int(Double(weekCount) / Double(weeklyGoal) * 100))
         let monthPercent = min(100, Int(Double(monthCount) / Double(monthlyGoal) * 100))
-        return (weekPercent, monthPercent, state.exercisePunches.count)
+        return ExerciseCompletionRates(week: weekPercent, month: monthPercent, total: state.exercisePunches.count)
     }
 
     func addSymptomRecord(symptom: String, note: String) {

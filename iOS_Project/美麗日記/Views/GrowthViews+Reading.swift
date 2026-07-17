@@ -58,7 +58,7 @@ struct ReadingTrackerView: View {
                 values: [record.title, record.author, record.link, record.note],
                 showsDate: false,
                 date: .now
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.title = values[0]
                 updated.author = values[1]

@@ -7,7 +7,12 @@ import Charts
 struct CustomizationView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
 
-    private let themes = [("玫瑰金", Color(red: 0.79, green: 0.55, blue: 0.48)), ("珊瑚粉", Color(red: 0.95, green: 0.6, blue: 0.6)), ("薰衣草", Color(red: 0.7, green: 0.6, blue: 0.9)), ("薄荷綠", Color(red: 0.55, green: 0.8, blue: 0.7))]
+    private let themes = [
+        ("玫瑰金", Color(red: 0.79, green: 0.55, blue: 0.48)),
+        ("珊瑚粉", Color(red: 0.95, green: 0.6, blue: 0.6)),
+        ("薰衣草", Color(red: 0.7, green: 0.6, blue: 0.9)),
+        ("薄荷綠", Color(red: 0.55, green: 0.8, blue: 0.7))
+    ]
     private let modules = ["變美", "體態", "成長", "財務", "情緒"]
 
     var body: some View {

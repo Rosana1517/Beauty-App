@@ -275,7 +275,7 @@ struct MealRecordsView: View {
                 values: [record.title, record.url],
                 showsDate: false,
                 date: .now
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.title = values[0]
                 updated.url = values[1]

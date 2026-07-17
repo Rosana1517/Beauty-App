@@ -73,7 +73,7 @@ struct SkincareManagementView: View {
                 values: [record.name, record.brand, record.category, record.notes],
                 showsDate: false,
                 date: .now
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.name = values[0]
                 updated.brand = values[1]

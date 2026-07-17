@@ -4,26 +4,32 @@ import UIKit
 import WebKit
 import Charts
 
+private struct AchievementItem {
+    let title: String
+    let detail: String
+    let unlocked: Bool
+}
+
 struct AchievementsView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
 
     private let streakMilestones = [(3, "🌱"), (7, "🌿"), (14, "🌳"), (30, "🏆"), (60, "💎"), (100, "👑")]
 
-    private var milestoneAchievements: [(title: String, detail: String, unlocked: Bool)] {
+    private var milestoneAchievements: [AchievementItem] {
         [
-            ("初次打卡", "完成第一次打卡", !store.state.punchRecords.isEmpty || store.weeklyCompletionRate.completed > 0),
-            ("目標啟程", "創建第一個目標", !store.state.wishes.isEmpty || !store.state.trainingSchedule.isEmpty),
-            ("週度堅持", "連續打卡 7 天", store.state.profile.streakDays >= 7),
-            ("月度達人", "連續打卡 30 天", store.state.profile.streakDays >= 30)
+            AchievementItem(title: "初次打卡", detail: "完成第一次打卡", unlocked: !store.state.punchRecords.isEmpty || store.weeklyCompletionRate.completed > 0),
+            AchievementItem(title: "目標啟程", detail: "創建第一個目標", unlocked: !store.state.wishes.isEmpty || !store.state.trainingSchedule.isEmpty),
+            AchievementItem(title: "週度堅持", detail: "連續打卡 7 天", unlocked: store.state.profile.streakDays >= 7),
+            AchievementItem(title: "月度達人", detail: "連續打卡 30 天", unlocked: store.state.profile.streakDays >= 30)
         ]
     }
 
-    private var specialAchievements: [(title: String, detail: String, unlocked: Bool)] {
+    private var specialAchievements: [AchievementItem] {
         [
-            ("美麗啟航", "使用全部分頁", store.hasUsedBeautyModule && store.hasUsedBodyModule && store.hasUsedGrowthModule),
-            ("知識積累", "記錄 10 次以上", store.knowledgeRecordCount >= 10),
-            ("財務管家", "記帳超過 5 筆", store.state.transactions.count >= 5),
-            ("完美主義", "一天全部打卡", store.hasPerfectChecklistDay)
+            AchievementItem(title: "美麗啟航", detail: "使用全部分頁", unlocked: store.hasUsedBeautyModule && store.hasUsedBodyModule && store.hasUsedGrowthModule),
+            AchievementItem(title: "知識積累", detail: "記錄 10 次以上", unlocked: store.knowledgeRecordCount >= 10),
+            AchievementItem(title: "財務管家", detail: "記帳超過 5 筆", unlocked: store.state.transactions.count >= 5),
+            AchievementItem(title: "完美主義", detail: "一天全部打卡", unlocked: store.hasPerfectChecklistDay)
         ]
     }
 
@@ -83,7 +89,7 @@ struct AchievementsView: View {
         .background(AppTheme.background)
     }
 
-    private func achievementGroup(title: String, items: [(title: String, detail: String, unlocked: Bool)]) -> some View {
+    private func achievementGroup(title: String, items: [AchievementItem]) -> some View {
         CardView {
             VStack(alignment: .leading, spacing: 14) {
                 Text(title)

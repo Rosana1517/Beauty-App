@@ -93,7 +93,7 @@ enum CalorieEstimator {
         (["麵包", "蛋糕", "甜點", "餅乾", "冰淇淋"], 380),
         (["手搖", "奶茶", "拿鐵", "果汁", "可樂"], 250),
         (["燕麥", "優格", "地瓜", "香蕉"], 220),
-        (["粥", "稀飯"], 300),
+        (["粥", "稀飯"], 300)
     ]
 
     static func estimate(from text: String) -> Int? {
@@ -123,13 +123,13 @@ struct TDEEProfile: Codable, Equatable {
         ("久坐少動", 1.2),
         ("輕度活動", 1.375),
         ("中度活動", 1.55),
-        ("高度活動", 1.725),
+        ("高度活動", 1.725)
     ]
 
     static let goals: [(name: String, adjustment: Int)] = [
         ("減脂", -400),
         ("維持體重", 0),
-        ("增肌", 300),
+        ("增肌", 300)
     ]
 
     var isConfigured: Bool {

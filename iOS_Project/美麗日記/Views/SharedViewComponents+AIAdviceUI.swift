@@ -13,10 +13,10 @@ struct AIAdviceSection: View {
     let buttonTitle: String
     /// 靜默併入 AI 請求的背景資訊（例如症狀歷史、目標），不會顯示成使用者的問題 chip
     var additionalContext: [String] = []
-    var onAddRoutineStep: ((String) -> Void)? = nil
-    var onAddProduct: ((String) -> Void)? = nil
-    var onAddExercise: ((AIAdviceRelatedResource) -> Void)? = nil
-    var onAddRecipe: ((String) -> Void)? = nil
+    var onAddRoutineStep: ((String) -> Void)?
+    var onAddProduct: ((String) -> Void)?
+    var onAddExercise: ((AIAdviceRelatedResource) -> Void)?
+    var onAddRecipe: ((String) -> Void)?
 
     @State private var selectedConcerns: Set<String> = []
     @State private var customConcern = ""

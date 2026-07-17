@@ -94,7 +94,7 @@ struct ShapingPlanView: View {
                 values: [record.name],
                 showsDate: false,
                 date: .now
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.name = values[0]
 

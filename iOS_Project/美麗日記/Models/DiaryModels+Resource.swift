@@ -166,21 +166,21 @@ enum MediaRetentionPolicy: String, CaseIterable, Codable, Identifiable {
 }
 
 enum XHSNoteContentType: String, CaseIterable, Codable, Identifiable {
-    case video = "video"
-    case imagePost = "imagePost"
-    case carousel = "carousel"
-    case livePhoto = "livePhoto"
-    case unknown = "unknown"
+    case video
+    case imagePost
+    case carousel
+    case livePhoto
+    case unknown
 
     var id: String { rawValue }
 }
 
 enum XHSMediaAssetType: String, CaseIterable, Codable, Identifiable {
-    case image = "image"
-    case video = "video"
-    case cover = "cover"
-    case livePhoto = "livePhoto"
-    case unknown = "unknown"
+    case image
+    case video
+    case cover
+    case livePhoto
+    case unknown
 
     var id: String { rawValue }
 }

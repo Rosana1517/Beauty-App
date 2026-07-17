@@ -60,7 +60,7 @@ struct ShoppingListView: View {
                 values: [record.name, String(record.estimatedPrice)],
                 showsDate: false,
                 date: .now
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.name = values[0]
                 updated.estimatedPrice = Double(values[1]) ?? updated.estimatedPrice

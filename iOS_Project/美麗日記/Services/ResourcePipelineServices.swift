@@ -1,7 +1,5 @@
 import Foundation
 
-import Foundation
-
 struct PipelineRuntimeConfiguration {
     let supabaseURL: String
     let supabaseAnonKey: String

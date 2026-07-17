@@ -57,7 +57,7 @@ struct HairCareView: View {
                 values: [record.name, record.brand, record.category, record.notes],
                 showsDate: false,
                 date: .now
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.name = values[0]
                 updated.brand = values[1]
@@ -74,7 +74,7 @@ struct HairCareView: View {
                 values: [record.careType, record.note],
                 showsDate: true,
                 date: record.date
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.careType = values[0]
                 updated.note = values[1]
@@ -89,7 +89,7 @@ struct HairCareView: View {
                 values: [record.title, record.storeName, record.note],
                 showsDate: true,
                 date: record.date
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.title = values[0]
                 updated.storeName = values[1]
@@ -242,7 +242,7 @@ struct BodySkincareView: View {
                 values: [record.name, record.brand, record.category, record.notes],
                 showsDate: false,
                 date: .now
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.name = values[0]
                 updated.brand = values[1]
@@ -259,7 +259,7 @@ struct BodySkincareView: View {
                 values: [record.area, record.concern, record.note],
                 showsDate: true,
                 date: record.date
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.area = values[0]
                 updated.concern = values[1]

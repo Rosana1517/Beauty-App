@@ -62,8 +62,8 @@ extension SupabaseEmailAuthService {
             accessTokenOverride: accessTokenOverride
         )
 
-        if Response.self == EmptySupabaseResponse.self, data.isEmpty {
-            return EmptySupabaseResponse() as! Response
+        if data.isEmpty, let empty = EmptySupabaseResponse() as? Response {
+            return empty
         }
 
         return try JSONDecoder.supabaseDecoder.decode(responseType, from: data.isEmpty ? Data("{}".utf8) : data)

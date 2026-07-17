@@ -131,7 +131,7 @@ struct SavingsGoalView: View {
                 values: [record.name, String(record.targetAmount)],
                 showsDate: false,
                 date: .now
-            ) { values, newDate in
+            ) { values, _ in
                 var updated = record
                 updated.name = values[0]
                 updated.targetAmount = Double(values[1]) ?? updated.targetAmount
