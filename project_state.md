@@ -63,7 +63,8 @@
 - SwiftLint 已加入 CI(advisory);待使用者決定是否要花時間清理 203 個基準違規、轉為 blocking 閘門
 - 其餘 [待確認] 項目(隱私合規、性能/成本上限、可用性、維護方式)可待上線前再補,不阻塞當前拆檔工作
 - 外層工作目錄清理與 `scripts/` 安全底線皆已完成;僅剩 `API.txt` 待使用者自行處理
-- `exercise_library` 後續切片建議:① ~~AI 批次翻譯補齊中文~~(✅ 已完成)② iOS 端新增查詢/展示(體態頁運動模組可接)③ AI 智能匹配(需求 → Edge Function + Claude API → 回傳動作清單)④ 媒體搬遷至 Supabase Storage(約 125 MB)
+- `exercise_library` 後續切片建議:① ~~AI 批次翻譯補齊中文~~(✅)② ~~iOS 端查詢/展示~~(✅ 本切片,待 CI + 使用者驗收)③ AI 智能匹配(需求 → Edge Function + Claude API → 回傳動作清單)④ 媒體搬遷至 Supabase Storage(約 125 MB)
+- **運動資料庫 iOS 展示切片**(2026-07-17):新增 `Models/ExerciseLibraryModels.swift`(77 行)、`Services/ExerciseLibraryService.swift`(65 行,重用 `SupabaseRESTClient` 匿名查詢)、`Views/BodyViews+ExerciseLibrary.swift`(249 行,清單+類型/部位/難度篩選+中英文搜尋+分頁載入)、`Views/BodyViews+ExerciseLibraryDetail.swift`(152 行,詳情+GIF 動畫示範 `AnimatedGIFView`(WKWebView,AsyncImage 不會播 GIF)+步驟/功效+出處標記);入口為體態頁 → 運動管理 → 「運動資料庫」卡片(`BodyViews+Exercise.swift` +24 行);`project.yml` 已加 4 個新檔;PRD 已先行更新(功能列表/完成定義/驗收清單);全部檔案 300 行以下,新符號已 grep 確認無撞名
 - 使用執行 `csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py` 前需先 `export SUPABASE_SERVICE_ROLE_KEY=...`(或 Windows `set`),否則會直接報錯退出
 
 ---

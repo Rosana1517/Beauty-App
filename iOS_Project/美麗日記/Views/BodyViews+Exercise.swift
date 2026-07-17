@@ -32,6 +32,30 @@ struct ExercisePunchView: View {
                 )
 
                 CardView {
+                    NavigationLink {
+                        ExerciseLibraryView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "books.vertical.fill")
+                                .font(.title3)
+                                .foregroundStyle(AppTheme.primary)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("運動資料庫")
+                                    .font(.headline)
+                                    .foregroundStyle(AppTheme.text)
+                                Text("1,300+ 健身動作與瑜伽體式,繁中教學 + GIF 示範")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(AppTheme.subtext)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                CardView {
                     VStack(alignment: .leading, spacing: 14) {
                         Text("今日運動")
                             .font(.headline)

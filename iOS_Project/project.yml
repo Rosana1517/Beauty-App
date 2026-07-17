@@ -74,6 +74,7 @@ targets:
       - path: 美麗日記/Models/DiaryModels+Finance.swift
       - path: 美麗日記/Models/DiaryModels+Growth.swift
       - path: 美麗日記/Models/DiaryModels+Body.swift
+      - path: 美麗日記/Models/ExerciseLibraryModels.swift
       - path: 美麗日記/Services/BeautyDiaryStore.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Home.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Beauty.swift
@@ -89,6 +90,7 @@ targets:
       - path: 美麗日記/Services/BeautyDiaryStore+ResourceWorker.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Profile.swift
       - path: 美麗日記/Services/NotificationScheduler.swift
+      - path: 美麗日記/Services/ExerciseLibraryService.swift
       - path: 美麗日記/Services/ResourceImportService.swift
       - path: 美麗日記/Services/ResourceImportService+XHS.swift
       - path: 美麗日記/Services/ResourceImportService+Instagram.swift
@@ -126,6 +128,8 @@ targets:
       - path: 美麗日記/Views/BeautyViews+Makeup.swift
       - path: 美麗日記/Views/BodyViews.swift
       - path: 美麗日記/Views/BodyViews+Exercise.swift
+      - path: 美麗日記/Views/BodyViews+ExerciseLibrary.swift
+      - path: 美麗日記/Views/BodyViews+ExerciseLibraryDetail.swift
       - path: 美麗日記/Views/BodyViews+Shaping.swift
       - path: 美麗日記/Views/BodyViews+Wellness.swift
       - path: 美麗日記/Views/BodyViews+WellnessContent.swift
