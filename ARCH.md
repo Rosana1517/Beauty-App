@@ -129,7 +129,8 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
     │   │   ├── BeautyViews.swift             ← 核心(BeautyRootView),97 行
     │   │   ├── BeautyViews+Skincare.swift     ← ⚠️ 371 行,待再拆
     │   │   ├── BeautyViews+Whitening.swift    ← ⚠️ 338 行,待再拆
-    │   │   ├── BeautyViews+HairAndBody.swift  ← ⚠️ 391 行,待再拆
+    │   │   ├── BeautyViews+HairAndBody.swift       ← 283 行(HairCareView 核心 + BodySkincareView)
+    │   │   ├── BeautyViews+HairAndBodyExtra.swift   ← 127 行(HairCareView 的 productsCard/recordsCard/appointmentsCard)
     │   │   ├── BeautyViews+Products.swift     ← ⚠️ 352 行,待再拆
     │   │   ├── BeautyViews+Makeup.swift       ← 158 行
     │   │   ├── BodyViews.swift               ← 核心(BodyRootView),79 行
@@ -214,4 +215,4 @@ publish_ios_repo/                      ← 專案根目錄(此為唯一真專案
   - **第二輪**(切片 7-14):第一輪產出中仍超標的 8 個檔案全數拆分
   - **第三輪**(切片 15-18):先前記錄時漏標、從未拆過的 4 個檔案(`ProfileViews`/`GrowthViews`/`FinanceViews`/`SupabaseAuthService`)全數拆分
   - **第四輪**(切片 19+):處理第二/三輪後仍在 300-430 行的 13 個輕微超標檔案,12 個已拆到 300 行以下
-- 目前僅剩 `BeautyViews+HairAndBody.swift`(391 行,`HairCareView` 單一巨型 `body` computed property)超過 300 行——這個需要拆解成獨立子視圖(實際重構,非單純搬移檔案),風險與性質跟前四輪不同,故保留待後續評估是否值得做
+- 第五輪:`BeautyViews+HairAndBody.swift`(391 行)的 `HairCareView.body` 沒有可直接搬移的既有 computed property,改用「先抽取成新的 computed property、再搬到另一檔案」的手法——把「洗護產品」「髮質檢測記錄」「護髮療程預約」三個 `CardView` 區塊抽成 `productsCard`/`recordsCard`/`appointmentsCard`,移到 `extension HairCareView`(`+HairAndBodyExtra.swift`);對應的 `@State`/`@EnvironmentObject` 儲存屬性已從 private 改為模組內可見。**至此專案內所有 `.swift` 檔案皆已在 300 行以下**

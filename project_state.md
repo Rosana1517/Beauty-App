@@ -34,7 +34,7 @@
 
 ## 已知問題
 
-- 第四輪拆分後,僅剩 `BeautyViews+HairAndBody.swift`(391 行)超過 300 行——`HairCareView` 是單一巨型 `body` computed property(212 行),要再縮小需要拆解成獨立子視圖(真正的重構,不是單純搬移檔案),風險性質跟前四輪不同,暫緩,待你決定是否值得做
+- ✅ **`BeautyViews+HairAndBody.swift` 已處理**(第五輪):`HairCareView.body` 沒有現成可搬的 computed property,改用「先抽取、再搬移」——把「洗護產品」「髮質檢測記錄」「護髮療程預約」三個 `CardView` 區塊抽成 `productsCard`/`recordsCard`/`appointmentsCard`,移到 `extension HairCareView`(`BeautyViews+HairAndBodyExtra.swift`);對應的 `@State`/`@EnvironmentObject` 已從 private 改為模組內可見;主檔降到 283 行,新檔 127 行,皆已檢查大括號配對正確;已更新 `project.yml`(核對全部檔案與條目一一對應)。**專案內所有 `.swift` 檔案至此皆已在 300 行以下**
 - ✅ **外層工作目錄已清理**(2026-07-17):移除 182MB+ 的 APK 逆向殘留與過期 `iOS_Project/` 複製品(僅本機 commit,未推送——該倉庫落後 origin/main 169 個 commit 且有自己的分歧歷史);保留小紅書爬蟲輸出、`apk版本功能頁面參考/`、`API.txt`(使用者自行處理)
 - ✅ **`scripts/` 安全底線已處理**(2026-07-17):發現 5 個腳本(`csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py`)硬編碼了 Supabase secret key(跟外層 `API.txt` 同一把),已改成讀取 `SUPABASE_SERVICE_ROLE_KEY` 環境變數並在未設定時明確報錯;8 個腳本(含另外 3 個無金鑰問題的)全數加入 git 追蹤,commit a1bb94b 已推送
 - 外層工作目錄的 `API.txt` 仍明文存放 Supabase secret key 與 management token,使用者已表示會自行移至密碼管理工具後再刪除
@@ -44,7 +44,8 @@
 ## 下一步
 
 - 請在 Xcode(或觸發 CI)跑一次 build,確認第四輪(切片 19+)的拆分沒有破壞編譯
-- 第四輪已把 12/13 個輕微超標檔案處理到 300 行以下,剩 `BeautyViews+HairAndBody.swift` 需要真正的視圖重構才能再縮,建議先問過使用者是否要做
+- 檔案上限規則已全面達標,無待辦拆檔項目
+- 質量閘門(lint / 型別檢查腳本)尚未補齊,可視需要進行
 - 其餘 [待確認] 項目(隱私合規、性能/成本上限、可用性、維護方式)可待上線前再補,不阻塞當前拆檔工作
 - 外層工作目錄清理與 `scripts/` 安全底線皆已完成;僅剩 `API.txt` 待使用者自行處理
 - 使用執行 `csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py` 前需先 `export SUPABASE_SERVICE_ROLE_KEY=...`(或 Windows `set`),否則會直接報錯退出
@@ -73,7 +74,8 @@
 | 16 | 第三輪拆分:GrowthViews.swift | 展示 | Views/GrowthViews.swift → 主檔 + 6 個檔案 + project.yml | ✅ 已完成並通過 CI(含 UI 測試) |
 | 17 | 第三輪拆分:FinanceViews.swift | 展示 | Views/FinanceViews.swift → 主檔 + 5 個檔案 + project.yml | ✅ 已完成並通過 CI(含 UI 測試) |
 | 18 | 第三輪拆分:SupabaseAuthService.swift | 身份 | Services/SupabaseAuthService.swift → 主檔 + 2 個檔案 + project.yml | ✅ 已完成並通過 CI(含 UI 測試) |
-| 19 | 第四輪拆分:13 個輕微超標檔案 | 展示/記憶/邏輯 | 13 個原檔 → 24 個新檔案 + project.yml | ✅ 12/13 完成並通過 CI(含 UI 測試);`BeautyViews+HairAndBody.swift` 待評估是否做視圖重構 |
+| 19 | 第四輪拆分:13 個輕微超標檔案 | 展示/記憶/邏輯 | 13 個原檔 → 24 個新檔案 + project.yml | ✅ 12/13 完成並通過 CI(含 UI 測試) |
+| 20 | 第五輪:BeautyViews+HairAndBody.swift 視圖重構 | 展示 | Views/BeautyViews+HairAndBody.swift → 主檔 + Extra 檔案 + project.yml | ✅ 已完成(待你 Xcode/CI 編譯驗證);**全專案檔案已無超過 300 行者** |
 | 20 | 清理外層工作目錄(APK 分析、爬蟲輸出、過期 iOS_Project) | 地基 | 美麗日記app/(外層) | ⬜ |
 | 21 | 補質量閘門(lint / 型別檢查腳本) | 地基 | CI 設定 | ⬜ |
 

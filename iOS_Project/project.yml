@@ -120,6 +120,7 @@ targets:
       - path: 美麗日記/Views/BeautyViews+Whitening.swift
       - path: 美麗日記/Views/BeautyViews+FaceLiftYoga.swift
       - path: 美麗日記/Views/BeautyViews+HairAndBody.swift
+      - path: 美麗日記/Views/BeautyViews+HairAndBodyExtra.swift
       - path: 美麗日記/Views/BeautyViews+Products.swift
       - path: 美麗日記/Views/BeautyViews+Hairstyle.swift
       - path: 美麗日記/Views/BeautyViews+Makeup.swift
