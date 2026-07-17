@@ -171,4 +171,3 @@ struct GoalManagementView: View {
         }
     }
 }
-

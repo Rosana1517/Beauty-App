@@ -193,5 +193,3 @@ enum ResourceSyncJobType: String, CaseIterable, Codable, Identifiable {
 
     var id: String { rawValue }
 }
-
-

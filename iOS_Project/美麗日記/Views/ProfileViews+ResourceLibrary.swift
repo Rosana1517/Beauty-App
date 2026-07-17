@@ -188,5 +188,3 @@ struct ResourceLibraryView: View {
         }
     }
 }
-
-

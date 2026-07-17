@@ -227,4 +227,3 @@ struct SupabaseMediaAssetRow: Decodable {
         )
     }
 }
-

@@ -273,4 +273,3 @@ struct ResourceDetailView: View {
         .background(AppTheme.background)
     }
 }
-

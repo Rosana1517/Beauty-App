@@ -154,4 +154,3 @@ extension BeautyDiaryStore {
     /// screens (skincare/hair/face-lift/body-skin/diet/makeup) don't clobber
     /// each other's results when the user switches between them.
 }
-

@@ -71,4 +71,3 @@ struct ShoppingListView: View {
         .sheet(isPresented: $showAdd) { AddShoppingItemSheet() }
     }
 }
-

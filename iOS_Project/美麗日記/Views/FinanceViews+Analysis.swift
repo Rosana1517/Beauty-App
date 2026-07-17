@@ -152,4 +152,3 @@ struct SavingsGoalView: View {
             .clipShape(Capsule())
     }
 }
-

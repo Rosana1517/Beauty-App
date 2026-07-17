@@ -268,4 +268,3 @@ struct ManualCompleteView: View {
         }
     }
 }
-

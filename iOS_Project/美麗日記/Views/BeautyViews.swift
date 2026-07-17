@@ -4,7 +4,6 @@ import UIKit
 import WebKit
 import Charts
 
-
 struct BeautyRootView: View {
     var body: some View {
         ScrollView {
@@ -94,4 +93,3 @@ struct BeautyRootView: View {
         }
     }
 }
-

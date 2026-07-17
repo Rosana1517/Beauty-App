@@ -154,5 +154,3 @@ struct BeautyAppointmentsView: View {
         .sheet(isPresented: $showAdd) { AddAppointmentSheet() }
     }
 }
-
-

@@ -178,4 +178,3 @@ struct BodyMetricsView: View {
         .sheet(isPresented: $showAdd) { AddBodyMetricSheet() }
     }
 }
-

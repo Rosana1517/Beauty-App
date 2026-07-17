@@ -204,4 +204,3 @@ struct SupabaseRESTClient {
         return SupabaseRESTError.unexpectedStatus(statusCode, rawBody)
     }
 }
-

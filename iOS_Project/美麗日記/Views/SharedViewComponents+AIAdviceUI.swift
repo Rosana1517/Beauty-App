@@ -246,4 +246,3 @@ struct AIAdviceSection: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
-

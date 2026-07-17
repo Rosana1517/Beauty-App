@@ -245,4 +245,3 @@ extension View {
         modifier(RecordRowActions(onEdit: onEdit, onDelete: onDelete))
     }
 }
-

@@ -117,5 +117,3 @@ struct NameValue: Decodable {
         case id = "@id"
     }
 }
-
-

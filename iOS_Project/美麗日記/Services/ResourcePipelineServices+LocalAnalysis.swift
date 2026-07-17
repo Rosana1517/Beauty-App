@@ -153,4 +153,3 @@ struct NoopCloudResourceSyncService: CloudResourceSyncService {
     func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings? { nil }
     func deleteAIProviderSettings(session: SupabaseAuthSession) async throws {}
 }
-

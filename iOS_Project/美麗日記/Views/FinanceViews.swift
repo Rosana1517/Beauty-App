@@ -4,7 +4,6 @@ import UIKit
 import WebKit
 import Charts
 
-
 struct FinanceRootView: View {
     var body: some View {
         ScrollView {
@@ -66,4 +65,3 @@ struct FinanceRootView: View {
         }
     }
 }
-

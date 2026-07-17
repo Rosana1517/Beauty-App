@@ -70,5 +70,3 @@ struct ImportServiceConfiguration {
 protocol PlatformParser {
     func parse(url: URL, source: ImportSourceType) async -> ResourceImportDraft
 }
-
-

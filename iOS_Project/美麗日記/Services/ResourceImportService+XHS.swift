@@ -270,7 +270,6 @@ enum XHSDraftMapper {
     }
 }
 
-
 extension XHSParsedPayload {
     var importedContentType: ImportedContentType {
         switch contentType {
@@ -285,4 +284,3 @@ extension XHSParsedPayload {
         }
     }
 }
-

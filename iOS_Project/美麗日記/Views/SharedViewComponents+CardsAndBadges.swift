@@ -294,4 +294,3 @@ struct ThumbnailPreview: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
-

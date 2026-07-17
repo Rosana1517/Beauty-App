@@ -104,4 +104,3 @@ struct PlatformImportResult {
     let draft: ResourceImportDraft
     let xhsPayload: XHSParsedPayload?
 }
-

@@ -252,5 +252,3 @@ struct CameraPicker: UIViewControllerRepresentable {
         }
     }
 }
-
-

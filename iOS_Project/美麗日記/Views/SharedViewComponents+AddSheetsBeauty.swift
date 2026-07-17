@@ -279,4 +279,3 @@ struct AddBeforeAfterPhotoSheet: View {
         }
     }
 }
-

@@ -126,4 +126,3 @@ struct MoodTrackingView: View {
         }
     }
 }
-

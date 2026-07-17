@@ -124,4 +124,3 @@ struct SupabaseQueueJobResponse: Decodable {
     let createdAt: Date?
     let updatedAt: Date?
 }
-

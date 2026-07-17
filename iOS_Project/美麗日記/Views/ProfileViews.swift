@@ -4,7 +4,6 @@ import UIKit
 import WebKit
 import Charts
 
-
 struct ProfileView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
 
@@ -95,4 +94,3 @@ struct ProfileView: View {
         }
     }
 }
-

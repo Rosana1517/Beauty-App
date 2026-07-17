@@ -108,4 +108,3 @@ struct LedgerView: View {
         .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
-

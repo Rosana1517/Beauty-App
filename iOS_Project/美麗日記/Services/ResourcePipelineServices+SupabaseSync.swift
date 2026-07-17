@@ -261,4 +261,3 @@ enum SupabaseRESTError: LocalizedError {
         }
     }
 }
-

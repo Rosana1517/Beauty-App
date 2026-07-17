@@ -134,4 +134,3 @@ struct FinanceAIAdviceView: View {
         .background(AppTheme.background)
     }
 }
-

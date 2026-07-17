@@ -100,4 +100,3 @@ struct TemporaryMediaLease: Identifiable, Codable {
     var cleanedAt: Date?
     var cleanupStatus: ResourceSyncStatus
 }
-

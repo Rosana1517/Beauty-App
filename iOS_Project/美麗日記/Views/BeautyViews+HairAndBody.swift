@@ -279,5 +279,3 @@ struct BodySkincareView: View {
         }
     }
 }
-
-

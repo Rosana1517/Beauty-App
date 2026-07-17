@@ -142,4 +142,3 @@ struct ShapingPlanView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
-

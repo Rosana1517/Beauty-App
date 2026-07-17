@@ -95,4 +95,3 @@ struct NoopSupabaseAuthService: SupabaseAuthServiceProtocol {
     func completeMagicLinkSignIn(from url: URL) async throws -> SupabaseAuthSession { throw SupabaseAuthError.unavailable }
     func signOut() async throws {}
 }
-

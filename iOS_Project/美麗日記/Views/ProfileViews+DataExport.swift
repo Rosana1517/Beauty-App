@@ -106,5 +106,3 @@ struct DataExportView: View {
         }
     }
 }
-
-

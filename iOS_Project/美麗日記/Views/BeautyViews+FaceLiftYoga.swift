@@ -165,5 +165,3 @@ struct FaceLiftYogaView: View {
         }
     }
 }
-
-

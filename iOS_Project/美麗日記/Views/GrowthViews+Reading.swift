@@ -71,4 +71,3 @@ struct ReadingTrackerView: View {
         .sheet(isPresented: $showAdd) { AddBookSheet() }
     }
 }
-

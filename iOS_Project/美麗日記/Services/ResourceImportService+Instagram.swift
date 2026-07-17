@@ -32,5 +32,3 @@ struct InstagramParser: PlatformParser {
         }
     }
 }
-
-

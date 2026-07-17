@@ -48,7 +48,6 @@ struct MoodEntry: Identifiable, Codable {
     var note: String
 }
 
-
 struct BookRecord: Identifiable, Codable {
     var id: UUID
     var title: String
@@ -62,5 +61,3 @@ struct TutorialLink: Identifiable, Codable {
     var title: String
     var url: String
 }
-
-

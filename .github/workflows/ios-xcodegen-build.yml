@@ -32,6 +32,21 @@ jobs:
         continue-on-error: true
         run: swiftlint lint --config .swiftlint.yml --reporter github-actions-logging
 
+      # Same scan, but written to a JSON file with exact file:line:column so
+      # violations can be fixed precisely offline - the github-actions-logging
+      # reporter above only prints rule descriptions, no locations.
+      - name: Generate JSON lint report
+        continue-on-error: true
+        run: swiftlint lint --config .swiftlint.yml --reporter json > swiftlint-report.json
+
+      - name: Upload lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swiftlint-report
+          path: iOS_Project/swiftlint-report.json
+          if-no-files-found: ignore
+
   build-ios-simulator:
     runs-on: macos-latest
     defaults:

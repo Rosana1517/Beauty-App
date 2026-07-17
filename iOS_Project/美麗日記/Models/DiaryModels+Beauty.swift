@@ -77,7 +77,6 @@ struct BeforeAfterPhotoPair: Identifiable, Codable {
     var note: String
 }
 
-
 struct Appointment: Identifiable, Codable {
     var id: UUID
     var title: String
@@ -85,5 +84,3 @@ struct Appointment: Identifiable, Codable {
     var date: Date
     var note: String
 }
-
-

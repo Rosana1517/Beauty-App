@@ -278,4 +278,3 @@ extension WellnessView {
         }
     }
 }
-

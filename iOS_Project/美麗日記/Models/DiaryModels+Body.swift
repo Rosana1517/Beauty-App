@@ -105,7 +105,6 @@ enum CalorieEstimator {
     }
 }
 
-
 struct PunchRecord: Identifiable, Codable {
     var id: UUID
     var date: Date
@@ -166,5 +165,3 @@ enum HabitReminderKind: String, CaseIterable, Identifiable {
         }
     }
 }
-
-

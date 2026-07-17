@@ -204,4 +204,3 @@ private struct YouTubeEmbedView: UIViewRepresentable {
         }
     }
 }
-

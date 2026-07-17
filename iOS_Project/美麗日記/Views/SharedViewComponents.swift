@@ -4,7 +4,6 @@ import UIKit
 import WebKit
 import Charts
 
-
 struct GenericSummaryView: View {
     let title: String
     let subtitle: String
@@ -26,4 +25,3 @@ struct GenericSummaryView: View {
         .background(AppTheme.background)
     }
 }
-

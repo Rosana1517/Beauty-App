@@ -4,7 +4,6 @@ import UIKit
 import WebKit
 import Charts
 
-
 struct HomeView: View {
     @EnvironmentObject private var store: BeautyDiaryStore
     @State private var showCustomize = false
@@ -161,4 +160,3 @@ struct HomeView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
-

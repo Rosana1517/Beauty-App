@@ -45,5 +45,3 @@ struct ShoppingItem: Identifiable, Codable {
     var estimatedPrice: Double
     var isPurchased: Bool
 }
-
-

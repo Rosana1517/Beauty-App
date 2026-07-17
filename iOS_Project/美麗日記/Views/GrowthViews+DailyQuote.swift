@@ -209,4 +209,3 @@ struct DailyQuoteView: View {
         }
     }
 }
-

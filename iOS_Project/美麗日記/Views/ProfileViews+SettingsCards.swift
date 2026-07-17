@@ -276,5 +276,3 @@ struct SupabaseSyncSettingsCard: View {
         return configured.isEmpty ? "尚未設定" : configured
     }
 }
-
-

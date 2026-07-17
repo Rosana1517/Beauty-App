@@ -4,7 +4,6 @@ import UIKit
 import WebKit
 import Charts
 
-
 struct GrowthRootView: View {
     var body: some View {
         ScrollView {
@@ -88,4 +87,3 @@ struct GrowthRootView: View {
         }
     }
 }
-

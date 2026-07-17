@@ -127,5 +127,3 @@ struct AchievementsView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 }
-
-

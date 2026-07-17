@@ -94,7 +94,6 @@ struct YouTubeDataAPIParser {
     }
 }
 
-
 struct YouTubeVideosResponse: Decodable {
     let items: [YouTubeVideoItem]
 }
@@ -142,7 +141,6 @@ struct YouTubeThumbnail: Decodable {
     let url: String
 }
 
-
 extension JSONDecoder {
     static var youtube: JSONDecoder {
         let decoder = JSONDecoder()
@@ -150,5 +148,3 @@ extension JSONDecoder {
         return decoder
     }
 }
-
-

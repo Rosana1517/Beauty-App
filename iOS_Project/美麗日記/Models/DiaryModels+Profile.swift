@@ -84,7 +84,6 @@ struct AIProviderSettings: Codable, Equatable {
     static let empty = AIProviderSettings(provider: .openai, apiKey: "", baseURL: "", model: "")
 }
 
-
 struct AchievementBadge: Identifiable, Codable {
     var id: UUID
     var title: String
@@ -98,5 +97,3 @@ struct ExportRecord: Identifiable, Codable {
     var createdAt: Date
     var summary: String
 }
-
-
