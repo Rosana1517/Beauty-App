@@ -27,6 +27,7 @@ struct ExerciseMatchView: View {
                             .foregroundStyle(AppTheme.subtext)
 
                         ThemedTextField(title: "例如:瘦大腿、改善駝背、睡前放鬆", text: $needText)
+                            .accessibilityIdentifier("exerciseMatch.needField")
 
                         FlowChips(options: commonNeeds, onTap: { needText = $0 })
 
@@ -47,6 +48,7 @@ struct ExerciseMatchView: View {
                             .clipShape(Capsule())
                         }
                         .disabled(isLoading || needText.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .accessibilityIdentifier("exerciseMatch.startButton")
                     }
                 }
 
@@ -56,6 +58,7 @@ struct ExerciseMatchView: View {
                             .font(.subheadline)
                             .foregroundStyle(AppTheme.subtext)
                             .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityIdentifier("exerciseMatch.message")
                     }
                 }
 
@@ -156,6 +159,7 @@ struct FlowChips: View {
                         .foregroundStyle(AppTheme.text)
                         .clipShape(Capsule())
                 }
+                .accessibilityIdentifier("exerciseMatch.quickNeed_\(option)")
             }
         }
     }

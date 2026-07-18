@@ -16,6 +16,7 @@ struct BodyRootView: View {
                     NavigationLink(value: route) {
                         HubCard(title: route.rawValue, subtitle: bodySubtitle(for: route), icon: bodyIcon(for: route))
                     }
+                    .accessibilityIdentifier("bodyLink_\(route.rawValue)")
                 }
             }
             .padding(20)

@@ -42,6 +42,7 @@ struct ExerciseLibraryView: View {
                                 ExerciseLibraryItemCard(item: item)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityIdentifier("exerciseLibrary.itemCard")
                         }
                     }
 
@@ -73,6 +74,7 @@ struct ExerciseLibraryView: View {
                 .foregroundStyle(AppTheme.subtext)
             TextField("搜尋動作名稱(中/英文)", text: $searchText)
                 .submitLabel(.search)
+                .accessibilityIdentifier("exerciseLibrary.searchField")
             if !searchText.isEmpty {
                 Button {
                     searchText = ""
@@ -140,6 +142,7 @@ struct ExerciseLibraryView: View {
                 .foregroundStyle(isSelected ? Color.white : AppTheme.text)
                 .clipShape(Capsule())
         }
+        .accessibilityIdentifier("exerciseLibrary.chip_\(title)")
     }
 
     private func errorCard(_ message: String) -> some View {

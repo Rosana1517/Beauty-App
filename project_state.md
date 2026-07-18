@@ -64,7 +64,13 @@
   - Edge Function 驗證路徑:`exercise-match`/`ai-advice` 在已登入但未設 AI 供應商時正確回 422 + 中文引導
   - 唯一 FAIL(低嚴重度,**未修**):帶「非使用者 token」(如 anon key)呼叫 Edge Function 時,共用的 `resolveAuthenticatedUserID` 拋錯被各函式 catch-all 當成 **500 而非 401**。iOS 端會優雅降級(`mappedError` → `.serverMessage`,`ExerciseMatchView` 比對 "authenticated" 顯示「請先登入」),使用者不會看到壞畫面,僅 HTTP 語意不精確。修正需動 9 個函式的 catch 並全部重新部署,驗證期間風險大於效益,**留待後續獨立處理**
   - 測試腳本初版兩個 FAIL 是我自己用錯欄位(`display_name` 應為 `nickname`),非 app bug——app 端用的是正確欄位
-- ✅ **CI UI 測試覆蓋確認**:既有 5 個測試檔涵蓋 P0 核心(登入→驗證→同步、錯誤密碼、失效連結 fallback、資源匯入、XHS/YouTube 解析);**新的運動資料庫/AI 匹配尚無 UI 測試**(覆蓋缺口,非 bug)
+- ✅ **CI UI 測試覆蓋確認**:既有 5 個測試檔涵蓋 P0 核心(登入→驗證→同步、錯誤密碼、失效連結 fallback、資源匯入、XHS/YouTube 解析)
+- ✅ **補上運動資料庫/AI 匹配 UI 測試**(2026-07-18,`美麗日記UITests/ExerciseLibraryUITests.swift`,154 行,3 個測試):
+  - `testExerciseLibraryLoadsAndOpensDetail`:體態→運動管理→運動資料庫,等真實 Supabase 回第一頁→點首張卡進詳情,斷言出現「動作步驟」或「動作說明」(不綁定特定資料列)
+  - `testExerciseLibraryYogaFilterSwitchesControls`:切到「瑜伽」後斷言篩選列從部位 chips 換成難度 chips(結構性訊號,不斷言特定體式名)
+  - `testExerciseMatchShowsActionableMessageWithoutAIProvider`:驗證 CI 無法提供 AI 金鑰時**優雅降級**——出現可行動訊息(含「登入」或「AI」)而非卡住/崩潰;刻意接受兩種訊息,因為前面測試若留下已登入 session 會改顯示「未設定 AI 供應商」(測試順序相依,兩者皆為正確路徑)
+  - 為此在 View 補了 accessibility identifier(沿用既有 `profileLink_*` 慣例):`bodyLink_*`、`exerciseEntry.library/match`、`exerciseLibrary.itemCard/searchField/chip_*`、`exerciseMatch.needField/startButton/message/quickNeed_*`
+  - **穩定性考量**:需求輸入改用快選 chip 而非打字(避免軟鍵盤遮住送出鈕);entry 卡片加 `scrollUntilHittable` 捲動輔助(AI 建議區塊可能把入口推出畫面);Supabase 環境變數已在 scheme `environmentVariables` 內,測試會實際執行而非自我跳過
 - ✅ **打磨:exercise-match 冷門部位候選過少**(已改+已部署+已回歸驗證):實測資料發現「頸部」全庫僅 2 筆、過濾後 LLM 湊不出 UI 承諾的 5-8 個動作(「心肺」29 筆中 21 筆徒手,不受影響)。已加 `THIN_POOL_THRESHOLD=25`:候選不足時自動補進 48 個瑜伽伸展體式(頸/肩背需求本就適合搭配伸展)。回歸測試 `scratchpad/match_regression.py` **6/6 通過**(落枕/瘦大腿/居家徒手燃脂/開肩放鬆/隨便動一動/健身房練胸 皆回 422 代表候選取得正常,無 500)
 
 - ✅ **運動資料庫 `exercise_library` 已上線 Supabase**(2026-07-17):整合 exercises-dataset(1,324 筆健身動作,中文教學已簡轉繁)與 yoga-api(48 個瑜伽體式,繁中名稱/難度/分類已補)共 1,372 筆,統一格式;schema(含 RLS 公開唯讀、tags GIN 索引)、清洗與匯入腳本、原始資料備份皆在外層 `../database/`;已用 publishable key 驗證匿名讀取、難度/tags 篩選、繁中內容皆正常;媒體仍外連 GitHub raw/Cloudinary(詳見 `../database/README.md`)

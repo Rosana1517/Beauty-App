@@ -53,6 +53,7 @@ struct ExercisePunchView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("exerciseEntry.match")
                 }
 
                 CardView {
@@ -77,6 +78,7 @@ struct ExercisePunchView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("exerciseEntry.library")
                 }
 
                 CardView {
