@@ -411,6 +411,65 @@ export async function summarizeTranscriptAsSteps(
   }
 }
 
+export interface ExerciseMatchCandidate {
+  id: string;
+  name: string;
+  meta: string;
+}
+
+export interface ExerciseMatchSelection {
+  id: string;
+  reason: string;
+}
+
+/**
+ * 從預篩後的 exercise_library 候選清單中,由 LLM 依使用者需求挑出
+ * 最適合的動作並附一句推薦理由。只允許回傳清單內存在的 id,
+ * 虛構的 id 會被過濾掉。無 AI 供應商或呼叫失敗時回傳 null,
+ * 由呼叫端顯示設定引導訊息。
+ */
+export async function matchExercisesFromCatalog(
+  need: string,
+  candidates: ExerciseMatchCandidate[],
+  userID: string,
+): Promise<ExerciseMatchSelection[] | null> {
+  const config = await resolveAIProviderConfig(userID);
+  if (!config) return null;
+
+  const catalog = candidates.map((c) => `${c.id}|${c.name}|${c.meta}`).join("\n");
+  const prompt = [
+    "你是一個美容生活管理 App 的運動教練。以下是可用的運動動作清單,每行格式為:編號|名稱|屬性。",
+    "請根據使用者需求,從清單中挑出最適合的 5 到 8 個動作,並為每個動作寫一句 20 字以內的繁體中文推薦理由。",
+    "只能挑清單中存在的編號,不要虛構;動作組合要兼顧主要需求與均衡(例如安排 1-2 個伸展/放鬆動作收尾)。",
+    '請只回覆一個 JSON 物件,不要有任何其他文字、不要用 markdown code block。JSON 格式:{"matches": [{"id": string, "reason": string}]}',
+    `使用者需求:${need}`,
+    "動作清單:",
+    catalog,
+  ].join("\n");
+
+  try {
+    // 與 requestFreeformSuggestions 相同的降延遲策略:同發兩個請求取先完成者
+    const call = () =>
+      config.provider === "openai" ? callOpenAI(config, prompt) : callAnthropic(config, prompt);
+    const rawText = await Promise.any([call(), call()]);
+    const parsed = JSON.parse(extractJSONObject(rawText));
+    const validIDs = new Set(candidates.map((c) => c.id));
+    const matches: ExerciseMatchSelection[] = Array.isArray(parsed.matches)
+      ? parsed.matches
+        .filter((m: { id?: unknown }) => typeof m?.id === "string" && validIDs.has(m.id as string))
+        .map((m: { id: string; reason?: unknown }) => ({
+          id: m.id,
+          reason: typeof m.reason === "string" ? m.reason.trim() : "",
+        }))
+        .slice(0, 8)
+      : [];
+    return matches.length > 0 ? matches : null;
+  } catch (error) {
+    console.error("AI exercise match failed.", error);
+    return null;
+  }
+}
+
 export interface ProductLookupResult {
   name: string;
   brand: string;

@@ -105,6 +105,12 @@ enum AppRuntimeConfiguration {
         ProcessInfo.processInfo.environment[productLookupFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "product-lookup"
     }
 
+    static let exerciseMatchFunctionEnv = "SUPABASE_EXERCISE_MATCH_FUNCTION"
+
+    static var exerciseMatchFunction: String {
+        ProcessInfo.processInfo.environment[exerciseMatchFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "exercise-match"
+    }
+
     static var instagramAppID: String {
         ProcessInfo.processInfo.environment[instagramAppIDEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }

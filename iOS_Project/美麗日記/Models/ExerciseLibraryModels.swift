@@ -69,6 +69,18 @@ enum ExerciseLibraryTypeFilter: String, CaseIterable, Identifiable {
     }
 }
 
+/// exercise-match Edge Function 的回傳:動作 + 一句推薦理由。
+struct ExerciseMatchResult: Decodable, Identifiable, Hashable {
+    let item: ExerciseLibraryItem
+    let reason: String
+
+    var id: String { item.id }
+}
+
+struct ExerciseMatchResponse: Decodable {
+    let matches: [ExerciseMatchResult]
+}
+
 enum ExerciseLibraryConstants {
     /// exercise_library 的 body_part_zh 全部取值(依資料量排序)
     static let bodyParts = ["上臂", "大腿", "背部", "腰腹", "胸部", "肩部", "小腿", "前臂", "心肺", "頸部"]

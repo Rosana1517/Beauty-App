@@ -62,4 +62,18 @@ struct ExerciseLibraryService {
             responseType: [ExerciseLibraryItem].self
         )
     }
+
+    /// 呼叫 exercise-match Edge Function:需求文字 → AI 挑選的動作 + 理由。
+    /// 需要已登入(函式以 bearer token 解析使用者,讀取其 AI 供應商設定)。
+    func matchExercises(need: String) async throws -> [ExerciseMatchResult] {
+        struct Payload: Encodable {
+            let need: String
+        }
+        let response = try await client.invokeFunction(
+            named: AppRuntimeConfiguration.exerciseMatchFunction,
+            payload: Payload(need: need),
+            responseType: ExerciseMatchResponse.self
+        )
+        return response.matches
+    }
 }

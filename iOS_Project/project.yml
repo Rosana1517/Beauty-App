@@ -129,6 +129,7 @@ targets:
       - path: 美麗日記/Views/BodyViews.swift
       - path: 美麗日記/Views/BodyViews+Exercise.swift
       - path: 美麗日記/Views/BodyViews+ExerciseLibrary.swift
+      - path: 美麗日記/Views/BodyViews+ExerciseMatch.swift
       - path: 美麗日記/Views/BodyViews+ExerciseLibraryDetail.swift
       - path: 美麗日記/Views/BodyViews+Shaping.swift
       - path: 美麗日記/Views/BodyViews+Wellness.swift

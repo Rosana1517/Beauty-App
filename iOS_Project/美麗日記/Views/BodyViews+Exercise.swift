@@ -33,6 +33,30 @@ struct ExercisePunchView: View {
 
                 CardView {
                     NavigationLink {
+                        ExerciseMatchView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "wand.and.stars")
+                                .font(.title3)
+                                .foregroundStyle(AppTheme.primary)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text("AI 動作匹配")
+                                    .font(.headline)
+                                    .foregroundStyle(AppTheme.text)
+                                Text("輸入需求,AI 從資料庫挑出最適合你的動作組合")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(AppTheme.subtext)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                CardView {
+                    NavigationLink {
                         ExerciseLibraryView()
                     } label: {
                         HStack(spacing: 12) {
