@@ -44,12 +44,13 @@
   - 第一輪(commit a5f6146):修掉 `trailing_newline`(76,CRLF 換行結尾)與 `vertical_whitespace`(36,多餘空行)→ 剩 91 個;CI 全綠(build-ios-simulator 10m31s ✓)
   - 第二輪(commit 111bcc5 + b469656):修掉 `trailing_comma`(10)、`redundant_string_enum_value`(10)、`unused_closure_parameter`(15)、`duplicate_imports`(2)、`implicit_optional_initialization`(4)、`large_tuple`(4,改成具名 struct `AchievementItem`/`ExerciseCompletionRates`,僅限單檔案內部使用,無外部 API 影響)、`line_length`(2)、`force_cast`(1,`as!` 改成 `if let ... as?`)共 49 個 → **剩 43 個**;CI 全綠(build-ios-simulator 13m42s ✓)
   - **踩坑記錄(教訓)**:commit 111bcc5 對 `BeautyViews+HairAndBody.swift` 用 Edit 工具的 `replace_all: true` 修 `unused_closure_parameter`,但該檔案裡 `{ values, newDate in }` 這個 pattern 在 `showsDate: false`(newDate 真的沒用到)與 `showsDate: true`(newDate 有用到,要寫入 `updated.date`)兩種情境都出現,replace_all 誤把 3 處「有用到」的也改成 `_`,導致編譯錯誤(`cannot find 'newDate' in scope`)。已於 commit b469656 修正並重跑 CI 驗證通過。**教訓:同一 pattern 在同檔案內若可能出現在語意不同的位置(尤其是「參數是否被使用」這種要看函式本體才能判斷的情況),絕不能用 `replace_all: true` 盲改,必須逐一 Read 確認上下文語意一致後才批次替換,否則要靠 CI 才能抓到。**
-  - **剩餘 43 個違規,刻意跳過未修,原因如下**:
-    - `multiple_closures_with_trailing_closure`(37):把 trailing closure 語法改成具名參數語法會改動所有呼叫端的結構(不只是重新命名),範圍大且分散在 9 個檔案,風險較高,建議另開一輪仔細做
-    - `function_parameter_count`(3):`ResourceImportService+WebPage.swift` 的 `makeDraft`(12 參數)與 `SupabaseAuthService+EmailAuthHTTP.swift` 的 `request`/`performRequest`(7 參數,含泛型)要降到 5 以下需要包成 DTO/Options struct,牽涉所有呼叫端簽名,風險較高
-    - `function_body_length`(1):`XHSMediaDeriver.derive`(HTML 爬蟲解析函式),拆分需要重構解析邏輯,擔心引入爬蟲 bug
-    - `optional_data_string_conversion`(1):建議把 `String(decoding:as:)`(遇到非法編碼會 lossy-decode 保留亂碼字元)改成 `String(bytes:encoding:)`(遇到非法編碼回傳 nil),這是行為語意改變,可能讓格式異常的網頁匯入從「勉強解析」變成「直接失敗」,不確定是否為預期行為,先跳過
+  - 第三輪(commit e4d1918):修掉 `multiple_closures_with_trailing_closure`(37)→ **剩 6 個**。34 處 `.recordActions(onEdit: {...}) { ... }` 用 python 正則腳本機械轉成 `.recordActions(onEdit: {...}, onDelete: { ... })`(比對前後大括號配對與 diff 驗證皆為 closure 語法變動,無邏輯改變);另外 `BeautyViews+Whitening.swift` 的 2 處 `planRow(...) { ... }`、`ProfileViews+ResourceLibrary.swift` 的 `.sheet(isPresented:onDismiss:) { ... }` 手動改成具名參數。CI 驗證:`Build for iOS Simulator` 三次執行皆 ✓;`Run UI tests` 前兩次重跑各自失敗在不同、且與本次改動完全無關的測試(第一次 `testXiaohongshuLinkParsesToRealMetadata` 小紅書網路解析逾時、第二次 `testSignInReachesAuthenticatedAndSyncsResources` 模擬器啟動逾時「Timed out while requesting launch progress」),第三次重跑**全數通過**(`build-ios-simulator` 13m16s ✓);判定前兩次為 CI 環境偶發性問題而非迴歸,依據:(1) 三次編譯皆乾淨通過 (2) 失敗測試涉及 CloudSync 登入同步與小紅書解析,與這批只動 24 個 View 檔案 closure 語法的改動範圍完全不相關 (3) 兩次失敗測試彼此不同,不是同一處穩定重現的錯誤
+  - **剩餘 6 個違規,刻意跳過未修,集中在 2 個檔案,原因如下**:
+    - `function_parameter_count`(3):`ResourceImportService+WebPage.swift` 的 `makeDraft`(12 參數)與 `SupabaseAuthService+EmailAuthHTTP.swift` 的 `request`/`performRequest`(6 參數,含泛型)要降到 5 以下需要包成 DTO/Options struct,牽涉所有呼叫端簽名,風險較高
+    - `function_body_length`(1):`ResourceImportService+XHS.swift` 的 `XHSMediaDeriver.derive`(85 行 HTML 爬蟲解析函式),拆分需要重構解析邏輯,擔心引入爬蟲 bug
+    - `optional_data_string_conversion`(1):`ResourceImportService+WebPage.swift`,建議把 `String(decoding:as:)`(遇到非法編碼會 lossy-decode 保留亂碼字元)改成 `String(bytes:encoding:)`(遇到非法編碼回傳 nil),這是行為語意改變,可能讓格式異常的網頁匯入從「勉強解析」變成「直接失敗」,不確定是否為預期行為,先跳過
     - `line_length`(1,警告等級,197/160 字元,`ResourceImportService+WebPage.swift` 的 User-Agent 字串):同一個因上述兩條而整體避開修改的高風險檔案,一併留待之後處理
+    - **建議選項(尚未執行,待使用者決定)**:違規已降到個位數且全部集中在 `ResourceImportService+WebPage.swift`、`ResourceImportService+XHS.swift`、`SupabaseAuthService+EmailAuthHTTP.swift` 這 3 個檔案,可考慮 (a) 另開一輪處理這 6 個(涉及函式簽名/DTO 重構,風險較高)(b) 把這幾個檔案加進 `.swiftlint.yml` 的 `excluded` 清單,其餘 100+ 個檔案的 lint job 拿掉 `continue-on-error` 轉為真正 blocking 的品質閘門 (c) 維持現狀,全部檔案都是 advisory
   - 目前 lint job 維持 **advisory**(`continue-on-error: true`),不阻斷 CI
 - `MVP_GAP_TRACKER.md` 所列 P0 項目(小紅書/Instagram 正式匯入、真實 AI 供應商、同步衝突處理)仍為 partial/in progress
 
@@ -63,7 +64,8 @@
 - SwiftLint 已加入 CI(advisory);待使用者決定是否要花時間清理 203 個基準違規、轉為 blocking 閘門
 - 其餘 [待確認] 項目(隱私合規、性能/成本上限、可用性、維護方式)可待上線前再補,不阻塞當前拆檔工作
 - 外層工作目錄清理與 `scripts/` 安全底線皆已完成;僅剩 `API.txt` 待使用者自行處理
-- `exercise_library` 後續切片建議:① ~~AI 批次翻譯補齊中文~~(✅)② ~~iOS 端查詢/展示~~(✅ 本切片,待 CI + 使用者驗收)③ AI 智能匹配(需求 → Edge Function + Claude API → 回傳動作清單)④ 媒體搬遷至 Supabase Storage(約 125 MB)
+- `exercise_library` 後續切片建議:① ~~AI 批次翻譯補齊中文~~(✅)② ~~iOS 端查詢/展示~~(✅ 已驗收)③ ~~AI 智能匹配~~(✅ 本切片,待 CI + 使用者驗收)④ 媒體搬遷至 Supabase Storage(約 125 MB)
+- **AI 動作匹配切片**(2026-07-17):新增 Edge Function `exercise-match`(已部署):bearer token 解析使用者 → 需求關鍵字推斷部位/瑜伽/居家器材過濾 → 預篩 exercise_library 候選(最多約 150 筆)→ `_shared/aiProvider.ts` 新增 `matchExercisesFromCatalog()`(沿用使用者自帶 AI 供應商 + 雙請求降延遲,只接受清單內 id)→ 回傳完整動作資料+推薦理由;iOS 端:`AppRuntimeConfiguration.exerciseMatchFunction`、`ExerciseLibraryService.matchExercises(need:)`、`BodyViews+ExerciseMatch.swift`(輸入+常用需求 chips+結果卡片,可進詳情/一鍵加入自訂運動,未登入與未設 AI 供應商有明確錯誤引導),運動管理頁新增「AI 動作匹配」入口卡;`BodyViews+Exercise.swift` 290 行接近上限,下次動它前先拆
 - **運動資料庫 iOS 展示切片**(2026-07-17):新增 `Models/ExerciseLibraryModels.swift`(77 行)、`Services/ExerciseLibraryService.swift`(65 行,重用 `SupabaseRESTClient` 匿名查詢)、`Views/BodyViews+ExerciseLibrary.swift`(249 行,清單+類型/部位/難度篩選+中英文搜尋+分頁載入)、`Views/BodyViews+ExerciseLibraryDetail.swift`(152 行,詳情+GIF 動畫示範 `AnimatedGIFView`(WKWebView,AsyncImage 不會播 GIF)+步驟/功效+出處標記);入口為體態頁 → 運動管理 → 「運動資料庫」卡片(`BodyViews+Exercise.swift` +24 行);`project.yml` 已加 4 個新檔;PRD 已先行更新(功能列表/完成定義/驗收清單);全部檔案 300 行以下,新符號已 grep 確認無撞名
 - 使用執行 `csv_to_supabase.py`/`pregenerate_recommendations.py`/`test_ai_recommend.py`/`thumbnails_to_storage.py`/`xhs_fetch_classify.py` 前需先 `export SUPABASE_SERVICE_ROLE_KEY=...`(或 Windows `set`),否則會直接報錯退出
 
