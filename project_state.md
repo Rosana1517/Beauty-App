@@ -51,7 +51,13 @@
     - `optional_data_string_conversion`(1):`ResourceImportService+WebPage.swift`,建議把 `String(decoding:as:)`(遇到非法編碼會 lossy-decode 保留亂碼字元)改成 `String(bytes:encoding:)`(遇到非法編碼回傳 nil),這是行為語意改變,可能讓格式異常的網頁匯入從「勉強解析」變成「直接失敗」,不確定是否為預期行為,先跳過
     - `line_length`(1,警告等級,197/160 字元,`ResourceImportService+WebPage.swift` 的 User-Agent 字串):同一個因上述兩條而整體避開修改的高風險檔案,一併留待之後處理
   - ✅ **已轉為 blocking gate**(2026-07-18,commit e6813ce):使用者選擇「排除這 3 個問題檔案,其餘轉 blocking」。把 `ResourceImportService+WebPage.swift`、`ResourceImportService+XHS.swift`、`SupabaseAuthService+EmailAuthHTTP.swift` 加進 `iOS_Project/.swiftlint.yml` 的 `excluded` 清單(路徑寫成相對於 `included: [美麗日記]` 的 `美麗日記/Services/...`),同時拿掉 CI `lint` job 的 `continue-on-error: true`;JSON report 步驟改用 `if: always()` 保留診斷用途。CI 驗證:run 29632614081 的 `lint` job 16 秒 ✓ 通過(零違規,exclude 路徑寫法正確一次到位)。**現在其餘 100+ 個檔案的任何新 SwiftLint 違規都會讓 CI 失敗**,3 個排除檔案的既有 6 個違規待日後另開一輪(函式簽名/DTO 重構)處理後再移出排除清單
-- `MVP_GAP_TRACKER.md` 所列 P0 項目(小紅書/Instagram 正式匯入、真實 AI 供應商、同步衝突處理)仍為 partial/in progress
+- ✅ **MVP_GAP_TRACKER P0 重新稽核**(2026-07-18):對照真實代碼逐條核對,發現 tracker 嚴重過期,已據實改寫。實情:
+  - **P0.1 Auth+同步 = done**:session 持久化/還原+過期自動 refresh、email/密碼/Magic Link/登出、同步 401 自動 refresh+重試(`recoverSessionIfNeeded`)、短暫網路重試、資源層衝突合併(`merge`+`canOverwriteWithRemote`)、RLS 已部署驗證皆完成;僅剩「跨裝置 **profile** 衝突仍 seed-only」屬 P1 邊角
+  - **P0.2 後端函式 = done**:9 個 Edge Function 已部署
+  - **P0.3 平台匯入 = 外部阻塞(非代碼缺口)**:Instagram 需 Meta Graph API 商家驗證+App Review(數週、使用者驅動);小紅書無公開 API 且台灣封鎖(見 auto-memory)——皆非寫代碼可解
+  - **P0.4 真實 AI = done**:`aiProvider.ts` 已完整串接 OpenAI/Anthropic(使用者自帶金鑰+RLS 隔離+Tavily 網搜+Vision),被 5 個函式消費
+  - 附帶發現:P1.5 通知排程也已有真實 `UNUserNotificationCenter` 實作(非 stub),tracker 亦過期
+  - **結論:無「未做且我能直接寫代碼」的 P0 缺口;下一步方向待使用者決定(Instagram 需其先取得憑證 / 轉 P1 資料管理 UX / 其他)**
 
 - ✅ **運動資料庫 `exercise_library` 已上線 Supabase**(2026-07-17):整合 exercises-dataset(1,324 筆健身動作,中文教學已簡轉繁)與 yoga-api(48 個瑜伽體式,繁中名稱/難度/分類已補)共 1,372 筆,統一格式;schema(含 RLS 公開唯讀、tags GIN 索引)、清洗與匯入腳本、原始資料備份皆在外層 `../database/`;已用 publishable key 驗證匿名讀取、難度/tags 篩選、繁中內容皆正常;媒體仍外連 GitHub raw/Cloudinary(詳見 `../database/README.md`)
 - ✅ **`exercise_library` 中文翻譯已全數補齊**(2026-07-17):AI 批次翻譯 1,324 個健身動作繁中名稱(統一術語慣例:槓鈴/啞鈴/滑輪/槓桿式/上斜/坐姿/俯身等)與 48 個瑜伽體式的繁中動作說明+功效;翻譯檔存於 `../database/translations/`(strength_names_zh.json / yoga_zh.json),`apply_translations.py` 已套用到本地 cleaned JSON 與 Supabase;驗證:全表 1,372 筆 `name_zh`/`description_zh` 100% 非空、yoga 48 筆 `benefits_zh` 100% 非空,抽查內容正確
