@@ -2,7 +2,7 @@
 
 ## 當前階段
 
-舊專案積木化改造(模式 E)20 個切片全數完成並通過 CI 驗證。全專案已無超過 300 行的檔案,外層工作目錄已清理,安全底線問題已修復,質量閘門(SwiftLint)已加入 CI(advisory 模式)。
+舊專案積木化改造(模式 E)20 個切片全數完成並通過 CI 驗證。全專案已無超過 300 行的檔案,外層工作目錄已清理,安全底線問題已修復,質量閘門(SwiftLint)已加入 CI 並轉為 blocking gate(3 個已知問題檔案暫時排除)。
 
 已完成:
 - 體檢:掃描工作目錄結構,確認 `publish_ios_repo`(本目錄)為唯一真專案,外層工作目錄混雜競品 APK 分析、小紅書爬蟲輸出、過期複製品,不屬於本專案
@@ -50,8 +50,7 @@
     - `function_body_length`(1):`ResourceImportService+XHS.swift` 的 `XHSMediaDeriver.derive`(85 行 HTML 爬蟲解析函式),拆分需要重構解析邏輯,擔心引入爬蟲 bug
     - `optional_data_string_conversion`(1):`ResourceImportService+WebPage.swift`,建議把 `String(decoding:as:)`(遇到非法編碼會 lossy-decode 保留亂碼字元)改成 `String(bytes:encoding:)`(遇到非法編碼回傳 nil),這是行為語意改變,可能讓格式異常的網頁匯入從「勉強解析」變成「直接失敗」,不確定是否為預期行為,先跳過
     - `line_length`(1,警告等級,197/160 字元,`ResourceImportService+WebPage.swift` 的 User-Agent 字串):同一個因上述兩條而整體避開修改的高風險檔案,一併留待之後處理
-    - **建議選項(尚未執行,待使用者決定)**:違規已降到個位數且全部集中在 `ResourceImportService+WebPage.swift`、`ResourceImportService+XHS.swift`、`SupabaseAuthService+EmailAuthHTTP.swift` 這 3 個檔案,可考慮 (a) 另開一輪處理這 6 個(涉及函式簽名/DTO 重構,風險較高)(b) 把這幾個檔案加進 `.swiftlint.yml` 的 `excluded` 清單,其餘 100+ 個檔案的 lint job 拿掉 `continue-on-error` 轉為真正 blocking 的品質閘門 (c) 維持現狀,全部檔案都是 advisory
-  - 目前 lint job 維持 **advisory**(`continue-on-error: true`),不阻斷 CI
+  - ✅ **已轉為 blocking gate**(2026-07-18,commit e6813ce):使用者選擇「排除這 3 個問題檔案,其餘轉 blocking」。把 `ResourceImportService+WebPage.swift`、`ResourceImportService+XHS.swift`、`SupabaseAuthService+EmailAuthHTTP.swift` 加進 `iOS_Project/.swiftlint.yml` 的 `excluded` 清單(路徑寫成相對於 `included: [美麗日記]` 的 `美麗日記/Services/...`),同時拿掉 CI `lint` job 的 `continue-on-error: true`;JSON report 步驟改用 `if: always()` 保留診斷用途。CI 驗證:run 29632614081 的 `lint` job 16 秒 ✓ 通過(零違規,exclude 路徑寫法正確一次到位)。**現在其餘 100+ 個檔案的任何新 SwiftLint 違規都會讓 CI 失敗**,3 個排除檔案的既有 6 個違規待日後另開一輪(函式簽名/DTO 重構)處理後再移出排除清單
 - `MVP_GAP_TRACKER.md` 所列 P0 項目(小紅書/Instagram 正式匯入、真實 AI 供應商、同步衝突處理)仍為 partial/in progress
 
 - ✅ **運動資料庫 `exercise_library` 已上線 Supabase**(2026-07-17):整合 exercises-dataset(1,324 筆健身動作,中文教學已簡轉繁)與 yoga-api(48 個瑜伽體式,繁中名稱/難度/分類已補)共 1,372 筆,統一格式;schema(含 RLS 公開唯讀、tags GIN 索引)、清洗與匯入腳本、原始資料備份皆在外層 `../database/`;已用 publishable key 驗證匿名讀取、難度/tags 篩選、繁中內容皆正常;媒體仍外連 GitHub raw/Cloudinary(詳見 `../database/README.md`)
