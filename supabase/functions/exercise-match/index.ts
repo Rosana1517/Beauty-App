@@ -48,19 +48,28 @@ interface CandidateRow {
   target_muscle: string | null;
 }
 
+/** 候選少於此數時補進瑜伽體式,避免冷門部位只回傳 2-3 個動作 */
+const THIN_POOL_THRESHOLD = 25;
+
+async function fetchYogaPoses(supabase: ReturnType<typeof createAdminClient>): Promise<CandidateRow[]> {
+  const { data } = await supabase
+    .from("exercise_library")
+    .select(CANDIDATE_SELECT)
+    .eq("item_type", "yoga")
+    .limit(48);
+  return (data ?? []) as CandidateRow[];
+}
+
 async function fetchCandidates(need: string): Promise<CandidateRow[]> {
   const supabase = createAdminClient();
   const { bodyParts, wantsYoga, homeOnly } = inferFilters(need);
   const rows: CandidateRow[] = [];
+  let yogaIncluded = false;
 
   // 瑜伽需求(或無明確部位)一律附上全部 48 個體式讓 LLM 挑
   if (wantsYoga || bodyParts.length === 0) {
-    const { data } = await supabase
-      .from("exercise_library")
-      .select(CANDIDATE_SELECT)
-      .eq("item_type", "yoga")
-      .limit(48);
-    rows.push(...((data ?? []) as CandidateRow[]));
+    rows.push(...await fetchYogaPoses(supabase));
+    yogaIncluded = true;
   }
 
   if (bodyParts.length > 0) {
@@ -88,6 +97,13 @@ async function fetchCandidates(need: string): Promise<CandidateRow[]> {
         .limit(18);
       rows.push(...((data ?? []) as CandidateRow[]));
     }
+  }
+
+  // 冷門部位(如「頸部」全庫僅 2 筆、「前臂」37 筆)過濾後候選過少,
+  // LLM 湊不出承諾的 5-8 個動作。補進瑜伽伸展體式讓組合完整,
+  // 對頸部/肩背這類需求本來就適合搭配伸展收尾。
+  if (!yogaIncluded && rows.length < THIN_POOL_THRESHOLD) {
+    rows.push(...await fetchYogaPoses(supabase));
   }
 
   return rows;

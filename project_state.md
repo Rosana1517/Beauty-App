@@ -57,7 +57,15 @@
   - **P0.3 平台匯入 = 外部阻塞(非代碼缺口)**:Instagram 需 Meta Graph API 商家驗證+App Review(數週、使用者驅動);小紅書無公開 API 且台灣封鎖(見 auto-memory)——皆非寫代碼可解
   - **P0.4 真實 AI = done**:`aiProvider.ts` 已完整串接 OpenAI/Anthropic(使用者自帶金鑰+RLS 隔離+Tavily 網搜+Vision),被 5 個函式消費
   - 附帶發現:P1.5 通知排程也已有真實 `UNUserNotificationCenter` 實作(非 stub),tracker 亦過期
-  - **結論:無「未做且我能直接寫代碼」的 P0 缺口;下一步方向待使用者決定(Instagram 需其先取得憑證 / 轉 P1 資料管理 UX / 其他)**
+  - **結論:無「未做且我能直接寫代碼」的 P0 缺口;使用者選擇方向 = 全鏈路驗證+打磨**
+- ✅ **P0 後端全鏈路實測**(2026-07-18,`scratchpad/rls_test.py`,測試帳號用完即刪):**14/15 通過**
+  - Auth 生命週期:建帳號 → 密碼登入 → refresh_token 換新 token 全數 PASS
+  - **RLS 安全隔離全綠(上線前最關鍵):** A 可建自己的 `app_users`/`resource_items`;A **無法**冒名以 `user_id=B` 寫入(403);B **讀不到** A 的資源;**匿名讀不到任何** resource_item;`user_ai_provider_settings` 僅限本人
+  - Edge Function 驗證路徑:`exercise-match`/`ai-advice` 在已登入但未設 AI 供應商時正確回 422 + 中文引導
+  - 唯一 FAIL(低嚴重度,**未修**):帶「非使用者 token」(如 anon key)呼叫 Edge Function 時,共用的 `resolveAuthenticatedUserID` 拋錯被各函式 catch-all 當成 **500 而非 401**。iOS 端會優雅降級(`mappedError` → `.serverMessage`,`ExerciseMatchView` 比對 "authenticated" 顯示「請先登入」),使用者不會看到壞畫面,僅 HTTP 語意不精確。修正需動 9 個函式的 catch 並全部重新部署,驗證期間風險大於效益,**留待後續獨立處理**
+  - 測試腳本初版兩個 FAIL 是我自己用錯欄位(`display_name` 應為 `nickname`),非 app bug——app 端用的是正確欄位
+- ✅ **CI UI 測試覆蓋確認**:既有 5 個測試檔涵蓋 P0 核心(登入→驗證→同步、錯誤密碼、失效連結 fallback、資源匯入、XHS/YouTube 解析);**新的運動資料庫/AI 匹配尚無 UI 測試**(覆蓋缺口,非 bug)
+- ✅ **打磨:exercise-match 冷門部位候選過少**(已改+已部署+已回歸驗證):實測資料發現「頸部」全庫僅 2 筆、過濾後 LLM 湊不出 UI 承諾的 5-8 個動作(「心肺」29 筆中 21 筆徒手,不受影響)。已加 `THIN_POOL_THRESHOLD=25`:候選不足時自動補進 48 個瑜伽伸展體式(頸/肩背需求本就適合搭配伸展)。回歸測試 `scratchpad/match_regression.py` **6/6 通過**(落枕/瘦大腿/居家徒手燃脂/開肩放鬆/隨便動一動/健身房練胸 皆回 422 代表候選取得正常,無 500)
 
 - ✅ **運動資料庫 `exercise_library` 已上線 Supabase**(2026-07-17):整合 exercises-dataset(1,324 筆健身動作,中文教學已簡轉繁)與 yoga-api(48 個瑜伽體式,繁中名稱/難度/分類已補)共 1,372 筆,統一格式;schema(含 RLS 公開唯讀、tags GIN 索引)、清洗與匯入腳本、原始資料備份皆在外層 `../database/`;已用 publishable key 驗證匿名讀取、難度/tags 篩選、繁中內容皆正常;媒體仍外連 GitHub raw/Cloudinary(詳見 `../database/README.md`)
 - ✅ **`exercise_library` 中文翻譯已全數補齊**(2026-07-17):AI 批次翻譯 1,324 個健身動作繁中名稱(統一術語慣例:槓鈴/啞鈴/滑輪/槓桿式/上斜/坐姿/俯身等)與 48 個瑜伽體式的繁中動作說明+功效;翻譯檔存於 `../database/translations/`(strength_names_zh.json / yoga_zh.json),`apply_translations.py` 已套用到本地 cleaned JSON 與 Supabase;驗證:全表 1,372 筆 `name_zh`/`description_zh` 100% 非空、yoga 48 筆 `benefits_zh` 100% 非空,抽查內容正確
