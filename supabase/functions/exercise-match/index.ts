@@ -124,6 +124,52 @@ function toCandidate(row: CandidateRow): ExerciseMatchCandidate {
   };
 }
 
+// ---------------------------------------------------------------------------
+// 面部動作庫(face_exercise_library):變美 → 面部拉提/瑜珈 的 AI 匹配。
+// 全庫僅數十筆,直接全量送入 LLM 挑選,不需部位預篩。
+// ---------------------------------------------------------------------------
+
+const FACE_TYPE_LABELS: Record<string, string> = {
+  face_yoga: "面部瑜珈",
+  face_massage: "面部按摩",
+  face_training: "面部訓練",
+};
+
+interface FaceCandidateRow {
+  id: string;
+  name_zh: string | null;
+  name_en: string;
+  item_type: string;
+  category_zh: string | null;
+  target_area_zh: string[] | null;
+  benefits_zh: string | null;
+  tags: string[] | null;
+}
+
+async function fetchFaceCandidates(): Promise<FaceCandidateRow[]> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("face_exercise_library")
+    .select("id, name_zh, name_en, item_type, category_zh, target_area_zh, benefits_zh, tags")
+    .limit(100);
+  return (data ?? []) as FaceCandidateRow[];
+}
+
+function toFaceCandidate(row: FaceCandidateRow): ExerciseMatchCandidate {
+  const meta = [
+    FACE_TYPE_LABELS[row.item_type] ?? row.item_type,
+    row.category_zh,
+    (row.target_area_zh ?? []).join("·"),
+    row.benefits_zh,
+    (row.tags ?? []).join("·"),
+  ].filter(Boolean).join("/");
+  return {
+    id: row.id,
+    name: row.name_zh?.trim() || row.name_en,
+    meta,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -131,20 +177,23 @@ Deno.serve(async (req) => {
 
   try {
     const userID = await resolveAuthenticatedUserID(req);
-    const payload = (await req.json()) as { need?: unknown };
+    const payload = (await req.json()) as { need?: unknown; library?: unknown };
     const need = typeof payload?.need === "string" ? payload.need.trim() : "";
     if (!need) {
       return jsonResponse({ error: "請輸入想改善的部位或訓練需求。" }, 400);
     }
+    const isFaceLibrary = payload?.library === "face";
 
-    const candidateRows = await fetchCandidates(need);
-    if (candidateRows.length === 0) {
+    const candidates = isFaceLibrary
+      ? (await fetchFaceCandidates()).map(toFaceCandidate)
+      : (await fetchCandidates(need)).map(toCandidate);
+    if (candidates.length === 0) {
       return jsonResponse({ error: "找不到可匹配的動作資料,請稍後再試。" }, 500);
     }
 
     const selections = await matchExercisesFromCatalog(
       need,
-      candidateRows.map(toCandidate),
+      candidates,
       userID,
     );
     if (!selections) {
@@ -157,7 +206,7 @@ Deno.serve(async (req) => {
     // 取回完整欄位(含教學/圖片),讓 App 端直接沿用資料庫詳情頁
     const supabase = createAdminClient();
     const { data: fullRows } = await supabase
-      .from("exercise_library")
+      .from(isFaceLibrary ? "face_exercise_library" : "exercise_library")
       .select("*")
       .in("id", selections.map((s) => s.id));
 

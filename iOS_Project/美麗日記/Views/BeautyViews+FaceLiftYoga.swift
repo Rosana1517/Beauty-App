@@ -23,10 +23,38 @@ struct FaceLiftYogaView: View {
                     buttonTitle: "獲取 AI 推薦"
                 )
 
+                FaceExerciseMatchSection()
+
+                NavigationLink {
+                    FaceExerciseLibraryView()
+                } label: {
+                    CardView {
+                        HStack(spacing: 12) {
+                            Image(systemName: "figure.mind.and.body")
+                                .font(.title2)
+                                .foregroundStyle(AppTheme.primary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("面部動作庫")
+                                    .font(.headline)
+                                    .foregroundStyle(AppTheme.text)
+                                Text("面部瑜珈・按摩・訓練，含示範動圖與分步教學")
+                                    .font(.caption)
+                                    .foregroundStyle(AppTheme.subtext)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(AppTheme.subtext)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .buttonStyle(.plain)
+
                 CardView {
                     VStack(alignment: .leading, spacing: 14) {
                         HStack {
-                            Text("動作庫")
+                            Text("我的動作庫")
                                 .font(.headline)
                                 .foregroundStyle(AppTheme.text)
                             Spacer()
