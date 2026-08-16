@@ -84,6 +84,7 @@ targets:
       - path: 美麗日記/Services/BeautyDiaryStore+Growth.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Finance.swift
       - path: 美麗日記/Services/BeautyDiaryStore+AIAdvice.swift
+      - path: 美麗日記/Services/BeautyDiaryStore+NotionQA.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Habits.swift
       - path: 美麗日記/Services/BeautyDiaryStore+Resource.swift
       - path: 美麗日記/Services/BeautyDiaryStore+ResourceSync.swift
@@ -115,6 +116,7 @@ targets:
       - path: 美麗日記/Services/SupabaseAuthService+EmailAuthCore.swift
       - path: 美麗日記/Services/SupabaseAuthService+EmailAuthHTTP.swift
       - path: 美麗日記/Services/FaceShapeDetector.swift
+      - path: 美麗日記/Services/KeychainStore.swift
       - path: 美麗日記/Views/ContentView.swift
       - path: 美麗日記/Views/MainTabView.swift
       - path: 美麗日記/Views/HomeView.swift
@@ -129,6 +131,7 @@ targets:
       - path: 美麗日記/Views/BeautyViews+Products.swift
       - path: 美麗日記/Views/BeautyViews+Hairstyle.swift
       - path: 美麗日記/Views/BeautyViews+Makeup.swift
+      - path: 美麗日記/Views/BeautyViews+NotionQA.swift
       - path: 美麗日記/Views/BodyViews.swift
       - path: 美麗日記/Views/BodyViews+Exercise.swift
       - path: 美麗日記/Views/BodyViews+ExerciseLibrary.swift
