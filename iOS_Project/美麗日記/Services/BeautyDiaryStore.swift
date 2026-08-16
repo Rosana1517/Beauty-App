@@ -92,6 +92,10 @@ final class BeautyDiaryStore: ObservableObject {
     @Published var isLookingUpProduct = false
     @Published var foodAnalysisError: String?
     @Published var isAnalyzingFood = false
+    @Published var notionQAMessages: [NotionQAChatMessage] = []
+    @Published var isLoadingNotionQA = false
+    @Published var notionQAError: String?
+    @Published var notionQASessionID = KeychainStore.notionQASessionID()
 
     let repository: BeautyDiaryRepository
     let recommendationService = MockRecommendationService()

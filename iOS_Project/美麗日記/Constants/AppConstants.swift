@@ -111,6 +111,12 @@ enum AppRuntimeConfiguration {
         ProcessInfo.processInfo.environment[exerciseMatchFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "exercise-match"
     }
 
+    static let notionQAFunctionEnv = "SUPABASE_NOTION_QA_FUNCTION"
+
+    static var notionQAFunction: String {
+        ProcessInfo.processInfo.environment[notionQAFunctionEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "notion-qa"
+    }
+
     static var instagramAppID: String {
         ProcessInfo.processInfo.environment[instagramAppIDEnv]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     }

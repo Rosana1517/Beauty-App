@@ -13,6 +13,7 @@ struct PipelineRuntimeConfiguration {
     let videoTranscribeFunction: String
     let dietAnalyzeFunction: String
     let productLookupFunction: String
+    let notionQAFunction: String
     let instagramAppID: String
     let instagramRedirectURI: String
     let xiaohongshuClientID: String
@@ -32,6 +33,7 @@ struct PipelineRuntimeConfiguration {
             videoTranscribeFunction: AppRuntimeConfiguration.videoTranscribeFunction,
             dietAnalyzeFunction: AppRuntimeConfiguration.dietAnalyzeFunction,
             productLookupFunction: AppRuntimeConfiguration.productLookupFunction,
+            notionQAFunction: AppRuntimeConfiguration.notionQAFunction,
             instagramAppID: AppRuntimeConfiguration.instagramAppID,
             instagramRedirectURI: AppRuntimeConfiguration.instagramRedirectURI,
             xiaohongshuClientID: AppRuntimeConfiguration.xiaohongshuClientID,
@@ -68,6 +70,7 @@ protocol CloudResourceSyncService {
     func requestVideoTranscription(resourceRemoteID: String, videoURL: String) async
     func requestFoodAnalysis(text: String?, imageData: Data?) async throws -> FoodAnalysisResult?
     func requestProductLookup(name: String?, imageData: Data?) async throws -> ProductLookupResult?
+    func requestNotionQA(message: String, sessionId: String) async throws -> NotionQAResult
     func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws
     func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings?
     func deleteAIProviderSettings(session: SupabaseAuthSession) async throws
@@ -96,6 +99,13 @@ struct FoodAnalysisResult {
     let foodName: String
     let estimatedCalories: Int
     let notes: String
+}
+
+struct NotionQAResult {
+    let text: String
+    let images: [String]
+    let sourceUrl: String
+    let sessionId: String
 }
 
 struct PlatformImportResult {

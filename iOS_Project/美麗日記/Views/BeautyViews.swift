@@ -41,6 +41,8 @@ struct BeautyRootView: View {
                 BeautyAppointmentsView()
             case .makeupInspiration:
                 MakeupInspirationView()
+            case .notionQA:
+                NotionQAView()
             }
         }
         .navigationBarBackButtonHidden()
@@ -67,6 +69,8 @@ struct BeautyRootView: View {
             return "calendar"
         case .makeupInspiration:
             return "paintpalette"
+        case .notionQA:
+            return "bubble.left.and.bubble.right"
         }
     }
 
@@ -90,6 +94,8 @@ struct BeautyRootView: View {
             return "店家安排、日期提醒、服務備註"
         case .makeupInspiration:
             return "妝容收藏、產品試色、妝容打卡"
+        case .notionQA:
+            return "問你的小紅書變美筆記知識庫，附圖回答"
         }
     }
 }

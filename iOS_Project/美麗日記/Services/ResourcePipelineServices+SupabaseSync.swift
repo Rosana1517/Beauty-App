@@ -153,6 +153,20 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
         )
     }
 
+    func requestNotionQA(message: String, sessionId: String) async throws -> NotionQAResult {
+        let response: NotionQAFunctionResponse = try await client.invokeFunction(
+            named: configuration.notionQAFunction,
+            payload: NotionQAFunctionRequest(message: message, sessionId: sessionId),
+            responseType: NotionQAFunctionResponse.self
+        )
+        return NotionQAResult(
+            text: response.text,
+            images: response.images,
+            sourceUrl: response.sourceUrl,
+            sessionId: response.sessionId
+        )
+    }
+
     func requestProductLookup(name: String?, imageData: Data?) async throws -> ProductLookupResult? {
         let response: ProductLookupFunctionResponse = try await client.invokeFunction(
             named: configuration.productLookupFunction,

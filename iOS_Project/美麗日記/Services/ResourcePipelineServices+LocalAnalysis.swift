@@ -149,6 +149,10 @@ struct NoopCloudResourceSyncService: CloudResourceSyncService {
         nil
     }
 
+    func requestNotionQA(message: String, sessionId: String) async throws -> NotionQAResult {
+        NotionQAResult(text: "", images: [], sourceUrl: "", sessionId: sessionId)
+    }
+
     func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws {}
     func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings? { nil }
     func deleteAIProviderSettings(session: SupabaseAuthSession) async throws {}

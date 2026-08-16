@@ -43,6 +43,7 @@ enum BeautyRoute: String, Hashable, Codable, CaseIterable, Identifiable {
     case productLibrary = "產品管理庫"
     case appointments = "美容預約"
     case makeupInspiration = "妝容靈感"
+    case notionQA = "美妝知識問答"
 
     var id: String { rawValue }
 }

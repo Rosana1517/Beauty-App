@@ -167,6 +167,20 @@ export interface AIAdviceResponse {
   relatedResources?: AIAdviceRelatedResource[];
 }
 
+// iOS 端的 SupabaseRESTClient 會把 camelCase 欄位轉成 snake_case 才送出/解碼，
+// 這兩型別直接照 on-wire 的 snake_case 命名，才會跟 Swift 端的 sessionId/sourceUrl 對上。
+export interface NotionQARequest {
+  message: string;
+  session_id: string;
+}
+
+export interface NotionQAResponse {
+  text: string;
+  images: string[];
+  source_url: string;
+  session_id: string;
+}
+
 export interface SupabaseQueueJobResponse {
   id: string;
   sync_status: ResourceSyncStatus;

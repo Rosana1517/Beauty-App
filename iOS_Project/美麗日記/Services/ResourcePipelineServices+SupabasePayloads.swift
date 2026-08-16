@@ -42,6 +42,18 @@ struct AIAdviceFunctionRequest: Encodable {
     let concerns: [String]
 }
 
+struct NotionQAFunctionRequest: Encodable {
+    let message: String
+    let sessionId: String
+}
+
+struct NotionQAFunctionResponse: Decodable {
+    let text: String
+    let images: [String]
+    let sourceUrl: String
+    let sessionId: String
+}
+
 struct VideoTranscribeFunctionRequest: Encodable {
     let resourceID: String
     let videoURL: String
