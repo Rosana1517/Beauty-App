@@ -12,7 +12,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    await resolveAuthenticatedUserID(req);
+    try {
+      await resolveAuthenticatedUserID(req);
+    } catch {
+      // 驗證失敗屬於 client 端問題，要回 401；不要讓它掉到最下面的 catch 變成 500，
+      // 否則 App 會顯示「伺服器錯誤」而不是提示使用者重新登入。
+      return jsonResponse({ error: "請先登入雲端同步帳號。" }, 401);
+    }
 
     const n8nURL = Deno.env.get("N8N_NOTION_QA_URL") ?? "";
     const n8nAPIKey = Deno.env.get("N8N_NOTION_QA_API_KEY") ?? "";
