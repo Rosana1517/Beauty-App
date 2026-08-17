@@ -157,7 +157,9 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
         let response: NotionQAFunctionResponse = try await client.invokeFunction(
             named: configuration.notionQAFunction,
             payload: NotionQAFunctionRequest(message: message, sessionId: sessionId),
-            responseType: NotionQAFunctionResponse.self
+            responseType: NotionQAFunctionResponse.self,
+            // n8n 端 Agent 要多次查 Notion，實測 45~120 秒；比 Edge Function 的 140 秒再多一點餘裕
+            timeout: 160
         )
         return NotionQAResult(
             text: response.text,

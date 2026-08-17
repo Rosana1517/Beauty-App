@@ -53,7 +53,8 @@ struct SupabaseRESTClient {
     func invokeFunction<Payload: Encodable, Response: Decodable>(
         named functionName: String,
         payload: Payload,
-        responseType: Response.Type
+        responseType: Response.Type,
+        timeout: TimeInterval = 90
     ) async throws -> Response {
         try await request(
             path: "/functions/v1/\(functionName)",
@@ -61,8 +62,9 @@ struct SupabaseRESTClient {
             queryItems: [],
             body: payload,
             responseType: responseType,
-            // AI 建議等 LLM function 常需 15~30 秒以上，沿用預設 20 秒會頻繁逾時
-            timeout: 90
+            // AI 建議等 LLM function 常需 15~30 秒以上，沿用預設 20 秒會頻繁逾時。
+            // notion-qa 這類「Agent 多輪呼叫外部工具」的 function 更慢，由呼叫端傳入更長的值。
+            timeout: timeout
         )
     }
 

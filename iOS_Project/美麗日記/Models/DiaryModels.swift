@@ -68,6 +68,8 @@ struct BeautyDiaryState: Codable {
     var menstrualRecords: [MenstrualRecord]
     var nourishmentRecipes: [TutorialLink]
     var bodyConstitution: String?
+    /// 美妝知識問答的對話紀錄，跨啟動保存（與 Keychain 的 sessionID 搭配）
+    var notionQAMessages: [NotionQAChatMessage] = []
 
     enum CodingKeys: String, CodingKey {
         case profile
@@ -133,6 +135,7 @@ struct BeautyDiaryState: Codable {
         case menstrualRecords
         case nourishmentRecipes
         case bodyConstitution
+        case notionQAMessages
     }
 
     init(

@@ -7,7 +7,7 @@ struct NotionQAView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            titleRow(title: "美妝知識問答", action: store.notionQAMessages.isEmpty ? nil : "清空") {
+            titleRow(title: "美妝知識問答", action: store.state.notionQAMessages.isEmpty ? nil : "清空") {
                 store.clearNotionQAConversation()
             }
             .padding(.horizontal, 20)
@@ -16,7 +16,7 @@ struct NotionQAView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 14) {
-                        if store.notionQAMessages.isEmpty {
+                        if store.state.notionQAMessages.isEmpty {
                             EmptyStateView(
                                 title: "問我小紅書變美筆記知識庫",
                                 subtitle: "例如:「法令紋怎麼改善」「有推薦的緊緻按摩手法嗎」"
@@ -24,7 +24,7 @@ struct NotionQAView: View {
                             .padding(.top, 40)
                         }
 
-                        ForEach(store.notionQAMessages) { message in
+                        ForEach(store.state.notionQAMessages) { message in
                             NotionQAMessageBubble(message: message)
                                 .id(message.id)
                         }
@@ -49,7 +49,7 @@ struct NotionQAView: View {
                     }
                     .padding(20)
                 }
-                .onChange(of: store.notionQAMessages) { messages in
+                .onChange(of: store.state.notionQAMessages) { messages in
                     guard let lastID = messages.last?.id else { return }
                     withAnimation {
                         proxy.scrollTo(lastID, anchor: .bottom)

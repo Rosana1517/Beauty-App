@@ -84,3 +84,18 @@ struct Appointment: Identifiable, Codable {
     var date: Date
     var note: String
 }
+
+/// 一則「美妝知識問答」的聊天訊息，含 AI 回覆時附帶的圖片與參考來源。
+/// Role 用 String raw value，避免日後改動 case 順序讓已存的紀錄解不開。
+struct NotionQAChatMessage: Identifiable, Codable, Equatable {
+    enum Role: String, Codable {
+        case user
+        case assistant
+    }
+
+    var id = UUID()
+    var role: Role
+    var text: String
+    var images: [String] = []
+    var sourceUrl: String = ""
+}

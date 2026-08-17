@@ -66,5 +66,6 @@ extension BeautyDiaryState {
         menstrualRecords = try container.decodeIfPresent([MenstrualRecord].self, forKey: .menstrualRecords) ?? []
         nourishmentRecipes = try container.decodeIfPresent([TutorialLink].self, forKey: .nourishmentRecipes) ?? []
         bodyConstitution = try container.decodeIfPresent(String.self, forKey: .bodyConstitution)
+        notionQAMessages = try container.decodeIfPresent([NotionQAChatMessage].self, forKey: .notionQAMessages) ?? []
     }
 }

@@ -33,9 +33,10 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: `message 過長，請控制在 ${MAX_MESSAGE_LENGTH} 字以內。` }, 422);
     }
 
-    // App 端 invokeFunction 給 90 秒逾時，這裡抓短一點才能在那之前吐出明確錯誤訊息
+    // 實測 n8n 端（AI Agent 多次呼叫 Notion 工具）要 45~120 秒，逾時抓太短會把正常回答砍掉。
+    // App 端逾時設得比這裡更長，確保錯誤訊息由這裡產生而不是 client 端斷線。
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 60_000);
+    const timeout = setTimeout(() => controller.abort(), 140_000);
 
     let n8nResponse: Response;
     try {
