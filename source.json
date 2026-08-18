@@ -7,14 +7,21 @@
       "name": "美麗日記",
       "bundleIdentifier": "com.rosana1517.beautifuldiary",
       "developerName": "Rosana1517",
-      "version": "1.0.68",
-      "versionDate": "2026-08-17T15:13:49Z",
-      "versionDescription": "Build #1.0.68",
-      "size": 1529151,
+      "version": "1.0.69",
+      "versionDate": "2026-08-18T03:31:12Z",
+      "versionDescription": "Build #1.0.69",
+      "size": 1530935,
       "localizedDescription": "私人美麗日記 App，匯入小紅書/Instagram/YouTube 內容並用 AI 整理推薦。",
       "iconURL": "https://raw.githubusercontent.com/Rosana1517/Beauty-App/main/source_icon.png",
-      "downloadURL": "https://github.com/Rosana1517/Beauty-App/releases/download/v68/BeautifulDiary.ipa",
+      "downloadURL": "https://github.com/Rosana1517/Beauty-App/releases/download/v69/BeautifulDiary.ipa",
       "versions": [
+        {
+          "version": "1.0.69",
+          "date": "2026-08-18T03:31:12Z",
+          "localizedDescription": "Build #1.0.69",
+          "downloadURL": "https://github.com/Rosana1517/Beauty-App/releases/download/v69/BeautifulDiary.ipa",
+          "size": 1530935
+        },
         {
           "version": "1.0.68",
           "date": "2026-08-17T15:13:49Z",
@@ -42,13 +49,6 @@
           "localizedDescription": "Build #1.0.64",
           "downloadURL": "https://github.com/Rosana1517/Beauty-App/releases/download/v64/BeautifulDiary.ipa",
           "size": 1460695
-        },
-        {
-          "version": "1.0.63",
-          "date": "2026-07-18T05:52:01Z",
-          "localizedDescription": "Build #1.0.63",
-          "downloadURL": "https://github.com/Rosana1517/Beauty-App/releases/download/v63/BeautifulDiary.ipa",
-          "size": 1459075
         }
       ]
     }
