@@ -149,7 +149,7 @@ struct NoopCloudResourceSyncService: CloudResourceSyncService {
         nil
     }
 
-    func requestNotionQA(message: String, sessionId: String) async throws -> NotionQAResult {
+    func requestNotionQA(message: String, sessionId: String, history: [NotionQAHistoryTurn]) async throws -> NotionQAResult {
         NotionQAResult(text: "", images: [], sourceUrl: "", sessionId: sessionId)
     }
 

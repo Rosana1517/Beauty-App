@@ -70,7 +70,7 @@ protocol CloudResourceSyncService {
     func requestVideoTranscription(resourceRemoteID: String, videoURL: String) async
     func requestFoodAnalysis(text: String?, imageData: Data?) async throws -> FoodAnalysisResult?
     func requestProductLookup(name: String?, imageData: Data?) async throws -> ProductLookupResult?
-    func requestNotionQA(message: String, sessionId: String) async throws -> NotionQAResult
+    func requestNotionQA(message: String, sessionId: String, history: [NotionQAHistoryTurn]) async throws -> NotionQAResult
     func upsertAIProviderSettings(session: SupabaseAuthSession, settings: AIProviderSettings) async throws
     func fetchAIProviderSettings(session: SupabaseAuthSession) async throws -> AIProviderSettings?
     func deleteAIProviderSettings(session: SupabaseAuthSession) async throws

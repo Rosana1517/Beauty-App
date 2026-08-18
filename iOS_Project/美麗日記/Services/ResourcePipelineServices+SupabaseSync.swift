@@ -153,13 +153,14 @@ struct SupabaseCloudResourceSyncService: CloudResourceSyncService {
         )
     }
 
-    func requestNotionQA(message: String, sessionId: String) async throws -> NotionQAResult {
+    func requestNotionQA(message: String, sessionId: String, history: [NotionQAHistoryTurn]) async throws -> NotionQAResult {
         let response: NotionQAFunctionResponse = try await client.invokeFunction(
             named: configuration.notionQAFunction,
-            payload: NotionQAFunctionRequest(message: message, sessionId: sessionId),
+            payload: NotionQAFunctionRequest(message: message, sessionId: sessionId, history: history),
             responseType: NotionQAFunctionResponse.self,
-            // n8n 端 Agent 要多次查 Notion，實測 45~120 秒；比 Edge Function 的 140 秒再多一點餘裕
-            timeout: 160
+            // Edge Function 內部逾時 60 秒（實測 Notion + LLM 約 1~10 秒，冷啟動偶爾 20 秒以上），
+            // 這裡設得比它長，確保逾時訊息由伺服器產生而不是 client 端先斷線
+            timeout: 75
         )
         return NotionQAResult(
             text: response.text,

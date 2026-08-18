@@ -42,9 +42,16 @@ struct AIAdviceFunctionRequest: Encodable {
     let concerns: [String]
 }
 
+/// 帶給 notion-qa 的一輪對話。伺服器端不存記憶，改由 App 送出最近幾輪。
+struct NotionQAHistoryTurn: Encodable {
+    let role: String
+    let text: String
+}
+
 struct NotionQAFunctionRequest: Encodable {
     let message: String
     let sessionId: String
+    let history: [NotionQAHistoryTurn]
 }
 
 struct NotionQAFunctionResponse: Decodable {
