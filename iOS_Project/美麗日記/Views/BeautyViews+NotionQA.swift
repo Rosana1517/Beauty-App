@@ -67,6 +67,7 @@ struct NotionQAView: View {
             ThemedTextField(title: "輸入你的美妝問題…", text: $draft)
                 .focused($inputFocused)
                 .onSubmit(send)
+                .accessibilityIdentifier("notionQA.inputField")
 
             Button(action: send) {
                 Image(systemName: "arrow.up.circle.fill")
@@ -74,6 +75,7 @@ struct NotionQAView: View {
                     .foregroundStyle(canSend ? AppTheme.primary : AppTheme.subtext)
             }
             .disabled(!canSend)
+            .accessibilityIdentifier("notionQA.sendButton")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -104,16 +106,28 @@ private struct NotionQAMessageBubble: View {
                 Text(message.text)
                     .font(.subheadline)
                     .foregroundStyle(message.role == .user ? .white : AppTheme.text)
+                    .accessibilityIdentifier(message.role == .user ? "notionQA.userText" : "notionQA.assistantText")
 
                 if !message.images.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(message.images, id: \.self) { imageURL in
+                                // 兩個分支各自掛 identifier，UI 測試才分得出
+                                // 「圖片真的下載成功」和「只是佔位色塊」——
+                                // 圖片來源是 Supabase Storage 的簽章網址，
+                                // 這是驗收鏡像有沒有生效的唯一可靠訊號。
                                 AsyncImage(url: URL(string: imageURL)) { phase in
                                     if case .success(let image) = phase {
                                         image.resizable().scaledToFill()
+                                            .accessibilityElement()
+                                            .accessibilityLabel("筆記圖片")
+                                            .accessibilityAddTraits(.isImage)
+                                            .accessibilityIdentifier("notionQA.image.loaded")
                                     } else {
                                         AppTheme.primarySoft
+                                            .accessibilityElement()
+                                            .accessibilityLabel("筆記圖片載入中")
+                                            .accessibilityIdentifier("notionQA.image.placeholder")
                                     }
                                 }
                                 .frame(width: 96, height: 96)
