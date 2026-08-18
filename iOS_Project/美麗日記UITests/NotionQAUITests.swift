@@ -33,6 +33,20 @@ final class NotionQAUITests: XCTestCase {
         return (app, email, password)
     }
 
+    /// 先清空欄位再輸入。
+    ///
+    /// 整個 xctest bundle 共用同一份模擬器 App 資料，前面的測試登入過之後
+    /// `authEmail` 會被 `store.authSession?.email` 預先填好；直接 typeText
+    /// 會變成把 email 接在既有內容後面，登入必定失敗（CI 上就是這樣掛的）。
+    private func replaceText(_ field: XCUIElement, with text: String) {
+        field.tap()
+        // 欄位為空時 value 會是 placeholder 文字，多送幾個 delete 也無害
+        if let current = field.value as? String, !current.isEmpty {
+            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count))
+        }
+        field.typeText(text)
+    }
+
     /// notion-qa 會驗 JWT，沒登入一律回 401，所以問答前一定要先登入。
     private func signIn(_ app: XCUIApplication, email: String, password: String) {
         let profileTab = app.tabBars.buttons["我的"]
@@ -43,32 +57,44 @@ final class NotionQAUITests: XCTestCase {
         XCTAssertTrue(settingsLink.waitForExistence(timeout: 15))
         settingsLink.tap()
 
+        let statusValue = app.otherElements["supabaseSync.statusValue"]
+        XCTAssertTrue(statusValue.waitForExistence(timeout: 15), "個人設定頁應該看得到雲端同步卡片。")
+
+        // 前一支測試可能已經留下有效的 session，這時不用再登入一次
+        if (statusValue.value as? String) == "已登入" { return }
+
         let emailField = app.textFields["supabaseSync.emailField"]
-        XCTAssertTrue(emailField.waitForExistence(timeout: 15), "個人設定頁應該看得到雲端同步卡片。")
-        emailField.tap()
-        emailField.typeText(email)
+        XCTAssertTrue(emailField.waitForExistence(timeout: 15))
+        replaceText(emailField, with: email)
+        XCTAssertEqual((emailField.value as? String) ?? "", email, "Email 欄位沒有被正確填入。")
 
         let passwordField = app.secureTextFields["supabaseSync.passwordField"]
         XCTAssertTrue(passwordField.exists)
-        passwordField.tap()
-        passwordField.typeText(password)
+        replaceText(passwordField, with: password)
 
         app.buttons["supabaseSync.signInButton"].tap()
 
-        let statusValue = app.otherElements["supabaseSync.statusValue"]
-        XCTAssertTrue(statusValue.waitForExistence(timeout: 10))
         let authenticated = XCTNSPredicateExpectation(
             predicate: NSPredicate(format: "value == %@", "已登入"),
             object: statusValue
         )
+        let result = XCTWaiter().wait(for: [authenticated], timeout: 45)
+        if result != .completed {
+            attachScreenshot(app, name: "notion-qa-sign-in-failed")
+        }
+        let authMessage = app.staticTexts["supabaseSync.authMessage"]
         XCTAssertEqual(
-            XCTWaiter().wait(for: [authenticated], timeout: 45),
+            result,
             .completed,
-            "登入應該進到「已登入」。目前狀態：\(statusValue.value ?? "nil")"
+            "登入應該進到「已登入」。目前狀態：\(statusValue.value ?? "nil")；"
+                + "畫面訊息：\(authMessage.exists ? authMessage.label : "（無）")"
         )
     }
 
     private func openNotionQA(_ app: XCUIApplication) {
+        // 重啟後 App 可能直接還原在這一頁，這時沒有入口卡片可以點
+        if app.textFields["notionQA.inputField"].exists { return }
+
         let beautyTab = app.tabBars.buttons["變美"]
         XCTAssertTrue(beautyTab.waitForExistence(timeout: 15))
         beautyTab.tap()
@@ -81,6 +107,15 @@ final class NotionQAUITests: XCTestCase {
             swipes += 1
         }
         entry.tap()
+    }
+
+    /// 同一份模擬器 App 資料會跨測試留存，先清掉舊對話，
+    /// 後面才能用 firstMatch 穩定指到「這次」問的那一則。
+    private func clearConversation(_ app: XCUIApplication) {
+        let clearButton = app.buttons["清空"]
+        if clearButton.waitForExistence(timeout: 3) {
+            clearButton.tap()
+        }
     }
 
     private func ask(_ app: XCUIApplication, question: String) {
@@ -112,6 +147,7 @@ final class NotionQAUITests: XCTestCase {
         let (app, email, password) = try launchConfiguredApp()
         signIn(app, email: email, password: password)
         openNotionQA(app)
+        clearConversation(app)
         ask(app, question: "有瘦腿的方法嗎")
 
         let answer = app.staticTexts["notionQA.assistantText"].firstMatch
@@ -144,6 +180,7 @@ final class NotionQAUITests: XCTestCase {
         let (app, email, password) = try launchConfiguredApp()
         signIn(app, email: email, password: password)
         openNotionQA(app)
+        clearConversation(app)
 
         let question = "痘痘怎麼處理"
         ask(app, question: question)
