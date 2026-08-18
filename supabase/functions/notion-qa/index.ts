@@ -4,6 +4,7 @@ import type { NotionQARequest, NotionQAResponse } from "../_shared/types.ts";
 import { extractKeyword } from "./keyword.ts";
 import { searchNotes } from "./notion.ts";
 import { generateAnswer, type ChatTurn } from "./llm.ts";
+import { mirrorImages } from "./media.ts";
 
 const MAX_MESSAGE_LENGTH = 1000;
 /** 帶進 LLM 的對話輪數上限（由 App 端傳來），避免 prompt 無限膨脹 */
@@ -84,21 +85,26 @@ Deno.serve(async (req) => {
       const keyword = extractKeyword(message);
       const retrieval = await searchNotes(notionToken, notionDatabaseId, keyword, controller.signal);
 
-      const answer = await generateAnswer({
-        apiBase: llmApiBase,
-        apiKey: llmApiKey,
-        model: llmModel,
-        question: message,
-        keyword,
-        noteCount: retrieval.notes.length,
-        contextText: retrieval.contextText,
-        history,
-        signal: controller.signal,
-      });
+      // 圖片鏡像跟產生答案沒有相依，並行做才不會把延遲疊上去。
+      // 鏡像失敗只退回原始 Notion 網址，不影響文字回答。
+      const [answer, images] = await Promise.all([
+        generateAnswer({
+          apiBase: llmApiBase,
+          apiKey: llmApiKey,
+          model: llmModel,
+          question: message,
+          keyword,
+          noteCount: retrieval.notes.length,
+          contextText: retrieval.contextText,
+          history,
+          signal: controller.signal,
+        }),
+        mirrorImages(retrieval.images).catch(() => retrieval.images),
+      ]);
 
       const response: NotionQAResponse = {
         text: answer || FALLBACK_TEXT,
-        images: retrieval.images,
+        images,
         source_url: retrieval.sourceUrl,
         session_id: sessionId,
       };
